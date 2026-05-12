@@ -1,0 +1,36 @@
+<sumeru>
+    <record id="action_product_tree" model="ir.actions.act_window">
+        <field name="name">Products</field>
+        <field name="res_model">product.product</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help">Manage your product catalog.</field>
+    </record>
+
+    <view id="view_product_tree" model="product.product" type="tree">
+        <field name="default_code" string="Reference"/>
+        <field name="name" string="Product Name"/>
+        <field name="list_price" string="Sales Price"/>
+        <field name="qty_available" string="On Hand"/>
+        <field name="active" string="Active"/>
+    </view>
+
+    <view id="view_product_form" model="product.product" type="form">
+        <sheet>
+            <div class="oe_title">
+                <h1>
+                    <field name="name" placeholder="Product name"/>
+                </h1>
+            </div>
+            <group>
+                <group string="General">
+                    <field name="default_code" string="Internal Reference"/>
+                    <field name="active" string="Active"/>
+                </group>
+                <group string="Sales">
+                    <field name="list_price" string="Sales Price"/>
+                    <field name="qty_available" string="Quantity On Hand"/>
+                </group>
+            </group>
+        </sheet>
+    </view>
+</sumeru>

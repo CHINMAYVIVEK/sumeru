@@ -1,0 +1,6 @@
+<sumeru>
+  <!-- Users app: top bar entry; sidebar lists only items for this module (Odoo 11 shell). -->
+  <menuitem id="menu_user_root" name="Users" sequence="6" web_icon="users"/>
+  <menuitem id="menu_user_directory" name="User Accounts" parent="menu_user_root" sequence="10" action="user.action_res_users" web_icon="user"/>
+  <menuitem id="menu_user_companies" name="Company Directory" parent="menu_user_root" sequence="20" action="company.action_res_company" web_icon="building"/>
+</sumeru>

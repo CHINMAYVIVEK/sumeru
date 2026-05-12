@@ -1,0 +1,93 @@
+<div class="sum-apps-wrap">
+    <div class="sum-apps-hero">
+        <h1>Apps</h1>
+        <p>Install, uninstall, activate, or deactivate modules from the Apps dashboard.</p>
+    </div>
+
+    {{if .Message}}
+    <div class="sum-flash">{{.Message}}</div>
+    {{end}}
+
+    <h2 class="sum-section-title">Applications</h2>
+    <div class="sum-app-grid">
+        {{range .Modules}}
+        {{if .Application}}
+        <article class="sum-app-card">
+            <div class="sum-app-card-head">
+                <div>
+                    <h3>{{.DisplayName}}</h3>
+                    <p class="sum-app-meta">{{.Name}} · v{{.Version}}</p>
+                </div>
+                {{if eq .State "installed"}}
+                    {{if .Active}}
+                    <span class="sum-badge sum-badge--on">{{.State}}</span>
+                    {{else}}
+                    <span class="sum-badge sum-badge--off">{{.State}} · off</span>
+                    {{end}}
+                {{else}}
+                <span class="sum-badge sum-badge--off">{{.State}}</span>
+                {{end}}
+            </div>
+            <p class="sum-app-desc">{{.Description}}</p>
+            <p class="sum-app-author">by {{.Author}}</p>
+            <div class="sum-app-actions">
+                {{if .CanInstall}}
+                <form method="post" action="/web/module/action">
+                    <input type="hidden" name="do" value="install" />
+                    <input type="hidden" name="module" value="{{.Name}}" />
+                    <button type="submit" class="sum-btn sum-btn--primary">Install</button>
+                </form>
+                {{end}}
+                {{if .CanUninstall}}
+                <form method="post" action="/web/module/action" onsubmit="return confirm('Uninstall {{.DisplayName}}? Menus and views for this app will be removed from the database.');">
+                    <input type="hidden" name="do" value="uninstall" />
+                    <input type="hidden" name="module" value="{{.Name}}" />
+                    <button type="submit" class="sum-btn sum-btn--danger">Uninstall</button>
+                </form>
+                {{end}}
+                {{if .CanDeactivate}}
+                <form method="post" action="/web/module/action">
+                    <input type="hidden" name="do" value="deactivate" />
+                    <input type="hidden" name="module" value="{{.Name}}" />
+                    <button type="submit" class="sum-btn sum-btn--ghost">Deactivate</button>
+                </form>
+                {{end}}
+                {{if .CanActivate}}
+                <form method="post" action="/web/module/action">
+                    <input type="hidden" name="do" value="activate" />
+                    <input type="hidden" name="module" value="{{.Name}}" />
+                    <button type="submit" class="sum-btn sum-btn--success">Activate</button>
+                </form>
+                {{end}}
+            </div>
+        </article>
+        {{end}}
+        {{end}}
+    </div>
+
+    <h2 class="sum-section-title">System modules</h2>
+    <div class="sum-table-wrap">
+        <table class="sum-table">
+            <thead>
+                <tr>
+                    <th>Module</th>
+                    <th>State</th>
+                    <th>Active</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Modules}}
+                {{if not .Application}}
+                <tr>
+                    <td style="font-family:ui-monospace,monospace;font-size:0.75rem;">{{.Name}}</td>
+                    <td>{{.State}}</td>
+                    <td>{{if .Active}}yes{{else}}no{{end}}</td>
+                    <td style="color:var(--sum-muted);font-size:0.8rem;">Core platform module</td>
+                </tr>
+                {{end}}
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>

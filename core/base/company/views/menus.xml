@@ -1,0 +1,7 @@
+<sumeru>
+  <!-- Top bar: root app (Odoo 11: one tile per installed application). Sidebar: children below. -->
+  <menuitem id="menu_company_root" name="Companies" sequence="5" web_icon="building"/>
+  <menuitem id="menu_company_companies" name="All Companies" parent="menu_company_root" sequence="10" action="company.action_res_company" web_icon="building"/>
+  <menuitem id="menu_company_configuration" name="Configuration" parent="menu_company_root" sequence="90" web_icon="settings"/>
+  <menuitem id="menu_company_settings" name="Company Settings" parent="menu_company_configuration" sequence="10" action="company.action_res_company" web_icon="building"/>
+</sumeru>

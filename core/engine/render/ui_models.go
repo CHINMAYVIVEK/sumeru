@@ -1,0 +1,83 @@
+package render
+
+import (
+	"strings"
+	"unicode"
+)
+
+// UIModelName maps technical model names to end-user labels (Odoo 19 / Enterprise style).
+func UIModelName(technicalModel string) string {
+	switch strings.TrimSpace(technicalModel) {
+	case "res.company":
+		return "Companies"
+	case "res.users":
+		return "Users"
+	case "res.partner":
+		return "Contacts"
+	case "res.currency":
+		return "Currencies"
+	case "ir.module":
+		return "Apps"
+	default:
+		return humanizeModelTechnical(technicalModel)
+	}
+}
+
+// HumanViewBreadcrumb returns the workspace breadcrumb segment for a view (no technical model id).
+func HumanViewBreadcrumb(technicalModel, viewType string) string {
+	switch strings.TrimSpace(technicalModel) {
+	case "res.company":
+		switch strings.TrimSpace(viewType) {
+		case "tree", "list":
+			return "Companies"
+		default:
+			return "Company"
+		}
+	case "res.users":
+		switch strings.TrimSpace(viewType) {
+		case "tree", "list":
+			return "Users"
+		default:
+			return "User"
+		}
+	default:
+		return viewTypeLabel(UIModelName(technicalModel), viewType)
+	}
+}
+
+func viewTypeLabel(base, viewType string) string {
+	switch strings.TrimSpace(viewType) {
+	case "tree", "list":
+		return base
+	case "form":
+		if base != "" {
+			return base
+		}
+		return "Form"
+	case "kanban":
+		return base + " · Kanban"
+	case "pivot":
+		return base + " · Pivot"
+	default:
+		return base
+	}
+}
+
+func humanizeModelTechnical(model string) string {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return ""
+	}
+	parts := strings.Split(model, ".")
+	last := parts[len(parts)-1]
+	last = strings.ReplaceAll(last, "_", " ")
+	rs := []rune(last)
+	for i, r := range rs {
+		if i == 0 {
+			rs[i] = unicode.ToUpper(r)
+		} else if i > 0 && rs[i-1] == ' ' {
+			rs[i] = unicode.ToUpper(r)
+		}
+	}
+	return string(rs)
+}

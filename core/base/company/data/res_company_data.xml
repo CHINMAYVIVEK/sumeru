@@ -1,0 +1,14 @@
+<sumeru>
+  <data noupdate="1">
+    <record id="company_default" model="res.company">
+      <field name="name">My Company</field>
+      <field name="email">contact@example.com</field>
+      <field name="street">250 Executive Park Blvd</field>
+      <field name="city">San Francisco</field>
+      <field name="zip">94134</field>
+      <field name="country">United States</field>
+      <field name="phone">+1 555 0100</field>
+      <field name="website">https://example.com</field>
+    </record>
+  </data>
+</sumeru>

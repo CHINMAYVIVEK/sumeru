@@ -1,0 +1,8 @@
+<sumeru>
+  <record id="action_res_company" model="ir.actions.act_window">
+    <field name="name">Companies</field>
+    <field name="res_model">res.company</field>
+    <field name="view_mode">tree,form</field>
+    <field name="help">Maintain the legal entities used across the database: fiscal position, identifiers, and contact channels (Odoo 19 Enterprise–style company registry).</field>
+  </record>
+</sumeru>

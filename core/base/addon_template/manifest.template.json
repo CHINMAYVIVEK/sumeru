@@ -1,0 +1,13 @@
+{
+  "name": "my_module",
+  "display_name": "My Module",
+  "version": "1.0.0",
+  "depends": ["base"],
+  "author": "Your Company",
+  "description": "Short summary shown in Apps.",
+  "application": true,
+  "data": [
+    "views/my_model_views.xml",
+    "views/menus.xml"
+  ]
+}

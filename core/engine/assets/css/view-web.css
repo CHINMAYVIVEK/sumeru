@@ -1,0 +1,10 @@
+/* /web — workspace content (forms, lists, kanban from renderer). */
+.o_form_sheet_bg {
+  background: var(--sum-bg) !important;
+}
+
+.o_form_sheet,
+.o_form_statusbar {
+  border-radius: var(--sum-radius-sm) !important;
+  box-shadow: var(--sum-shadow-soft) !important;
+}

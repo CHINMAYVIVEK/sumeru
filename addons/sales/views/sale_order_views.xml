@@ -1,0 +1,76 @@
+<sumeru>
+    <record id="action_sale_order_tree" model="ir.actions.act_window">
+        <field name="name">Quotations</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">form,tree,kanban</field>
+        <field name="help">Create your first quotation!</field>
+    </record>
+
+    <record id="action_sale_order_kanban" model="ir.actions.act_window">
+        <field name="name">Orders Kanban</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">kanban,tree,form</field>
+    </record>
+
+    <view id="view_order_tree" model="sale.order" type="tree">
+        <field name="name" string="Order Number"/>
+        <field name="partner_name" string="Customer"/>
+        <field name="date_order" string="Date"/>
+        <field name="amount" string="Total"/>
+        <field name="state" string="Status"/>
+    </view>
+
+    <view id="view_order_kanban" model="sale.order" type="kanban">
+        <field name="name" string="Order Number"/>
+        <field name="partner_name" string="Customer"/>
+        <field name="amount" string="Total"/>
+        <field name="state" string="Status"/>
+    </view>
+
+    <view id="view_order_form" model="sale.order" type="form">
+        <header>
+            <button name="action_confirm" string="Confirm" type="object" class="oe_highlight"/>
+            <button name="action_cancel" string="Cancel" type="object"/>
+            <field name="state" string="Status" widget="statusbar"/>
+        </header>
+        <sheet>
+            <div class="oe_button_box" name="button_box">
+            </div>
+            <div class="oe_title">
+                <h1>
+                    <field name="name" placeholder="e.g. SO001"/>
+                </h1>
+                <div class="flex space-x-4">
+                    <field name="email" string="Email" widget="email"/>
+                    <field name="phone" string="Phone"/>
+                </div>
+            </div>
+            <group>
+                <group string="Customer Information">
+                    <field name="partner_name" string="Customer"/>
+                    <field name="date_order" string="Order Date"/>
+                </group>
+                <group string="Financials">
+                    <field name="amount" string="Total Amount"/>
+                    <field name="priority" string="Priority"/>
+                </group>
+            </group>
+            <notebook>
+                <page string="Order Lines">
+                    <group>
+                        <field name="note" string="Internal Notes"/>
+                    </group>
+                </page>
+                <page string="Other Info">
+                    <group>
+                        <field name="user_id" string="Salesperson"/>
+                        <field name="company_id" string="Company"/>
+                    </group>
+                </page>
+            </notebook>
+        </sheet>
+        <chatter>
+            <field name="note" string="Log" widget="mail_thread"/>
+        </chatter>
+    </view>
+</sumeru>

@@ -1,0 +1,58 @@
+<sumeru>
+  <view id="view_res_company_form" model="res.company" type="form">
+    <sheet>
+      <div class="oe_button_box" name="button_box">
+      </div>
+      <div class="oe_title">
+        <h1>
+          <field name="name" placeholder="Company legal name…"/>
+        </h1>
+        <div class="flex space-x-4">
+          <field name="email" string="Email" widget="email"/>
+          <field name="phone" string="Phone"/>
+          <field name="website" string="Website"/>
+        </div>
+      </div>
+
+      <group>
+        <group string="Identification">
+          <field name="company_registry" string="Company ID"/>
+          <field name="vat" string="Tax ID"/>
+        </group>
+        <group string="Contact">
+          <field name="mobile" string="Mobile"/>
+        </group>
+      </group>
+
+      <group string="Address">
+        <group>
+          <field name="street" string="Street"/>
+          <field name="street2" string="Street 2"/>
+          <field name="city" string="City"/>
+          <field name="zip" string="Zip"/>
+        </group>
+        <group>
+          <field name="state" string="State / Province"/>
+          <field name="country" string="Country"/>
+        </group>
+      </group>
+
+      <notebook>
+        <page string="Internal Notes">
+          <group>
+            <field name="internal_notes" string="Internal notes"/>
+          </group>
+        </page>
+        <page string="Legal">
+          <group>
+            <field name="company_registry" string="Commercial Registry"/>
+            <field name="vat" string="Tax ID (VAT)"/>
+          </group>
+        </page>
+      </notebook>
+    </sheet>
+    <chatter>
+      <field name="internal_notes" string="Communication" widget="mail_thread"/>
+    </chatter>
+  </view>
+</sumeru>
