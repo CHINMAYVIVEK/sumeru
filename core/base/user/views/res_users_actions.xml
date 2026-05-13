@@ -1,8 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
 <sumeru>
-  <record id="action_res_users" model="ir.actions.act_window">
-    <field name="name">Users</field>
-    <field name="res_model">res.users</field>
-    <field name="view_mode">tree,form</field>
-    <field name="help">Configure internal users: authentication, default company, language, timezone, and email signature (Odoo 19 Enterprise–style access directory).</field>
-  </record>
+    <data>
+        <!-- ir.actions.act_window : res.users -->
+        <record id="action_res_users" model="ir.actions.act_window">
+            <field name="name">Users</field>
+            <field name="res_model">res.users</field>
+            <field name="view_mode">tree,kanban,form</field>
+            <field name="help">Configure internal users: authentication, default company, language, timezone, and email signature.</field>
+        </record>
+    </data>
 </sumeru>

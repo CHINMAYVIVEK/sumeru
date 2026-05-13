@@ -36,10 +36,11 @@ Multiple addon roots (sumeru.conf)
 
 Module XML (standard)
 ---------------------
-  **Root element (required):** `<sumeru>` only.
+  **Root element (required):** `<sumeru>` (same role as `<odoo>` in Odoo module data files).
 
-  **`<data noupdate="1">` (optional):** Wrap `<record>`, `<view>`, and `<menuitem>` children.
-    `noupdate="1"` | `true` | `yes` — parsed into ViewList/MenuList.NoUpdate (reserved for future skip-on-upgrade behavior).
+  **File header (recommended):** `<?xml version="1.0" encoding="utf-8"?>` on the first line.
+
+  **`<data>` (recommended):** Wrap module content in `<data>...</data>` (Odoo-style). Optional **`noupdate="1"`** (or `true` / `yes`) on `<data>` for records that should not be overwritten on module update; parsed into ViewList/MenuList.NoUpdate (reserved for future skip-on-upgrade behavior).
 
   **`<record>`** — `id`, `model`; children `<field name="..."`:
     - Body text → field value
@@ -61,7 +62,7 @@ Module XML (standard)
     `<footer>` — `<button/>`
     `<chatter>` — `<field/>` (placeholder UI)
 
-  **Tree / list:** `<field name string/>` columns (type `tree`; `list` in `view_mode` maps to tree).
+  **Tree / list:** `<field name string/>` columns (type `tree`; `list` in `view_mode` maps to tree). Optional **`open="false"`** (or `0`, `off`, `no`) on `<tree>` or `<view type="tree">` disables opening the form when a row is clicked; omitted or `true` opens the form (default).
 
   **Kanban:** `<field/>` cards (simplified layout).
 

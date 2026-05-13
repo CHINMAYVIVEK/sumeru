@@ -14,7 +14,7 @@ import (
 
 type PageData struct {
 	Title               string // legacy / diagnostics; prefer ViewBreadcrumb for UI
-	ViewBreadcrumb      string // human label for breadcrumb (Odoo-style; never technical model id)
+	ViewBreadcrumb      string // human label for breadcrumb (not the technical model id)
 	AppName             string // product display name (browser tab suffix, header)
 	ModuleName          string
 	Content             template.HTML
@@ -29,6 +29,7 @@ type PageData struct {
 	ShellCompany        string
 	ShellUser           string
 	UserInitial         string // first letter for avatar
+	ViewTabs            []ViewSwitchTab // workspace view switcher; empty hides toolbar
 }
 
 type SidebarMenu struct {
@@ -42,6 +43,7 @@ type ViewRecordData struct {
 	ActionID int
 	Record   map[string]interface{}
 	ListRows []map[string]interface{}
+	ViewTabs []ViewSwitchTab // optional; copied onto PageData for base layout
 }
 
 func recStr(rec map[string]interface{}, name string) string {
@@ -76,10 +78,13 @@ func isTruthyDB(v interface{}) bool {
 
 func rowOpenURL(actionID int, menuID string, rowID int64) string {
 	q := url.Values{}
-	q.Set("action", fmt.Sprintf("%d", actionID))
+	if actionID > 0 {
+		q.Set("action", fmt.Sprintf("%d", actionID))
+	}
 	if strings.TrimSpace(menuID) != "" {
 		q.Set("menu_id", strings.TrimSpace(menuID))
 	}
+	q.Set("view_type", "form")
 	q.Set("id", fmt.Sprintf("%d", rowID))
 	return "/web?" + q.Encode()
 }
@@ -117,6 +122,7 @@ func RenderView(view *parser.View, activeMenuID, templatesDir string, recData *V
 		ActiveMenuID:        activeMenuID,
 		ViewStylesheetURLs:  []string{"/static/css/view-web.css"},
 		ExtraStylesheetURLs: ExtraStylesheetURLs,
+		ViewTabs:            recData.ViewTabs,
 	}
 
 	log.Printf("Rendering view for model %s (ActiveMenu: %s, ActiveModule: %s)", view.Model, activeMenuID, activeModuleID)
@@ -185,7 +191,7 @@ func renderHeader(sb *strings.Builder, h *parser.Header, record map[string]inter
 		} else {
 			class += "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
 		}
-		sb.WriteString(fmt.Sprintf(`<button type="button" class="%s">%s</button>`, class, template.HTMLEscapeString(b.String)))
+		sb.WriteString(fmt.Sprintf(`<button type="button" disabled class="%s opacity-60 cursor-not-allowed">%s</button>`, class, template.HTMLEscapeString(b.String)))
 	}
 	sb.WriteString(`</div>`)
 
@@ -373,7 +379,7 @@ func renderFormFooter(sb *strings.Builder, ft *parser.Footer) {
 		if label == "" {
 			label = template.HTMLEscapeString(b.Name)
 		}
-		sb.WriteString(fmt.Sprintf(`<button type="button" name="%s" class="%s">%s</button>`,
+		sb.WriteString(fmt.Sprintf(`<button type="button" disabled name="%s" class="%s opacity-60 cursor-not-allowed">%s</button>`,
 			template.HTMLEscapeString(b.Name), cls, label))
 	}
 	sb.WriteString(`</div>`)
@@ -396,7 +402,7 @@ func RenderTree(view *parser.View, rows []map[string]interface{}, actionID int, 
 	}
 	var sb strings.Builder
 
-	sb.WriteString(`<div class="bg-white shadow-sm rounded-sm border border-slate-200 overflow-hidden">`)
+	sb.WriteString(`<div class="sum-web-table-wrap">`)
 	sb.WriteString(`<table class="w-full text-left border-collapse">`)
 	sb.WriteString(`<thead class="bg-slate-50 border-b border-slate-200">`)
 	sb.WriteString(`<tr>`)
@@ -418,12 +424,22 @@ func RenderTree(view *parser.View, rows []map[string]interface{}, actionID int, 
 		sb.WriteString(fmt.Sprintf(`<tr><td colspan="%d" class="px-4 py-8 text-sm text-slate-500 text-center">No records</td></tr>`, colspan))
 	}
 	for _, row := range rows {
-		rid, ok := orm.CoerceInt64(row["id"])
-		if !ok {
-			continue
+		rid, hasID := orm.CoerceInt64(row["id"])
+		menuTrim := strings.TrimSpace(menuID)
+		canOpenForm := !view.TreeNoRowOpen && hasID && rid > 0 && (actionID > 0 || menuTrim != "")
+		rowClass := "hover:bg-slate-50 transition-colors"
+		if canOpenForm {
+			rowClass += " cursor-pointer"
 		}
-		href := rowOpenURL(actionID, menuID, rid)
-		sb.WriteString(`<tr class="hover:bg-slate-50 transition-colors cursor-pointer" onclick="window.location.href=` + strconv.Quote(href) + `">`)
+		sb.WriteString(`<tr class="` + rowClass + `"`)
+		if canOpenForm {
+			href := rowOpenURL(actionID, menuID, rid)
+			// HTML attribute must use outer single quotes: strconv.Quote(href) is a JS double-quoted string.
+			// Using onclick="...href="+Quote breaks the attribute at the first embedded ".
+			qhref := strconv.Quote(href)
+			sb.WriteString(` role="link" tabindex="0" onclick='window.location.href=` + qhref + `' onkeydown='if(event.key==="Enter"||event.key===" "){event.preventDefault();window.location.href=` + qhref + `}'`)
+		}
+		sb.WriteString(`>`)
 		for _, f := range view.Field {
 			cell := template.HTMLEscapeString(recStr(row, f.Name))
 			sb.WriteString(`<td class="px-4 py-3 text-sm text-slate-600">` + cell + `</td>`)
@@ -443,9 +459,10 @@ func RenderKanban(view *parser.View, rows []map[string]interface{}, actionID int
 	}
 	var sb strings.Builder
 
-	sb.WriteString(`<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">`)
+	sb.WriteString(`<div class="sum-kanban-board">`)
+	sb.WriteString(`<div class="sum-kanban-columns">`)
 	if len(rows) == 0 {
-		sb.WriteString(`<div class="col-span-full text-sm text-slate-500 py-8 text-center">No records</div>`)
+		sb.WriteString(`<div class="sum-kanban-empty">No records</div>`)
 	}
 	for _, row := range rows {
 		rid, ok := orm.CoerceInt64(row["id"])
@@ -463,14 +480,22 @@ func RenderKanban(view *parser.View, rows []map[string]interface{}, actionID int
 		if title == "" {
 			title = fmt.Sprintf("#%d", rid)
 		}
-		sb.WriteString(`<div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow cursor-pointer" onclick="window.location.href=` + strconv.Quote(href) + `">`)
-		sb.WriteString(`<h4 class="font-bold text-slate-800">` + template.HTMLEscapeString(title) + `</h4>`)
-		if len(view.Field) > 1 {
-			sb.WriteString(`<p class="text-sm text-slate-500 mt-2">` + template.HTMLEscapeString(recStr(row, view.Field[1].Name)) + `</p>`)
+		qhref := strconv.Quote(href)
+		sb.WriteString(`<article class="sum-kanban-card" role="link" tabindex="0" onclick='window.location.href=` + qhref + `' onkeydown='if(event.key==="Enter"){window.location.href=` + qhref + `}'>`)
+		sb.WriteString(`<h4 class="sum-kanban-card-title">` + template.HTMLEscapeString(title) + `</h4>`)
+		var subParts []string
+		for fi := 1; fi < len(view.Field); fi++ {
+			s := recStr(row, view.Field[fi].Name)
+			if s != "" {
+				subParts = append(subParts, s)
+			}
 		}
-		sb.WriteString(`</div>`)
+		if len(subParts) > 0 {
+			sb.WriteString(`<p class="sum-kanban-card-sub">` + template.HTMLEscapeString(strings.Join(subParts, " · ")) + `</p>`)
+		}
+		sb.WriteString(`</article>`)
 	}
-	sb.WriteString(`</div>`)
+	sb.WriteString(`</div></div>`)
 
 	return sb.String()
 }

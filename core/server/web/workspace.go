@@ -65,16 +65,16 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		modes = []string{"tree"}
 	}
 
-	// Opening a specific record should use the form view (list actions use view_mode "tree,form").
+	// Optional ?view_type=... (explicit tab / layout) is applied before the default mode list.
+	if vt := strings.TrimSpace(r.URL.Query().Get("view_type")); vt != "" {
+		modes = append([]string{normalizeViewMode(vt)}, modes...)
+	}
+
+	// Opening a specific record should use the form view; prepend after view_type so ?id=… always wins over ?view_type=tree|kanban.
 	if idStr := strings.TrimSpace(r.URL.Query().Get("id")); idStr != "" {
 		if _, err := strconv.Atoi(idStr); err == nil {
 			modes = append([]string{"form"}, modes...)
 		}
-	}
-
-	// Optional ?view_type=... takes highest priority
-	if vt := strings.TrimSpace(r.URL.Query().Get("view_type")); vt != "" {
-		modes = append([]string{normalizeViewMode(vt)}, modes...)
 	}
 
 	var viewData map[string]interface{}
@@ -116,6 +116,9 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 
 	menuID := r.URL.Query().Get("menu_id")
 	vr := &render.ViewRecordData{ActionID: actionID}
+
+	idQ := strings.TrimSpace(r.URL.Query().Get("id"))
+	vr.ViewTabs = render.WorkspaceViewTabs(resModel, actionID, menuID, selectedMode, idQ)
 
 	switch selectedMode {
 	case "form":

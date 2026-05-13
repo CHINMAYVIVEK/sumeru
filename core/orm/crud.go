@@ -236,8 +236,22 @@ func CoerceInt64(v interface{}) (int64, bool) {
 		return int64(t), true
 	case int:
 		return int64(t), true
+	case uint64:
+		return int64(t), true
+	case uint32:
+		return int64(t), true
 	case float64:
 		return int64(t), true
+	case float32:
+		return int64(t), true
+	case string:
+		s := strings.TrimSpace(t)
+		if s == "" {
+			return 0, false
+		}
+		var n int64
+		_, err := fmt.Sscanf(s, "%d", &n)
+		return n, err == nil
 	case []byte:
 		var n int64
 		_, err := fmt.Sscanf(string(t), "%d", &n)

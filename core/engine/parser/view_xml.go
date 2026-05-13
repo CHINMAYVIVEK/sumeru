@@ -13,12 +13,16 @@ type View struct {
 	Model   string    `xml:"model,attr"`
 	Type    string    `xml:"type,attr"`
 	Title   string    `xml:"title,attr"`
-	Header  *Header   `xml:"header"`
-	Sheet   *Sheet    `xml:"sheet"`
-	Footer  *Footer   `xml:"footer"`
-	Chatter *Chatter  `xml:"chatter"`
-	Field   []Field   `xml:"field"`
-	Group   []Group   `xml:"group"`
+	// TreeOpenAttr is the raw <tree open="..."/> or <view type="tree" open="..."/> attribute (false/0/off disables row→form).
+	TreeOpenAttr string `xml:"open,attr"`
+	// TreeNoRowOpen is derived from TreeOpenAttr by the arch parser for type tree/list.
+	TreeNoRowOpen bool `xml:"-"`
+	Header        *Header `xml:"header"`
+	Sheet         *Sheet  `xml:"sheet"`
+	Footer        *Footer `xml:"footer"`
+	Chatter       *Chatter `xml:"chatter"`
+	Field         []Field `xml:"field"`
+	Group         []Group `xml:"group"`
 }
 
 type Header struct {
@@ -175,7 +179,12 @@ func ParseView(filePath string) (*View, error) {
 }
 
 func ParseViewFromArch(arch string) (*View, error) {
-	return parseViewFromArchInternal(strings.TrimSpace(arch))
+	v, err := parseViewFromArchInternal(strings.TrimSpace(arch))
+	if err != nil {
+		return nil, err
+	}
+	v.Type = strings.ToLower(strings.TrimSpace(v.Type))
+	return v, nil
 }
 
 func ParseViewByType(filePath string, viewType string) (*View, error) {

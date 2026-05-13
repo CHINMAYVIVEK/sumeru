@@ -21,6 +21,7 @@ type archFormRoot struct {
 type archTreeRoot struct {
 	XMLName xml.Name `xml:"tree"`
 	String  string   `xml:"string,attr"`
+	Open    string   `xml:"open,attr"`
 	Field   []Field  `xml:"field"`
 }
 
@@ -36,6 +37,7 @@ func parseViewFromArchInternal(arch string) (*View, error) {
 
 	var v View
 	if err := xml.Unmarshal([]byte(arch), &v); err == nil && viewLooksPopulated(&v) {
+		applyTreeListOpenFlag(&v)
 		return &v, nil
 	}
 
@@ -54,7 +56,12 @@ func parseViewFromArchInternal(arch string) (*View, error) {
 
 	var t archTreeRoot
 	if err := xml.Unmarshal([]byte(arch), &t); err == nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(arch)), "<tree") {
-		return &View{Type: "tree", Field: t.Field}, nil
+		return &View{
+			Type:           "tree",
+			Field:          t.Field,
+			TreeOpenAttr:   t.Open,
+			TreeNoRowOpen:  treeOpenAttrDisablesRowNavigation(t.Open),
+		}, nil
 	}
 
 	var k archKanbanRoot

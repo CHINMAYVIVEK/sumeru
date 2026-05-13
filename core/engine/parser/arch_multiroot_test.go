@@ -23,3 +23,39 @@ func TestParseViewFromArch_treeRoot(t *testing.T) {
 		t.Fatalf("unexpected view: %#v", v)
 	}
 }
+
+func TestParseViewFromArch_viewRootTreeOpenFalse(t *testing.T) {
+	arch := `<view type="tree" open="false"><field name="x" string="X"/></view>`
+	v, err := ParseViewFromArch(arch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Type != "tree" || len(v.Field) != 1 {
+		t.Fatalf("unexpected view: %#v", v)
+	}
+	if !v.TreeNoRowOpen {
+		t.Fatalf("expected TreeNoRowOpen for view root with open=false")
+	}
+}
+
+func TestParseViewFromArch_treeOpenFalse(t *testing.T) {
+	arch := `<tree open="false"><field name="a"/></tree>`
+	v, err := ParseViewFromArch(arch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !v.TreeNoRowOpen {
+		t.Fatalf("expected TreeNoRowOpen true for open=false, got %#v", v)
+	}
+}
+
+func TestParseViewFromArch_treeOpenDefault(t *testing.T) {
+	arch := `<tree><field name="a"/></tree>`
+	v, err := ParseViewFromArch(arch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.TreeNoRowOpen {
+		t.Fatalf("expected TreeNoRowOpen false by default, got %#v", v)
+	}
+}

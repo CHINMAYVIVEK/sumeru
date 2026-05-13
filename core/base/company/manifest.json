@@ -4,12 +4,13 @@
   "version": "1.0.0",
   "depends": ["base"],
   "author": "Sumeru",
-  "description": "Corporate registry: legal entities, fiscal data, addresses, and company profile — modelled on Odoo 19 Enterprise (res.company).",
+  "description": "Corporate registry: legal entities, fiscal data, addresses, and company profile (res.company).",
   "application": true,
   "data": [
     "data/res_company_data.xml",
     "views/res_company_actions.xml",
     "views/res_company_tree_views.xml",
+    "views/res_company_kanban_views.xml",
     "views/res_company_form_views.xml",
     "views/menus.xml"
   ]

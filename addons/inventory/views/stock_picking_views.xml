@@ -1,36 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
 <sumeru>
-    <record id="action_stock_picking_tree" model="ir.actions.act_window">
-        <field name="name">Transfers</field>
-        <field name="res_model">stock.picking</field>
-        <field name="view_mode">tree,form</field>
-        <field name="help">Track deliveries and receipts.</field>
-    </record>
+    <data>
+        <!-- ir.actions.act_window : stock.picking -->
+        <record id="action_stock_picking_tree" model="ir.actions.act_window">
+            <field name="name">Transfers</field>
+            <field name="res_model">stock.picking</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help">Track deliveries and receipts.</field>
+        </record>
 
-    <view id="view_picking_tree" model="stock.picking" type="tree">
-        <field name="name" string="Reference"/>
-        <field name="partner_name" string="Contact"/>
-        <field name="picking_type_code" string="Type"/>
-        <field name="scheduled_date" string="Scheduled Date"/>
-        <field name="state" string="Status"/>
-    </view>
+        <!-- ir.ui.view : stock.picking -->
+        <view id="view_picking_tree" model="stock.picking" type="tree">
+            <field name="name" string="Reference"/>
+            <field name="partner_name" string="Contact"/>
+            <field name="picking_type_code" string="Type"/>
+            <field name="scheduled_date" string="Scheduled Date"/>
+            <field name="state" string="Status"/>
+        </view>
 
-    <view id="view_picking_form" model="stock.picking" type="form">
-        <header>
-            <button name="action_validate" string="Validate" type="object" class="oe_highlight"/>
-            <field name="state" string="Status" widget="statusbar"/>
-        </header>
-        <sheet>
-            <group>
-                <group string="Shipment">
-                    <field name="name" string="Reference"/>
-                    <field name="origin" string="Source Document"/>
-                    <field name="picking_type_code" string="Operation Type"/>
+        <view id="view_picking_form" model="stock.picking" type="form">
+            <header>
+                <button name="action_validate" string="Validate" type="object" class="oe_highlight"/>
+                <field name="state" string="Status" widget="statusbar"/>
+            </header>
+            <sheet>
+                <group>
+                    <group string="Shipment">
+                        <field name="name" string="Reference"/>
+                        <field name="origin" string="Source Document"/>
+                        <field name="picking_type_code" string="Operation Type"/>
+                    </group>
+                    <group string="Scheduling">
+                        <field name="scheduled_date" string="Scheduled Date"/>
+                        <field name="partner_name" string="Contact"/>
+                    </group>
                 </group>
-                <group string="Scheduling">
-                    <field name="scheduled_date" string="Scheduled Date"/>
-                    <field name="partner_name" string="Contact"/>
-                </group>
-            </group>
-        </sheet>
-    </view>
+            </sheet>
+        </view>
+    </data>
 </sumeru>

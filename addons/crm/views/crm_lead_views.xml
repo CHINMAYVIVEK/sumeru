@@ -1,70 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
 <sumeru>
-    <record id="action_crm_lead_tree" model="ir.actions.act_window">
-        <field name="name">Leads</field>
-        <field name="res_model">crm.lead</field>
-        <field name="view_mode">tree,form,kanban</field>
-        <field name="help">Track opportunities from first contact to close.</field>
-    </record>
+    <data>
+        <!-- ir.actions.act_window : crm.lead -->
+        <record id="action_crm_lead_tree" model="ir.actions.act_window">
+            <field name="name">Leads</field>
+            <field name="res_model">crm.lead</field>
+            <field name="view_mode">tree,form,kanban</field>
+            <field name="help">Track opportunities from first contact to close.</field>
+        </record>
 
-    <record id="action_crm_lead_kanban" model="ir.actions.act_window">
-        <field name="name">Pipeline</field>
-        <field name="res_model">crm.lead</field>
-        <field name="view_mode">kanban,tree,form</field>
-    </record>
+        <record id="action_crm_lead_kanban" model="ir.actions.act_window">
+            <field name="name">Pipeline</field>
+            <field name="res_model">crm.lead</field>
+            <field name="view_mode">kanban,tree,form</field>
+        </record>
 
-    <view id="view_crm_lead_tree" model="crm.lead" type="tree">
-        <field name="name" string="Opportunity"/>
-        <field name="partner_name" string="Contact"/>
-        <field name="email" string="Email"/>
-        <field name="stage" string="Stage"/>
-        <field name="expected_revenue" string="Expected Revenue"/>
-        <field name="probability" string="Probability"/>
-    </view>
+        <!-- ir.ui.view : crm.lead -->
+        <view id="view_crm_lead_tree" model="crm.lead" type="tree">
+            <field name="name" string="Opportunity"/>
+            <field name="partner_name" string="Contact"/>
+            <field name="email" string="Email"/>
+            <field name="stage" string="Stage"/>
+            <field name="expected_revenue" string="Expected Revenue"/>
+            <field name="probability" string="Probability"/>
+        </view>
 
-    <view id="view_crm_lead_kanban" model="crm.lead" type="kanban">
-        <field name="name" string="Opportunity"/>
-        <field name="partner_name" string="Contact"/>
-        <field name="expected_revenue" string="Expected Revenue"/>
-        <field name="stage" string="Stage"/>
-    </view>
+        <view id="view_crm_lead_kanban" model="crm.lead" type="kanban">
+            <field name="name" string="Opportunity"/>
+            <field name="partner_name" string="Contact"/>
+            <field name="expected_revenue" string="Expected Revenue"/>
+            <field name="stage" string="Stage"/>
+        </view>
 
-    <view id="view_crm_lead_form" model="crm.lead" type="form">
-        <header>
-            <button name="action_mark_won" string="Mark Won" type="object" class="oe_highlight"/>
-            <button name="action_mark_lost" string="Mark Lost" type="object"/>
-            <field name="stage" string="Stage" widget="statusbar"/>
-        </header>
-        <sheet>
-            <div class="oe_title">
-                <h1>
-                    <field name="name" placeholder="e.g. Big Deal"/>
-                </h1>
-                <div class="flex space-x-4">
-                    <field name="email" string="Email"/>
-                    <field name="phone" string="Phone"/>
+        <view id="view_crm_lead_form" model="crm.lead" type="form">
+            <header>
+                <button name="action_mark_won" string="Mark Won" type="object" class="oe_highlight"/>
+                <button name="action_mark_lost" string="Mark Lost" type="object"/>
+                <field name="stage" string="Stage" widget="statusbar"/>
+            </header>
+            <sheet>
+                <div class="oe_title">
+                    <h1>
+                        <field name="name" placeholder="e.g. Big Deal"/>
+                    </h1>
+                    <div class="flex space-x-4">
+                        <field name="email" string="Email"/>
+                        <field name="phone" string="Phone"/>
+                    </div>
                 </div>
-            </div>
-            <group>
-                <group string="Contact">
-                    <field name="partner_name" string="Contact Name"/>
-                </group>
-                <group string="Revenue">
-                    <field name="expected_revenue" string="Expected Revenue"/>
-                    <field name="probability" string="Probability (%)"/>
-                </group>
-            </group>
-            <notebook>
-                <page string="Internal Notes">
-                    <group>
-                        <field name="description" string="Notes"/>
+                <group>
+                    <group string="Contact">
+                        <field name="partner_name" string="Contact Name"/>
                     </group>
-                </page>
-                <page string="Assignment">
-                    <group>
-                        <field name="user_id" string="Salesperson"/>
+                    <group string="Revenue">
+                        <field name="expected_revenue" string="Expected Revenue"/>
+                        <field name="probability" string="Probability (%)"/>
                     </group>
-                </page>
-            </notebook>
-        </sheet>
-    </view>
+                </group>
+                <notebook>
+                    <page string="Internal Notes">
+                        <group>
+                            <field name="description" string="Notes"/>
+                        </group>
+                    </page>
+                    <page string="Assignment">
+                        <group>
+                            <field name="user_id" string="Salesperson"/>
+                        </group>
+                    </page>
+                </notebook>
+            </sheet>
+        </view>
+    </data>
 </sumeru>

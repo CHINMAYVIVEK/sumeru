@@ -5,7 +5,7 @@ import (
 	"unicode"
 )
 
-// UIModelName maps technical model names to end-user labels (Odoo 19 / Enterprise style).
+// UIModelName maps technical model names to end-user labels for the UI.
 func UIModelName(technicalModel string) string {
 	switch strings.TrimSpace(technicalModel) {
 	case "res.company":

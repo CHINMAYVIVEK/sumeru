@@ -20,7 +20,7 @@ const coreModule = "base"
 
 type Manifest struct {
 	Name        string   `json:"name"`
-	DisplayName string   `json:"display_name"` // optional; Apps / shell label (Odoo-style app title)
+	DisplayName string   `json:"display_name"` // optional; Apps / shell label
 	Version     string   `json:"version"`
 	Depends     []string `json:"depends"`
 	Author      string   `json:"author"`

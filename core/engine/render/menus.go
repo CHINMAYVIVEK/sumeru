@@ -23,7 +23,7 @@ func sanitizeMenuIcon(s string) string {
 }
 
 // LoadShellMenus loads ir.ui.menu rows for installed modules and derives top bar + sidebar structure.
-// Top bar (Odoo 11 style): one entry per installed application module (ir.module.application = true).
+// Top bar: one entry per installed application module (ir.module.application = true).
 // Sidebar: menus for the active app only (same ir.ui.menu.module as the active root).
 func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMenus []SidebarMenu, activeModuleID string) {
 	modTbl := orm.GetTableName("ir.module")

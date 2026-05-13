@@ -1,6 +1,9 @@
 package web
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func intFromDB(v interface{}) (int, bool) {
 	switch t := v.(type) {
@@ -69,7 +72,7 @@ func trimSpace(s string) string {
 }
 
 func normalizeViewMode(mode string) string {
-	m := trimSpace(mode)
+	m := strings.ToLower(trimSpace(mode))
 	if m == "" {
 		return m
 	}

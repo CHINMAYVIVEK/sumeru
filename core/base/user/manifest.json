@@ -4,11 +4,12 @@
   "version": "1.0.0",
   "depends": ["base", "company"],
   "author": "Sumeru",
-  "description": "Internal users: authentication, company assignment, localization, and signatures — modelled on Odoo 19 Enterprise (res.users).",
+  "description": "Internal users: authentication, company assignment, localization, and signatures (res.users).",
   "application": true,
   "data": [
     "views/res_users_actions.xml",
     "views/res_users_tree_views.xml",
+    "views/res_users_kanban_views.xml",
     "views/res_users_form_views.xml",
     "views/menus.xml"
   ]

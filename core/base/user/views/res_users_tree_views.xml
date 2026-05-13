@@ -1,10 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
 <sumeru>
-  <view id="view_res_users_tree" model="res.users" type="tree">
-    <field name="name" string="Name"/>
-    <field name="login" string="Login"/>
-    <field name="email" string="Email"/>
-    <field name="company_id" string="Company"/>
-    <field name="lang" string="Language"/>
-    <field name="active" string="Active"/>
-  </view>
+    <data>
+        <!-- ir.ui.view : res.users (tree) -->
+        <view id="view_res_users_tree" model="res.users" type="tree">
+            <field name="name" string="Name"/>
+            <field name="login" string="Login"/>
+            <field name="email" string="Email"/>
+            <field name="company_id" string="Company"/>
+            <field name="lang" string="Language"/>
+            <field name="active" string="Active"/>
+        </view>
+    </data>
 </sumeru>

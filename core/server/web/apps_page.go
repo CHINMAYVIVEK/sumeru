@@ -29,17 +29,33 @@ type appsModule struct {
 	CanUninstall  bool
 	CanDeactivate bool
 	CanActivate   bool
+	IconLetter    string // first letter for app tile
+}
+
+type appsKanbanColumn struct {
+	Title    string
+	Subtitle string
+	Modules  []appsModule
 }
 
 type appsPageData struct {
-	Title   string
-	Message string
-	Modules []appsModule
+	Title      string
+	Message    string
+	Modules    []appsModule
+	Layout     string
+	KanbanCols []appsKanbanColumn
 }
 
 // AppsHandler lists installable apps and exposes install / uninstall / activate controls.
 func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	msg := strings.TrimSpace(r.URL.Query().Get("msg"))
+	layout := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("layout")))
+	if layout == "" {
+		layout = "grid"
+	}
+	if layout != "grid" && layout != "kanban" && layout != "list" {
+		layout = "grid"
+	}
 
 	raw, err := module.ListModules()
 	if err != nil {
@@ -75,7 +91,31 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		if am.DisplayName == "" {
 			am.DisplayName = am.Name
 		}
+		if r := []rune(strings.TrimSpace(am.DisplayName)); len(r) > 0 {
+			am.IconLetter = strings.ToUpper(string(r[0]))
+		} else {
+			am.IconLetter = "?"
+		}
 		mods = append(mods, am)
+	}
+
+	var discover, activeOn, activeOff []appsModule
+	for _, m := range mods {
+		if !m.Application {
+			continue
+		}
+		if m.State != "installed" {
+			discover = append(discover, m)
+		} else if m.Active {
+			activeOn = append(activeOn, m)
+		} else {
+			activeOff = append(activeOff, m)
+		}
+	}
+	kanbanCols := []appsKanbanColumn{
+		{Title: "Discover", Subtitle: "Ready to activate", Modules: discover},
+		{Title: "Running", Subtitle: "Installed and on", Modules: activeOn},
+		{Title: "Paused", Subtitle: "Installed but disabled", Modules: activeOff},
 	}
 
 	tmplPath := filepath.Join(config.AppConfig.TemplatesPath, "apps_inner.html")
@@ -87,9 +127,11 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var innerBuf bytes.Buffer
 	data := appsPageData{
-		Title:   "Apps",
-		Message: msg,
-		Modules: mods,
+		Title:      "Apps",
+		Message:    msg,
+		Modules:    mods,
+		Layout:     layout,
+		KanbanCols: kanbanCols,
 	}
 	if err := innerTmpl.Execute(&innerBuf, data); err != nil {
 		log.Printf("%s: execute apps_inner: %v", platformmsg.MsgHTTPTemplateError, err)
@@ -110,6 +152,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		ViewStylesheetURLs:  []string{"/static/css/view-apps.css"},
 		AppsNavActive:       true,
 		ExtraStylesheetURLs: render.ExtraStylesheetURLs,
+		ViewTabs:            render.AppsViewTabs(layout, msg),
 	}
 	html, err := render.RenderPage(config.AppConfig.TemplatesPath, page)
 	if err != nil {
