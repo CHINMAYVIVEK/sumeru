@@ -12,6 +12,7 @@ import (
 
 	"sumeru/core/orm"
 	"sumeru/core/server/config"
+	"sumeru/core/server/web"
 )
 
 // Run parses flags, loads configuration, initializes persistence and modules,
@@ -90,6 +91,10 @@ func Run() {
 		log.Fatalf("Module CLI (-i / -u): %v", err)
 	}
 
+	if err := orm.EnsureBootstrapSecurity(); err != nil {
+		log.Fatalf("Security bootstrap: %v", err)
+	}
+
 	hadModuleOps := strings.TrimSpace(*installMods) != "" || strings.TrimSpace(*updateMods) != ""
 	if *stopAfterInit && hadModuleOps {
 		log.Println("stop-after-init: module operations finished, exiting.")
@@ -100,7 +105,8 @@ func Run() {
 	registerAppRoutes()
 
 	log.Printf("Server starting on :%s...", config.AppConfig.HttpPort)
-	if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, nil); err != nil {
+	h := web.SecurityMiddleware(nil)
+	if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, h); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }

@@ -292,6 +292,10 @@ func RenderForm(view *parser.View, vr *ViewRecordData) string {
 		sb.WriteString(`</div>`)
 	}
 
+	if strings.TrimSpace(vr.ResModel) == "res.users" {
+		writeResUsersSecuritySection(&sb, vr, ro)
+	}
+
 	if view.Footer != nil {
 		renderFormFooter(&sb, view.Footer)
 	}
@@ -822,6 +826,11 @@ func rawField(record map[string]interface{}, name string) (interface{}, bool) {
 }
 
 func renderField(sb *strings.Builder, f parser.Field, record map[string]interface{}, ro bool) {
+	if gs := strings.TrimSpace(f.Groups); gs != "" {
+		if !orm.UserHasAnyAccessGroup(orm.SecurityUID(), gs) {
+			return
+		}
+	}
 	label := f.Label
 	if label == "" {
 		label = strings.Title(strings.ReplaceAll(f.Name, "_", " "))
@@ -920,4 +929,71 @@ func renderField(sb *strings.Builder, f parser.Field, record map[string]interfac
 			template.HTMLEscapeString(placeholder), template.HTMLEscapeString(val)))
 		sb.WriteString(`</div>`)
 	}
+}
+
+func writeResUsersSecuritySection(sb *strings.Builder, vr *ViewRecordData, ro bool) {
+	uid := orm.SecurityUID()
+	if uid <= 0 {
+		return
+	}
+	if err := orm.CheckModelAccess(uid, "res.groups", "read"); err != nil {
+		return
+	}
+	sb.WriteString(`<div class="border border-slate-200 rounded-lg p-6 mb-6 bg-slate-50/80">`)
+	sb.WriteString(`<h3 class="text-sm font-semibold text-slate-800 mb-3">Access rights</h3>`)
+	if !ro {
+		sb.WriteString(`<input type="hidden" name="security_groups_touched" value="1"/>`)
+		sb.WriteString(`<div class="o_field_widget flex flex-col space-y-1 mb-4">`)
+		sb.WriteString(`<label class="text-xs font-bold text-slate-500 uppercase tracking-wide" for="password_plain">New password</label>`)
+		sb.WriteString(`<input class="px-3 py-2 border border-slate-200 rounded-sm text-sm" id="password_plain" name="password_plain" type="password" autocomplete="new-password" placeholder="Leave blank to keep current" />`)
+		sb.WriteString(`</div>`)
+	}
+	selected := map[int]struct{}{}
+	if vr.RecordID > 0 {
+		rel := orm.GetTableName("res.groups.user.rel")
+		rows, err := orm.DB.Query(`SELECT group_id FROM `+rel+` WHERE user_id = $1`, vr.RecordID)
+		if err == nil {
+			for rows.Next() {
+				var gid int
+				if err := rows.Scan(&gid); err == nil {
+					selected[gid] = struct{}{}
+				}
+			}
+			rows.Close()
+		}
+	}
+	groups, err := orm.ListAllGroupRows()
+	if err != nil || len(groups) == 0 {
+		sb.WriteString(`<p class="text-sm text-slate-500">No groups defined.</p></div>`)
+		return
+	}
+	if ro {
+		var names []string
+		for _, g := range groups {
+			id, _ := orm.CoerceInt64(g["id"])
+			if _, ok := selected[int(id)]; ok {
+				names = append(names, orm.AsString(g["name"]))
+			}
+		}
+		sb.WriteString(`<p class="text-sm text-slate-700">` + template.HTMLEscapeString(strings.Join(names, ", ")) + `</p></div>`)
+		return
+	}
+	sb.WriteString(`<div class="space-y-2 max-h-48 overflow-y-auto">`)
+	for _, g := range groups {
+		gid, ok := orm.CoerceInt64(g["id"])
+		if !ok {
+			continue
+		}
+		nm := orm.AsString(g["name"])
+		_, checked := selected[int(gid)]
+		chk := ""
+		if checked {
+			chk = ` checked`
+		}
+		sb.WriteString(`<label class="flex items-center gap-2 text-sm text-slate-700">`)
+		sb.WriteString(fmt.Sprintf(`<input type="checkbox" name="security_group_ids" value="%d"%s />`, int(gid), chk))
+		sb.WriteString(template.HTMLEscapeString(nm))
+		sb.WriteString(`</label>`)
+	}
+	sb.WriteString(`</div></div>`)
 }

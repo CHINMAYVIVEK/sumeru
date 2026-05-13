@@ -10,10 +10,15 @@ import (
 
 	"sumeru/core/mail"
 	"sumeru/core/orm"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // RecordSaveHandler applies POSTed field values to an existing row (or creates one when id is empty).
 func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireLogin(w, r) {
+		return
+	}
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -51,6 +56,7 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Save failed", http.StatusInternalServerError)
 			return
 		}
+		applyResUsersSecurityPost(r, modelName, newID)
 		_ = mail.PostMessage(modelName, int64(newID), fmt.Sprintf("Record created (id %d).", newID), mail.SubtypeNotification, "System")
 		redir := appendRecordIDToNext(next, newID)
 		http.Redirect(w, r, redir, http.StatusSeeOther)
@@ -72,6 +78,7 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Save failed", http.StatusInternalServerError)
 		return
 	}
+	applyResUsersSecurityPost(r, modelName, id)
 	_ = mail.PostMessage(modelName, int64(id), fmt.Sprintf("Record updated (id %d).", id), mail.SubtypeNotification, "System")
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
@@ -95,7 +102,7 @@ func postFormToModelValues(inst orm.Model, form url.Values) (map[string]interfac
 		typBy[f.Name] = f.Type
 	}
 	skipNames := map[string]struct{}{
-		"model": {}, "id": {}, "next": {},
+		"model": {}, "id": {}, "next": {}, "password_plain": {}, "security_group_ids": {}, "security_groups_touched": {},
 	}
 	out := make(map[string]interface{})
 	for k, vv := range form {
@@ -139,4 +146,38 @@ func postFormToModelValues(inst orm.Model, form url.Values) (map[string]interfac
 		return nil, fmt.Errorf("no valid fields to save")
 	}
 	return out, nil
+}
+
+func applyResUsersSecurityPost(r *http.Request, modelName string, userID int) {
+	if modelName != "res.users" || userID <= 0 {
+		return
+	}
+	if err := orm.CheckModelAccess(orm.SecurityUID(), "res.users", "write"); err != nil {
+		return
+	}
+	if r.PostFormValue("security_groups_touched") == "1" {
+		var gids []int
+		for _, s := range r.Form["security_group_ids"] {
+			n, err := strconv.Atoi(strings.TrimSpace(s))
+			if err == nil && n > 0 {
+				gids = append(gids, n)
+			}
+		}
+		if err := orm.SetUserGroupLinks(userID, gids); err != nil {
+			log.Printf("web: set user %d groups: %v", userID, err)
+		}
+	}
+	if _, ok := r.Form["password_plain"]; ok {
+		if pw := strings.TrimSpace(r.PostFormValue("password_plain")); pw != "" {
+			hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+			if err != nil {
+				log.Printf("web: bcrypt: %v", err)
+				return
+			}
+			tbl := orm.GetTableName("res.users")
+			if _, err := orm.DB.Exec(`UPDATE `+tbl+` SET password = $1 WHERE id = $2`, string(hash), userID); err != nil {
+				log.Printf("web: password update user %d: %v", userID, err)
+			}
+		}
+	}
 }

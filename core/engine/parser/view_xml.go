@@ -78,6 +78,7 @@ type Field struct {
 	Widget      string `xml:"widget,attr"`
 	Placeholder string `xml:"placeholder,attr"`
 	Options     string `xml:"options,attr"`
+	Groups      string `xml:"groups,attr"`
 }
 
 type Group struct {
@@ -119,13 +120,14 @@ type Record struct {
 }
 
 type MenuItem struct {
-	ID       string `xml:"id,attr"`
-	Name     string `xml:"name,attr"`
-	ParentID string `xml:"parent,attr"`
-	Action   string `xml:"action,attr"`
-	Sequence int    `xml:"sequence,attr"`
-	WebIcon  string `xml:"web_icon,attr"`
-	Module   string `xml:"-"` // set from DB rows only (not in XML menu files)
+	ID            string `xml:"id,attr"`
+	Name          string `xml:"name,attr"`
+	ParentID      string `xml:"parent,attr"`
+	Action        string `xml:"action,attr"`
+	Sequence      int    `xml:"sequence,attr"`
+	WebIcon       string `xml:"web_icon,attr"`
+	AccessGroups  string `xml:"groups,attr"`
+	Module        string `xml:"-"` // set from DB rows only (not in XML menu files)
 }
 
 type ViewList struct {

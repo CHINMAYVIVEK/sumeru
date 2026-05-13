@@ -7,6 +7,17 @@ import (
 )
 
 func registerAppRoutes() {
+	http.HandleFunc("/web/login", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			web.LoginGet(w, r)
+		case http.MethodPost:
+			web.LoginPost(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	http.HandleFunc("/web/logout", web.LogoutGet)
 	http.HandleFunc("/web", web.WebHandler)
 	http.HandleFunc("/web/apps", web.AppsHandler)
 	http.HandleFunc("/web/apps/", func(w http.ResponseWriter, r *http.Request) {

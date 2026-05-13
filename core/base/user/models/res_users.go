@@ -5,6 +5,7 @@ import "sumeru/core/base"
 type ResUsers struct {
 	base.BaseModel
 	Login     string `db:"login"`
+	Password  string `db:"password"` // bcrypt hash; never list in UI
 	Name      string `db:"name"`
 	Active    bool   `db:"active"`
 	Email     string `db:"email"`
@@ -21,6 +22,7 @@ func (ResUsers) ModelName() string { return "res.users" }
 func (ResUsers) Fields() []base.FieldDefinition {
 	return []base.FieldDefinition{
 		{Name: "login", Type: base.Char, Required: true, Unique: true, String: "Login", Index: true},
+		{Name: "password", Type: base.Char, String: "Password"},
 		{Name: "name", Type: base.Char, String: "Name"},
 		{Name: "active", Type: base.Boolean, String: "Active", DefaultVal: true},
 		{Name: "email", Type: base.Char, String: "Email"},

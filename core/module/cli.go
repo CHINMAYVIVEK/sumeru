@@ -50,6 +50,9 @@ func UpdateModuleData(name string) error {
 // For -u, the token "all" (case-insensitive) means every module with ir.module.state = installed,
 // in dependency order when manifests are on disk.
 func RunModuleCLI(installCSV, updateCSV string) error {
+	orm.SetSecurityBypass(true)
+	defer orm.SetSecurityBypass(false)
+
 	for _, name := range splitCSV(installCSV) {
 		if err := InstallModuleByName(name); err != nil {
 			return fmt.Errorf("install %q: %w", name, err)

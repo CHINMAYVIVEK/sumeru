@@ -59,6 +59,9 @@ type appsPageData struct {
 
 // AppsHandler lists installable apps and exposes install / uninstall / activate controls.
 func AppsHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireLogin(w, r) {
+		return
+	}
 	msg := strings.TrimSpace(r.URL.Query().Get("msg"))
 	layout := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("layout")))
 	if layout == "" {

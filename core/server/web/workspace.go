@@ -16,6 +16,9 @@ import (
 
 // WebHandler renders ir.actions.act_window targets using ir.ui.view definitions.
 func WebHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireLogin(w, r) {
+		return
+	}
 	actionIDStr := r.URL.Query().Get("action")
 	menuIDStr := r.URL.Query().Get("menu_id")
 

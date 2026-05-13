@@ -55,6 +55,9 @@ var (
 // prepends core/base (platform addons: base, user, company), syncs ir.module rows, then loads XML for installed & active modules.
 // Later roots override earlier ones for the same technical module name.
 func LoadAddonPaths(paths []string) error {
+	orm.SetSecurityBypass(true)
+	defer orm.SetSecurityBypass(false)
+
 	var roots []string
 	for _, p := range paths {
 		if strings.TrimSpace(p) != "" {
@@ -318,6 +321,9 @@ func viewArchXML(v *parser.View) string {
 }
 
 func (a *Addon) SyncToDB() error {
+	orm.SetSecurityBypass(true)
+	defer orm.SetSecurityBypass(false)
+
 	for _, model := range orm.Registry {
 		_, err := orm.Upsert(orm.IrModel{}, map[string]interface{}{
 			"name":  model.ModelName(),
@@ -393,9 +399,10 @@ func (a *Addon) SyncToDB() error {
 		if err == nil && len(menus) > 0 {
 			for _, m := range menus {
 				vals := map[string]interface{}{
-					"name":     m.Name,
-					"sequence": m.Sequence,
-					"module":   modName,
+					"name":           m.Name,
+					"sequence":       m.Sequence,
+					"module":         modName,
+					"access_groups":  strings.TrimSpace(m.AccessGroups),
 				}
 
 				if m.Action != "" {
@@ -442,20 +449,30 @@ func syncGenericRegistryRecord(modName string, rec parser.Record) {
 	if rec.Model == "ir.actions.act_window" || rec.Model == "ir.ui.view" {
 		return
 	}
+	// Other ir.* models may be registered (ir.model.access, ir.rule, …).
 	if strings.HasPrefix(rec.Model, "ir.") {
+		inst, ok := orm.Registry[rec.Model]
+		if !ok || inst == nil {
+			return
+		}
+		syncRegistryRecordByModel(modName, rec, inst)
 		return
 	}
 	inst, ok := orm.Registry[rec.Model]
 	if !ok || inst == nil {
 		return
 	}
+	syncRegistryRecordByModel(modName, rec, inst)
+}
+
+func syncRegistryRecordByModel(modName string, rec parser.Record, inst orm.Model) {
 	fmStr := parser.RecordFieldMap(rec)
 	if len(fmStr) == 0 {
 		return
 	}
 	vals := map[string]interface{}{}
 	for k, v := range fmStr {
-		vals[k] = convertRecordScalar(rec.Model, k, v)
+		vals[k] = convertRecordScalar(modName, rec.Model, k, v)
 	}
 	conflict := "name"
 	if rec.Model == "res.users" {
@@ -490,8 +507,29 @@ func sanitizeWebIcon(s string) string {
 	return s
 }
 
-func convertRecordScalar(model, col, raw string) interface{} {
+func convertRecordScalar(modName, model, col, raw string) interface{} {
 	s := strings.TrimSpace(raw)
+	if strings.HasPrefix(col, "perm_") {
+		if b, err := strconv.ParseBool(s); err == nil {
+			return b
+		}
+		return strings.EqualFold(s, "true") || s == "1"
+	}
+	if col == "group_id" || col == "user_id" || col == "rule_id" || col == "implied_group_id" || col == "parent_id" {
+		if s == "" || strings.EqualFold(s, "false") || s == "0" {
+			return nil
+		}
+		if strings.Contains(s, ".") {
+			if id, _, err := orm.ResolveXmlId(s); err == nil && id > 0 {
+				return id
+			}
+		}
+		if modName != "" {
+			if id, _, err := orm.ResolveXmlId(modName + "." + s); err == nil && id > 0 {
+				return id
+			}
+		}
+	}
 	if col == "active" || strings.HasSuffix(col, "_active") {
 		if b, err := strconv.ParseBool(s); err == nil {
 			return b

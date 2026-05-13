@@ -42,13 +42,14 @@ func (v IrUiView) Fields() []FieldDefinition {
 
 // ir_ui_menu stores menu hierarchy
 type IrUiMenu struct {
-	ID        int       `orm:"id"`
-	Name      string    `orm:"name"`
-	ParentID  int       `orm:"parent_id"`
-	ActionID  int       `orm:"action_id"`
-	Sequence  int       `orm:"sequence"`
-	WebIcon   string    `orm:"web_icon"`
-	Module    string    `orm:"module"` // technical addon that owns this menu (for filtering by installed apps)
+	ID            int       `orm:"id"`
+	Name          string    `orm:"name"`
+	ParentID      int       `orm:"parent_id"`
+	ActionID      int       `orm:"action_id"`
+	Sequence      int       `orm:"sequence"`
+	WebIcon       string    `orm:"web_icon"`
+	Module        string    `orm:"module"`         // technical addon that owns this menu (for filtering by installed apps)
+	AccessGroups  string    `orm:"access_groups"` // comma-separated XML ids (e.g. user.group_admin); empty = all users
 }
 
 func (m IrUiMenu) ModelName() string { return "ir.ui.menu" }
@@ -60,6 +61,7 @@ func (m IrUiMenu) Fields() []FieldDefinition {
 		{Name: "sequence", Type: Integer},
 		{Name: "web_icon", Type: Char},
 		{Name: "module", Type: Char, Index: true},
+		{Name: "access_groups", Type: Char},
 	}
 }
 

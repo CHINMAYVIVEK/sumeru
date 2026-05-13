@@ -13,6 +13,9 @@ import (
 
 // ChatterPostHandler accepts POST /web/chatter/post (model, res_id, body, next).
 func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireLogin(w, r) {
+		return
+	}
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return

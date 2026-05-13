@@ -13,6 +13,13 @@ import (
 
 // ModuleActionHandler handles POST actions: install, uninstall, activate, deactivate.
 func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireLogin(w, r) {
+		return
+	}
+	if err := orm.CheckModelAccess(orm.SecurityUID(), "ir.module", "write"); err != nil {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/web/apps", http.StatusSeeOther)
 		return

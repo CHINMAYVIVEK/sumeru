@@ -33,7 +33,8 @@ func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMen
 	query := fmt.Sprintf(
 		`SELECT m.id, m.name, m.parent_id, m.action_id, m.sequence,
 		        COALESCE(NULLIF(TRIM(m.module), ''), '') AS module,
-		        COALESCE(NULLIF(TRIM(m.web_icon), ''), '') AS web_icon
+		        COALESCE(NULLIF(TRIM(m.web_icon), ''), '') AS web_icon,
+		        COALESCE(NULLIF(TRIM(m.access_groups), ''), '') AS access_groups
 		   FROM %s m
 		  WHERE COALESCE(NULLIF(TRIM(m.module), ''), '') = ''
 		     OR EXISTS (
@@ -52,20 +53,21 @@ func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMen
 	var allMenus []parser.MenuItem
 	for rows.Next() {
 		var id int
-		var name, mod, webIcon string
+		var name, mod, webIcon, accessGroups string
 		var parentID, actionID, seq sql.NullInt64
-		if err := rows.Scan(&id, &name, &parentID, &actionID, &seq, &mod, &webIcon); err != nil {
+		if err := rows.Scan(&id, &name, &parentID, &actionID, &seq, &mod, &webIcon, &accessGroups); err != nil {
 			log.Printf("Error scanning menu row: %v", err)
 			continue
 		}
 
 		m := parser.MenuItem{
-			ID:       fmt.Sprintf("%d", id),
-			Name:     name,
-			Sequence: int(seq.Int64),
-			Module:   mod,
-			WebIcon:  sanitizeMenuIcon(webIcon),
-			Action:   fmt.Sprintf("/web?menu_id=%d", id),
+			ID:           fmt.Sprintf("%d", id),
+			Name:         name,
+			Sequence:     int(seq.Int64),
+			Module:       mod,
+			WebIcon:      sanitizeMenuIcon(webIcon),
+			AccessGroups: strings.TrimSpace(accessGroups),
+			Action:       fmt.Sprintf("/web?menu_id=%d", id),
 		}
 		if parentID.Valid {
 			m.ParentID = fmt.Sprintf("%d", parentID.Int64)
@@ -84,8 +86,16 @@ func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMen
 		log.Printf("installed application modules: %v", err)
 	}
 
+	uid := orm.SecurityUID()
+	menuAllowed := func(mi parser.MenuItem) bool {
+		return orm.UserHasAnyAccessGroup(uid, mi.AccessGroups)
+	}
+
 	for _, m := range allMenus {
 		if m.ParentID != "" {
+			continue
+		}
+		if !menuAllowed(m) {
 			continue
 		}
 		mod := strings.TrimSpace(m.Module)
@@ -99,7 +109,7 @@ func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMen
 	}
 	if len(topMenus) == 0 {
 		for _, m := range allMenus {
-			if m.ParentID == "" {
+			if m.ParentID == "" && menuAllowed(m) {
 				topMenus = append(topMenus, m)
 			}
 		}
@@ -154,12 +164,12 @@ func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMen
 			return false
 		}
 		for _, m := range allMenus {
-			if m.ParentID != activeModuleID || !menuUnderActiveRoot(m) {
+			if m.ParentID != activeModuleID || !menuUnderActiveRoot(m) || !menuAllowed(m) {
 				continue
 			}
 			sm := SidebarMenu{ID: m.ID, Name: m.Name, Sequence: m.Sequence}
 			for _, sub := range allMenus {
-				if sub.ParentID != m.ID || !menuUnderActiveRoot(sub) {
+				if sub.ParentID != m.ID || !menuUnderActiveRoot(sub) || !menuAllowed(sub) {
 					continue
 				}
 				sm.SubMenus = append(sm.SubMenus, sub)

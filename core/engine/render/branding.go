@@ -45,6 +45,16 @@ func EnrichShellPageData(d *PageData) {
 		}
 	}
 	if d.ShellUser == "" {
+		if uid := orm.SecurityUID(); uid > 0 {
+			if u, err := orm.SearchOne("res.users", map[string]interface{}{"id": uid}); err == nil {
+				d.ShellUser = strings.TrimSpace(orm.AsString(u["name"]))
+				if d.ShellUser == "" {
+					d.ShellUser = strings.TrimSpace(orm.AsString(u["login"]))
+				}
+			}
+		}
+	}
+	if d.ShellUser == "" {
 		if _, ok := orm.Registry["res.users"]; ok {
 			tn := orm.GetTableName("res.users")
 			var nm string

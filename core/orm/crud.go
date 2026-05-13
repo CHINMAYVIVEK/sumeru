@@ -8,6 +8,13 @@ import (
 
 // Create inserts a new record into the database
 func Create(model Model, values map[string]interface{}) (int, error) {
+	uid := SecurityUID()
+	if err := CheckModelAccess(uid, model.ModelName(), "create"); err != nil {
+		return 0, err
+	}
+	if err := CheckRecordRules(uid, model.ModelName(), "create", values); err != nil {
+		return 0, err
+	}
 	var cols []string
 	var placeholders []string
 	var args []interface{}
@@ -63,6 +70,12 @@ func SearchOne(modelName string, criteria map[string]interface{}) (map[string]in
 	if _, ok := Registry[modelName]; !ok {
 		return nil, fmt.Errorf("model %s not registered", modelName)
 	}
+	uid := SecurityUID()
+	if !SecurityBypass() {
+		if err := CheckModelAccess(uid, modelName, "read"); err != nil {
+			return nil, err
+		}
+	}
 
 	var where []string
 	var args []interface{}
@@ -100,6 +113,12 @@ func SearchOne(modelName string, criteria map[string]interface{}) (map[string]in
 		result[col] = vals[i]
 	}
 
+	if !SecurityBypass() && uid > 0 {
+		if err := CheckRecordRules(uid, modelName, "read", result); err != nil {
+			return nil, sql.ErrNoRows
+		}
+	}
+
 	return result, nil
 }
 
@@ -134,16 +153,19 @@ func Search(modelName string, domain [][]interface{}) ([]map[string]interface{},
 	if _, ok := Registry[modelName]; !ok {
 		return nil, fmt.Errorf("model %s not found", modelName)
 	}
+	uid := SecurityUID()
+	if err := CheckModelAccess(uid, modelName, "read"); err != nil {
+		return nil, err
+	}
+	var err error
+	domain, err = MergeRuleDomainsIntoSearch(uid, modelName, "read", domain)
+	if err != nil {
+		return nil, err
+	}
 
-	whereClause := "1=1"
-	var args []interface{}
-	if len(domain) > 0 {
-		var parts []string
-		for i, d := range domain {
-			parts = append(parts, fmt.Sprintf("%s %s $%d", d[0], d[1], i+1))
-			args = append(args, d[2])
-		}
-		whereClause = strings.Join(parts, " AND ")
+	whereClause, args, err := buildSearchWhereClause(domain)
+	if err != nil {
+		return nil, err
 	}
 
 	query := fmt.Sprintf("SELECT * FROM %s WHERE %s", GetTableName(modelName), whereClause)
@@ -174,7 +196,7 @@ func Search(modelName string, domain [][]interface{}) ([]map[string]interface{},
 		results = append(results, m)
 	}
 
-	return results, nil
+	return results, rows.Err()
 }
 
 // SearchLimit returns up to limit rows for modelName matching domain, ordered by id.
@@ -186,16 +208,19 @@ func SearchLimit(modelName string, domain [][]interface{}, limit int) ([]map[str
 	if limit <= 0 {
 		limit = 500
 	}
+	uid := SecurityUID()
+	if err := CheckModelAccess(uid, modelName, "read"); err != nil {
+		return nil, err
+	}
+	var err error
+	domain, err = MergeRuleDomainsIntoSearch(uid, modelName, "read", domain)
+	if err != nil {
+		return nil, err
+	}
 
-	whereClause := "1=1"
-	var args []interface{}
-	if len(domain) > 0 {
-		var parts []string
-		for i, d := range domain {
-			parts = append(parts, fmt.Sprintf("%s %s $%d", d[0], d[1], i+1))
-			args = append(args, d[2])
-		}
-		whereClause = strings.Join(parts, " AND ")
+	whereClause, args, err := buildSearchWhereClause(domain)
+	if err != nil {
+		return nil, err
 	}
 
 	query := fmt.Sprintf("SELECT * FROM %s WHERE %s ORDER BY id ASC LIMIT %d",
@@ -281,6 +306,12 @@ func FindUIDefaultView(modelName, viewType string) (map[string]interface{}, erro
 	if _, ok := Registry["ir.ui.view"]; !ok {
 		return nil, fmt.Errorf("model ir.ui.view not registered")
 	}
+	uid := SecurityUID()
+	if !SecurityBypass() {
+		if err := CheckModelAccess(uid, "ir.ui.view", "read"); err != nil {
+			return nil, err
+		}
+	}
 	vt := strings.TrimSpace(strings.ToLower(viewType))
 	if vt == "list" {
 		vt = "tree"
@@ -321,9 +352,24 @@ func UpdateRecordByID(modelName string, id int, values map[string]interface{}) e
 	if id <= 0 {
 		return fmt.Errorf("invalid id")
 	}
+	uid := SecurityUID()
+	if err := CheckModelAccess(uid, modelName, "write"); err != nil {
+		return err
+	}
 	inst, ok := Registry[modelName]
 	if !ok || inst == nil {
 		return fmt.Errorf("model %s not found", modelName)
+	}
+	before, err := SearchOne(modelName, map[string]interface{}{"id": id})
+	if err != nil {
+		return err
+	}
+	if err := CheckRecordRules(uid, modelName, "write", before); err != nil {
+		return err
+	}
+	merged := mergeRecordMap(before, values)
+	if err := CheckRecordRules(uid, modelName, "write", merged); err != nil {
+		return err
 	}
 	allowed := map[string]struct{}{}
 	for _, f := range inst.Fields() {
@@ -351,6 +397,66 @@ func UpdateRecordByID(modelName string, id int, values map[string]interface{}) e
 	args = append(args, id)
 	tbl := GetTableName(modelName)
 	q := fmt.Sprintf(`UPDATE %s SET %s WHERE id = $%d`, tbl, strings.Join(sets, ", "), i)
-	_, err := DB.Exec(q, args...)
-	return err
+	_, execErr := DB.Exec(q, args...)
+	return execErr
+}
+
+func mergeRecordMap(base map[string]interface{}, patch map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{})
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range patch {
+		out[k] = v
+	}
+	return out
+}
+
+func buildSearchWhereClause(domain [][]interface{}) (string, []interface{}, error) {
+	if len(domain) == 0 {
+		return "1=1", nil, nil
+	}
+	var parts []string
+	var args []interface{}
+	n := 1
+	for _, d := range domain {
+		if len(d) != 3 {
+			return "", nil, fmt.Errorf("invalid domain clause %v", d)
+		}
+		field, ok := d[0].(string)
+		if !ok || strings.TrimSpace(field) == "" {
+			return "", nil, fmt.Errorf("domain field name")
+		}
+		op := strings.TrimSpace(strings.ToLower(fmt.Sprint(d[1])))
+		col := quoteIdent(field)
+		switch op {
+		case "=":
+			parts = append(parts, fmt.Sprintf("%s = $%d", col, n))
+			args = append(args, d[2])
+			n++
+		case "!=":
+			parts = append(parts, fmt.Sprintf("(%s IS DISTINCT FROM $%d)", col, n))
+			args = append(args, d[2])
+			n++
+		case "in":
+			list, ok := d[2].([]interface{})
+			if !ok {
+				return "", nil, fmt.Errorf("operator in requires array value")
+			}
+			if len(list) == 0 {
+				parts = append(parts, "FALSE")
+				continue
+			}
+			ph := make([]string, len(list))
+			for i := range list {
+				ph[i] = fmt.Sprintf("$%d", n)
+				args = append(args, list[i])
+				n++
+			}
+			parts = append(parts, fmt.Sprintf("%s IN (%s)", col, strings.Join(ph, ",")))
+		default:
+			return "", nil, fmt.Errorf("unsupported domain operator %q", op)
+		}
+	}
+	return strings.Join(parts, " AND "), args, nil
 }
