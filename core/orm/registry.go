@@ -17,12 +17,42 @@ func GetTableName(modelName string) string {
 
 func SyncModels() error {
 	for _, model := range Registry {
-		err := createTable(model)
-		if err != nil {
+		if err := createTable(model); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// ColumnTypeSQL returns the PostgreSQL column type fragment for f (without NOT NULL / UNIQUE / DEFAULT).
+// Many2One is stored as BIGINT. Unknown types return ok == false.
+func ColumnTypeSQL(f FieldDefinition) (sql string, ok bool) {
+	switch f.Type {
+	case Char:
+		return "VARCHAR(255)", true
+	case Text:
+		return "TEXT", true
+	case Integer:
+		return "BIGINT", true
+	case Float:
+		return "DOUBLE PRECISION", true
+	case Numeric:
+		return "NUMERIC(16, 4)", true
+	case Boolean:
+		return "BOOLEAN", true
+	case Date:
+		return "DATE", true
+	case DateTime:
+		return "TIMESTAMPTZ", true
+	case Selection:
+		return "VARCHAR(50)", true
+	case Json:
+		return "JSONB", true
+	case Many2One:
+		return "BIGINT", true
+	default:
+		return "", false
+	}
 }
 
 func createTable(model Model) error {
@@ -31,34 +61,11 @@ func createTable(model Model) error {
 	columns = append(columns, "id BIGSERIAL PRIMARY KEY")
 
 	for _, field := range model.Fields() {
-		colType := ""
-		switch field.Type {
-		case Char:
-			colType = "VARCHAR(255)"
-		case Text:
-			colType = "TEXT"
-		case Integer:
-			colType = "BIGINT"
-		case Float:
-			colType = "DOUBLE PRECISION"
-		case Numeric:
-			colType = "NUMERIC(16, 4)" // 16 digits total, 4 decimal places
-		case Boolean:
-			colType = "BOOLEAN"
-		case Date:
-			colType = "DATE"
-		case DateTime:
-			colType = "TIMESTAMPTZ"
-		case Selection:
-			colType = "VARCHAR(50)"
-		case Json:
-			colType = "JSONB"
-		case Many2One:
-			colType = "BIGINT" // Reference to other table's BIGSERIAL ID
-		default:
+		baseType, ok := ColumnTypeSQL(field)
+		if !ok {
 			continue
 		}
-
+		colType := baseType
 		if field.Required {
 			colType += " NOT NULL"
 		}

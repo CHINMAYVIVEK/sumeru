@@ -15,9 +15,11 @@ type ResCompany struct {
 	Phone           string `db:"phone"`
 	Mobile          string `db:"mobile"`
 	Website         string `db:"website"`
-	Vat             string `db:"vat"`
-	CompanyRegistry string `db:"company_registry"`
-	InternalNotes   string `db:"internal_notes"`
+	Vat                           string `db:"vat"`
+	CompanyRegistry               string `db:"company_registry"`
+	InternalNotes                 string `db:"internal_notes"`
+	MailChatterEnabled            bool   `db:"mail_chatter_enabled"`
+	MailActivityPanelEnabled      bool   `db:"mail_activity_panel_enabled"`
 }
 
 func (ResCompany) ModelName() string { return "res.company" }
@@ -38,6 +40,8 @@ func (ResCompany) Fields() []base.FieldDefinition {
 		{Name: "vat", Type: base.Char, String: "Tax ID", Index: true},
 		{Name: "company_registry", Type: base.Char, String: "Company ID"},
 		{Name: "internal_notes", Type: base.Text, String: "Internal Notes"},
+		{Name: "mail_chatter_enabled", Type: base.Boolean, String: "Chatter", DefaultVal: true},
+		{Name: "mail_activity_panel_enabled", Type: base.Boolean, String: "Activity panel", DefaultVal: true},
 	}
 }
 

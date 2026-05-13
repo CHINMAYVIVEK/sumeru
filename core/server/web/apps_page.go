@@ -6,12 +6,14 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
 	"sumeru/core/base/platformmsg"
 	"sumeru/core/engine/render"
 	"sumeru/core/module"
+	"sumeru/core/orm"
 	"sumeru/core/server/config"
 )
 
@@ -32,18 +34,27 @@ type appsModule struct {
 	IconLetter    string // first letter for app tile
 }
 
-type appsKanbanColumn struct {
-	Title    string
-	Subtitle string
-	Modules  []appsModule
+// appsModuleDetailVM is the readonly / edit form for one ir.module row on the Apps screen.
+type appsModuleDetailVM struct {
+	Layout                                    string
+	Editing                                   bool
+	Name, DisplayName, Author, Version        string
+	Description, State                        string
+	Active                                    bool
+	ID                                        int
+	CanInstall, CanUninstall                  bool
+	CanDeactivate, CanActivate                bool
+	BackAppsQuery                             string // layout=… (no module)
+	EditURL, CancelURL                        string
 }
 
 type appsPageData struct {
-	Title      string
-	Message    string
-	Modules    []appsModule
-	Layout     string
-	KanbanCols []appsKanbanColumn
+	Title         string
+	Message       string
+	Modules       []appsModule
+	Layout        string
+	ModuleDetail  *appsModuleDetailVM
+	ViewBreadcrumb string
 }
 
 // AppsHandler lists installable apps and exposes install / uninstall / activate controls.
@@ -53,9 +64,15 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	if layout == "" {
 		layout = "grid"
 	}
-	if layout != "grid" && layout != "kanban" && layout != "list" {
+	if layout == "kanban" {
 		layout = "grid"
 	}
+	if layout != "grid" && layout != "list" {
+		layout = "grid"
+	}
+
+	moduleParam := strings.TrimSpace(r.URL.Query().Get("module"))
+	editing := strings.TrimSpace(r.URL.Query().Get("edit")) == "1"
 
 	raw, err := module.ListModules()
 	if err != nil {
@@ -99,23 +116,58 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		mods = append(mods, am)
 	}
 
-	var discover, activeOn, activeOff []appsModule
-	for _, m := range mods {
-		if !m.Application {
-			continue
+	var detail *appsModuleDetailVM
+	breadcrumb := "Applications"
+	if moduleParam != "" {
+		row, err := orm.SearchOne("ir.module", map[string]interface{}{"name": moduleParam})
+		if err != nil {
+			http.Error(w, "Module not found", http.StatusNotFound)
+			return
 		}
-		if m.State != "installed" {
-			discover = append(discover, m)
-		} else if m.Active {
-			activeOn = append(activeOn, m)
-		} else {
-			activeOff = append(activeOff, m)
+		id64, ok := orm.CoerceInt64(row["id"])
+		if !ok {
+			http.Error(w, "Module not found", http.StatusNotFound)
+			return
 		}
-	}
-	kanbanCols := []appsKanbanColumn{
-		{Title: "Discover", Subtitle: "Ready to activate", Modules: discover},
-		{Title: "Running", Subtitle: "Installed and on", Modules: activeOn},
-		{Title: "Paused", Subtitle: "Installed but disabled", Modules: activeOff},
+		name := stringField(row["name"])
+		var found appsModule
+		for _, m := range mods {
+			if m.Name == name {
+				found = m
+				break
+			}
+		}
+		backQ := "layout=" + layout
+		qEdit := url.Values{}
+		qEdit.Set("module", name)
+		qEdit.Set("layout", layout)
+		qEdit.Set("edit", "1")
+		qCancel := url.Values{}
+		qCancel.Set("module", name)
+		qCancel.Set("layout", layout)
+		detail = &appsModuleDetailVM{
+			Layout:          layout,
+			Editing:         editing,
+			Name:            name,
+			DisplayName:     stringField(row["display_name"]),
+			Author:          stringField(row["author"]),
+			Version:         stringField(row["version"]),
+			Description:     stringField(row["description"]),
+			State:           stringField(row["state"]),
+			Active:          boolField(row["active"]),
+			ID:              int(id64),
+			CanInstall:      found.CanInstall,
+			CanUninstall:    found.CanUninstall,
+			CanDeactivate:   found.CanDeactivate,
+			CanActivate:     found.CanActivate,
+			BackAppsQuery:   backQ,
+			EditURL:         "/web/apps?" + qEdit.Encode(),
+			CancelURL:       "/web/apps?" + qCancel.Encode(),
+		}
+		if detail.DisplayName == "" {
+			detail.DisplayName = detail.Name
+		}
+		breadcrumb = "Apps · " + detail.DisplayName
 	}
 
 	tmplPath := filepath.Join(config.AppConfig.TemplatesPath, "apps_inner.html")
@@ -127,11 +179,12 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var innerBuf bytes.Buffer
 	data := appsPageData{
-		Title:      "Apps",
-		Message:    msg,
-		Modules:    mods,
-		Layout:     layout,
-		KanbanCols: kanbanCols,
+		Title:           "Apps",
+		Message:         msg,
+		Modules:         mods,
+		Layout:          layout,
+		ModuleDetail:    detail,
+		ViewBreadcrumb:  breadcrumb,
 	}
 	if err := innerTmpl.Execute(&innerBuf, data); err != nil {
 		log.Printf("%s: execute apps_inner: %v", platformmsg.MsgHTTPTemplateError, err)
@@ -142,7 +195,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	topMenus, sidebarMenus, activeModuleID := render.LoadShellMenus("")
 	page := render.PageData{
 		Title:               "Apps",
-		ViewBreadcrumb:      "Applications",
+		ViewBreadcrumb:      breadcrumb,
 		ModuleName:          "Apps",
 		Content:             template.HTML(innerBuf.String()),
 		TopMenus:            topMenus,
@@ -152,7 +205,11 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		ViewStylesheetURLs:  []string{"/static/css/view-apps.css"},
 		AppsNavActive:       true,
 		ExtraStylesheetURLs: render.ExtraStylesheetURLs,
-		ViewTabs:            render.AppsViewTabs(layout, msg),
+		ViewTabs:            render.AppsViewTabs(layout, msg, moduleParam),
+	}
+	if detail != nil {
+		page.ActivityContextModel = "ir.module"
+		page.ActivityContextRecordID = int64(detail.ID)
 	}
 	html, err := render.RenderPage(config.AppConfig.TemplatesPath, page)
 	if err != nil {

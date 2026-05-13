@@ -38,13 +38,10 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if actionID == 0 {
-		actTbl := orm.GetTableName("ir.actions.act_window")
-		var fa int
-		if err := orm.DB.QueryRow(`SELECT id FROM ` + actTbl + ` ORDER BY id ASC LIMIT 1`).Scan(&fa); err != nil {
-			http.Redirect(w, r, "/web/apps", http.StatusFound)
-			return
-		}
-		actionID = fa
+		// Avoid picking an arbitrary act_window (often the lowest id); that misroutes e.g. Sales/CRM roots.
+		log.Printf("web: no action for query action=%q menu_id=%q; redirecting to apps", actionIDStr, menuIDStr)
+		http.Redirect(w, r, "/web/apps", http.StatusFound)
+		return
 	}
 
 	actionData, err := orm.SearchOne("ir.actions.act_window", map[string]interface{}{"id": actionID})
@@ -115,9 +112,19 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	menuID := r.URL.Query().Get("menu_id")
-	vr := &render.ViewRecordData{ActionID: actionID}
-
 	idQ := strings.TrimSpace(r.URL.Query().Get("id"))
+	editing := strings.TrimSpace(r.URL.Query().Get("edit")) == "1"
+
+	vr := &render.ViewRecordData{ActionID: actionID}
+	// ResModel + RecordID drive readonly vs edit (?edit=1) for workspace forms; keep both in sync whenever loading a record.
+	vr.ResModel = resModel
+	vr.FormEditing = editing
+	vr.FormBaseQuery = formBaseQueryValues(actionID, menuID, "form", idQ)
+	if idQ != "" {
+		if rid, err := strconv.Atoi(idQ); err == nil && rid > 0 {
+			vr.RecordID = rid
+		}
+	}
 	vr.ViewTabs = render.WorkspaceViewTabs(resModel, actionID, menuID, selectedMode, idQ)
 
 	switch selectedMode {
@@ -173,11 +180,17 @@ func actionIDFromMenu(menuID int) int {
 	if aID, ok := intFromDB(menuData["action_id"]); ok && aID != 0 {
 		return aID
 	}
-	// First direct child with an action (common for section headers without actions)
+	// Section roots (Sales, CRM, …) often have no action; walk descendants in sequence order.
+	return firstDescendantActionID(menuID)
+}
+
+// firstDescendantActionID returns the first non-zero action_id in a depth-first walk
+// of children ordered by sequence, then id (matches typical “first submenu” behavior).
+func firstDescendantActionID(parentID int) int {
 	rows, err := orm.DB.Query(
 		`SELECT id, action_id FROM `+orm.GetTableName("ir.ui.menu")+
-			` WHERE parent_id = $1 AND action_id IS NOT NULL AND action_id <> 0 ORDER BY sequence ASC, id ASC`,
-		menuID,
+			` WHERE parent_id = $1 ORDER BY sequence ASC, id ASC`,
+		parentID,
 	)
 	if err != nil {
 		return 0
@@ -191,6 +204,9 @@ func actionIDFromMenu(menuID int) int {
 		}
 		if aid.Valid && aid.Int64 != 0 {
 			return int(aid.Int64)
+		}
+		if sub := firstDescendantActionID(cid); sub != 0 {
+			return sub
 		}
 	}
 	return 0

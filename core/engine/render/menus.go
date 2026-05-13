@@ -23,8 +23,10 @@ func sanitizeMenuIcon(s string) string {
 }
 
 // LoadShellMenus loads ir.ui.menu rows for installed modules and derives top bar + sidebar structure.
-// Top bar: one entry per installed application module (ir.module.application = true).
-// Sidebar: menus for the active app only (same ir.ui.menu.module as the active root).
+// Top bar: one entry per installed application module (ir.module.application = true), ordered by each
+// root menuitem's sequence (then name), like Odoo XML. The Settings app root (company module) is
+// always placed second-to-last; the Apps link is rendered after TopMenus in base.html (always last).
+// Sidebar: menus under the active app root (may span modules, e.g. Settings).
 func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMenus []SidebarMenu, activeModuleID string) {
 	modTbl := orm.GetTableName("ir.module")
 	menuTbl := orm.GetTableName("ir.ui.menu")
@@ -102,12 +104,7 @@ func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMen
 			}
 		}
 	}
-	sort.Slice(topMenus, func(i, j int) bool {
-		if topMenus[i].Sequence != topMenus[j].Sequence {
-			return topMenus[i].Sequence < topMenus[j].Sequence
-		}
-		return topMenus[i].Name < topMenus[j].Name
-	})
+	topMenus = sortTopBarRootMenus(topMenus)
 
 	if activeMenuID == "" && len(topMenus) > 0 {
 		activeModuleID = topMenus[0].ID
@@ -135,36 +132,94 @@ func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMen
 	}
 
 	if activeModuleID != "" {
-		var rootMod string
-		for _, m := range allMenus {
-			if m.ID == activeModuleID {
-				rootMod = strings.TrimSpace(m.Module)
-				break
+		// Include any menu row under the active app root (may mix modules, e.g. Settings: company + user).
+		menuUnderActiveRoot := func(mi parser.MenuItem) bool {
+			curr := mi
+			for i := 0; i <= len(allMenus); i++ {
+				if curr.ParentID == "" {
+					return curr.ID == activeModuleID
+				}
+				found := false
+				for _, p := range allMenus {
+					if p.ID == curr.ParentID {
+						curr = p
+						found = true
+						break
+					}
+				}
+				if !found {
+					return false
+				}
 			}
-		}
-		menuMatchesModule := func(mi parser.MenuItem) bool {
-			mm := strings.TrimSpace(mi.Module)
-			if rootMod == "" {
-				return mm == ""
-			}
-			return mm == rootMod
+			return false
 		}
 		for _, m := range allMenus {
-			if m.ParentID != activeModuleID || !menuMatchesModule(m) {
+			if m.ParentID != activeModuleID || !menuUnderActiveRoot(m) {
 				continue
 			}
-			sm := SidebarMenu{ID: m.ID, Name: m.Name}
+			sm := SidebarMenu{ID: m.ID, Name: m.Name, Sequence: m.Sequence}
 			for _, sub := range allMenus {
-				if sub.ParentID != m.ID || !menuMatchesModule(sub) {
+				if sub.ParentID != m.ID || !menuUnderActiveRoot(sub) {
 					continue
 				}
 				sm.SubMenus = append(sm.SubMenus, sub)
 			}
+			sort.Slice(sm.SubMenus, func(i, j int) bool {
+				if sm.SubMenus[i].Sequence != sm.SubMenus[j].Sequence {
+					return sm.SubMenus[i].Sequence < sm.SubMenus[j].Sequence
+				}
+				return sm.SubMenus[i].Name < sm.SubMenus[j].Name
+			})
 			sidebarMenus = append(sidebarMenus, sm)
 		}
+		sort.Slice(sidebarMenus, func(i, j int) bool {
+			if sidebarMenus[i].Sequence != sidebarMenus[j].Sequence {
+				return sidebarMenus[i].Sequence < sidebarMenus[j].Sequence
+			}
+			return sidebarMenus[i].Name < sidebarMenus[j].Name
+		})
 	}
 
 	return topMenus, sidebarMenus, activeModuleID
+}
+
+// sortTopBarRootMenus orders application root menus by each menuitem's `sequence` (then `name`),
+// matching Odoo XML. The Settings root (company module, name "Settings") is pinned second-to-last;
+// the Apps link is rendered after TopMenus in base.html and is always last.
+func sortTopBarRootMenus(in []parser.MenuItem) []parser.MenuItem {
+	if len(in) == 0 {
+		return in
+	}
+	var settings *parser.MenuItem
+	rest := make([]parser.MenuItem, 0, len(in))
+	for i := range in {
+		m := in[i]
+		if isPinnedSettingsRootMenu(m) {
+			mm := m
+			settings = &mm
+			continue
+		}
+		rest = append(rest, m)
+	}
+	sort.Slice(rest, func(i, j int) bool {
+		if rest[i].Sequence != rest[j].Sequence {
+			return rest[i].Sequence < rest[j].Sequence
+		}
+		return rest[i].Name < rest[j].Name
+	})
+	if settings == nil {
+		return rest
+	}
+	out := append([]parser.MenuItem{}, rest...)
+	out = append(out, *settings)
+	return out
+}
+
+func isPinnedSettingsRootMenu(m parser.MenuItem) bool {
+	if m.ParentID != "" {
+		return false
+	}
+	return strings.TrimSpace(m.Module) == "company" && strings.TrimSpace(m.Name) == "Settings"
 }
 
 // ModuleNameForTopMenu returns the display name of the active root menu.

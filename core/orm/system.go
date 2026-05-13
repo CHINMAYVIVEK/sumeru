@@ -113,6 +113,31 @@ func (a IrActionsActWindow) Fields() []FieldDefinition {
 	}
 }
 
+// mail_message stores chatter and activity log lines (Odoo-style subset).
+type MailMessage struct {
+	ID         int       `orm:"id"`
+	Model      string    `orm:"model"`       // technical model name e.g. res.company
+	ResID      int64     `orm:"res_id"`      // row id in that model
+	Body       string    `orm:"body"`
+	Subtype    string    `orm:"subtype"`     // comment | notification | module
+	Author     string    `orm:"author"`      // display name until res.users is wired
+	CreateDate string    `orm:"create_date"` // set on insert (TIMESTAMPTZ)
+	CompanyID  int64     `orm:"company_id"`  // optional FK res.company
+}
+
+func (m MailMessage) ModelName() string { return "mail.message" }
+func (m MailMessage) Fields() []FieldDefinition {
+	return []FieldDefinition{
+		{Name: "model", Type: Char, Required: true, Index: true},
+		{Name: "res_id", Type: Integer, Required: true},
+		{Name: "body", Type: Text, Required: true},
+		{Name: "subtype", Type: Char, Required: true},
+		{Name: "author", Type: Char},
+		{Name: "create_date", Type: DateTime, Required: true},
+		{Name: "company_id", Type: Many2One},
+	}
+}
+
 // ir_model_data maps XML IDs to database IDs
 type IrModelData struct {
 	ID      int    `orm:"id"`
@@ -139,4 +164,5 @@ func init() {
 	RegisterModel(IrActionsActWindow{})
 	RegisterModel(IrModelData{})
 	RegisterModel(IrModule{})
+	RegisterModel(MailMessage{})
 }

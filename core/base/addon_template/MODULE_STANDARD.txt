@@ -60,7 +60,7 @@ Module XML (standard)
     `<sheet>` — `<div class>`, `<group string>`, `<field/>`, `<notebook><page string>` with fields/groups,
                 `<separator string=""/>` (or empty), `<label for="" string=""/>`
     `<footer>` — `<button/>`
-    `<chatter>` — `<field/>` (placeholder UI)
+    `<chatter>` — thread + composer on workspace forms (requires a record id); messages stored in **`mail.message`** (see Activity and mail logging below).
 
   **Tree / list:** `<field name string/>` columns (type `tree`; `list` in `view_mode` maps to tree). Optional **`open="false"`** (or `0`, `off`, `no`) on `<tree>` or `<view type="tree">` disables opening the form when a row is clicked; omitted or `true` opens the form (default).
 
@@ -124,6 +124,10 @@ Scaffold (bp)
   Then: `go generate ./cmd/sumeru` and install with -i as usual.
 
 After adding a new addon, restart the server and install the module from /web/apps.
+
+Activity and mail logging (Go)
+------------------------------
+XML data files cannot run Go code, so there is no Odoo-style automatic `message_post` from static `<record>` rows alone. After a successful mutation in your own Go code (services, HTTP handlers, cron, and so on), import **`sumeru/core/mail`** and call **`mail.PostMessage(model, resID, body, subtype, author)`** (use **`mail.SubtypeComment`**, **`mail.SubtypeNotification`**, or **`mail.SubtypeModule`**) or **`mail.LogModuleEvent(moduleName, verb, detail)`** for **`ir.module`** audit lines. The stock server already posts from module install / uninstall / activate / update, workspace record save, and user chatter posts. Addons should follow the same pattern from their Go hooks rather than expecting XML to intercept ORM writes.
 
 Server CLI
 ----------

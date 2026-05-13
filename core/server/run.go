@@ -68,20 +68,18 @@ func Run() {
 		log.Fatalf("Error syncing models: %v", err)
 	}
 
-	if err := orm.EnsureIrUiMenuModuleColumn(); err != nil {
-		log.Fatalf("Schema migrate (ir_ui_menu.module): %v", err)
+	if err := orm.SyncRegistrySchema(); err != nil {
+		log.Fatalf("Schema sync (model-driven): %v", err)
 	}
+
 	if err := orm.BackfillIrUiMenuModule(); err != nil {
 		log.Printf("Warning: backfill ir_ui_menu.module: %v", err)
 	}
 	if err := orm.EnsureIrUiViewArchText(); err != nil {
 		log.Printf("Note: ir_ui_view.arch column: %v", err)
 	}
-	if err := orm.EnsureResCompanyEnterpriseColumns(); err != nil {
-		log.Fatalf("Schema migrate (res.company): %v", err)
-	}
-	if err := orm.EnsureResUsersEnterpriseColumns(); err != nil {
-		log.Fatalf("Schema migrate (res.users): %v", err)
+	if err := orm.EnsureMailMessageModelResIndex(); err != nil {
+		log.Fatalf("Schema migrate (mail.message index): %v", err)
 	}
 
 	if err := LoadAddonPaths(config.AppConfig.AddonPaths); err != nil {

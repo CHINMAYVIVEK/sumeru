@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <sumeru>
     <data>
-        <!-- ir.actions.act_window : sale.order -->
         <record id="action_sale_order_tree" model="ir.actions.act_window">
             <field name="name">Quotations</field>
             <field name="res_model">sale.order</field>
@@ -15,20 +14,29 @@
             <field name="view_mode">kanban,tree,form</field>
         </record>
 
-        <!-- ir.ui.view : sale.order -->
         <view id="view_order_tree" model="sale.order" type="tree">
             <field name="name" string="Order Number"/>
+            <field name="client_order_ref" string="Customer Ref"/>
             <field name="partner_name" string="Customer"/>
-            <field name="date_order" string="Date"/>
+            <field name="date_order" string="Order Date"/>
+            <field name="validity_date" string="Expiration"/>
+            <field name="commitment_date" string="Delivery"/>
+            <field name="amount_untaxed" string="Untaxed"/>
+            <field name="amount_tax" string="Taxes"/>
             <field name="amount" string="Total"/>
+            <field name="currency" string="Currency"/>
             <field name="state" string="Status"/>
+            <field name="warehouse_name" string="Warehouse"/>
         </view>
 
         <view id="view_order_kanban" model="sale.order" type="kanban">
             <field name="name" string="Order Number"/>
             <field name="partner_name" string="Customer"/>
             <field name="amount" string="Total"/>
+            <field name="amount_untaxed" string="Untaxed"/>
+            <field name="validity_date" string="Expiration"/>
             <field name="state" string="Status"/>
+            <field name="priority" string="Priority"/>
         </view>
 
         <view id="view_order_form" model="sale.order" type="form">
@@ -45,30 +53,42 @@
                         <field name="name" placeholder="e.g. SO001"/>
                     </h1>
                     <div class="flex space-x-4">
+                        <field name="client_order_ref" string="Customer Reference"/>
                         <field name="email" string="Email" widget="email"/>
                         <field name="phone" string="Phone"/>
                     </div>
                 </div>
                 <group>
-                    <group string="Customer Information">
+                    <group string="Customer">
                         <field name="partner_name" string="Customer"/>
                         <field name="date_order" string="Order Date"/>
+                        <field name="validity_date" string="Quotation Expiration"/>
+                        <field name="commitment_date" string="Delivery Date"/>
                     </group>
                     <group string="Financials">
-                        <field name="amount" string="Total Amount"/>
+                        <field name="currency" string="Currency"/>
+                        <field name="amount_untaxed" string="Untaxed Amount"/>
+                        <field name="amount_tax" string="Taxes"/>
+                        <field name="amount" string="Total"/>
                         <field name="priority" string="Priority"/>
                     </group>
                 </group>
+                <group>
+                    <group string="Invoicing &amp; Delivery">
+                        <field name="fiscal_position" string="Fiscal Position"/>
+                        <field name="payment_terms" string="Payment Terms"/>
+                        <field name="incoterm" string="Incoterm"/>
+                        <field name="warehouse_name" string="Warehouse"/>
+                    </group>
+                    <group string="Other">
+                        <field name="user_id" string="Salesperson"/>
+                        <field name="company_id" string="Company"/>
+                    </group>
+                </group>
                 <notebook>
-                    <page string="Order Lines">
+                    <page string="Terms">
                         <group>
-                            <field name="note" string="Internal Notes"/>
-                        </group>
-                    </page>
-                    <page string="Other Info">
-                        <group>
-                            <field name="user_id" string="Salesperson"/>
-                            <field name="company_id" string="Company"/>
+                            <field name="note" string="Terms and conditions"/>
                         </group>
                     </page>
                 </notebook>

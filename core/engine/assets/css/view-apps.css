@@ -1,3 +1,20 @@
+.sum-app-card-prem--open {
+  cursor: pointer;
+}
+
+.sum-apps-list-row--open {
+  cursor: pointer;
+}
+
+.sum-apps-back-link {
+  font-weight: 600;
+  color: var(--sum-accent);
+  text-decoration: none;
+}
+.sum-apps-back-link:hover {
+  text-decoration: underline;
+}
+
 /* /web/apps — premium catalog + layout variants */
 
 .sum-apps-premium {

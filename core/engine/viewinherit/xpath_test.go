@@ -17,6 +17,19 @@ func TestApplyInheritArchAfter(t *testing.T) {
 	}
 }
 
+// encoding/xml.Marshal(parser.View) emits empty elements as <field ...></field>, not self-closing.
+func TestApplyInheritArchAfterMarshaledField(t *testing.T) {
+	parent := `<view id="" model="sale.order" type="tree" title="" open=""><field name="state" string="Status" widget="" placeholder="" options=""></field><field name="amount" string="Total" widget="" placeholder="" options=""></field></view>`
+	frag := `<xpath expr="//field[@name='state']" position="after"><field name="phone" string="Phone"/></xpath>`
+	out, err := ApplyInheritArch(parent, frag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsInOrder(out, `name="state"`, `name="phone"`, `name="amount"`) {
+		t.Fatalf("unexpected merge: %s", out)
+	}
+}
+
 func containsInOrder(s string, parts ...string) bool {
 	pos := 0
 	for _, p := range parts {

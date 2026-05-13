@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"sumeru/core/mail"
 	"sumeru/core/orm"
 )
 
@@ -32,10 +33,17 @@ func UpdateModuleData(name string) error {
 		// e.g. -u all while a leaf is marked installed without its deps — skip reload (no DB churn).
 		return nil
 	}
+	if err := orm.SyncRegistrySchema(); err != nil {
+		return fmt.Errorf("schema sync: %w", err)
+	}
 	if err := deleteModuleMetadata(name); err != nil {
 		return err
 	}
-	return a.SyncToDB()
+	if err := a.SyncToDB(); err != nil {
+		return err
+	}
+	mail.LogModuleEvent(name, "Updated", "module data reloaded")
+	return nil
 }
 
 // RunModuleCLI runs -i (install) and -u (update) lists. Install runs before update.

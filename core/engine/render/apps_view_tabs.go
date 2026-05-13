@@ -5,19 +5,22 @@ import (
 	"strings"
 )
 
-// AppsViewTabs builds Kanban / Grid / List links for the Apps dashboard (?layout=).
-func AppsViewTabs(currentLayout, msg string) []ViewSwitchTab {
+// AppsViewTabs builds Grid / List links for the Apps dashboard (?layout=).
+func AppsViewTabs(currentLayout, msg, module string) []ViewSwitchTab {
 	cur := strings.ToLower(strings.TrimSpace(currentLayout))
 	if cur == "" {
 		cur = "grid"
 	}
+	if cur == "kanban" {
+		cur = "grid"
+	}
 	msg = strings.TrimSpace(msg)
+	module = strings.TrimSpace(module)
 	order := []struct {
 		layoutKey string
 		label     string
-		mode      string // template icon branch
+		mode      string
 	}{
-		{"kanban", "Kanban", "apps_kanban"},
 		{"grid", "Grid", "apps_grid"},
 		{"list", "List", "apps_list"},
 	}
@@ -27,6 +30,9 @@ func AppsViewTabs(currentLayout, msg string) []ViewSwitchTab {
 		q.Set("layout", o.layoutKey)
 		if msg != "" {
 			q.Set("msg", msg)
+		}
+		if module != "" {
+			q.Set("module", module)
 		}
 		out = append(out, ViewSwitchTab{
 			Label:  o.label,

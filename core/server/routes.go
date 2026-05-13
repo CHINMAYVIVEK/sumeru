@@ -13,6 +13,8 @@ func registerAppRoutes() {
 		http.Redirect(w, r, "/web/apps", http.StatusFound)
 	})
 	http.HandleFunc("/web/module/action", web.ModuleActionHandler)
+	http.HandleFunc("/web/record/save", web.RecordSaveHandler)
+	http.HandleFunc("/web/chatter/post", web.ChatterPostHandler)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {

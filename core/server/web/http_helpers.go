@@ -2,6 +2,8 @@ package web
 
 import (
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -82,4 +84,22 @@ func normalizeViewMode(mode string) string {
 	default:
 		return m
 	}
+}
+
+// formBaseQueryValues builds a stable /web query string (no leading "?") for form Edit/Cancel/Save redirects.
+func formBaseQueryValues(actionID int, menuID, viewType, idStr string) string {
+	q := url.Values{}
+	if actionID > 0 {
+		q.Set("action", strconv.Itoa(actionID))
+	}
+	if strings.TrimSpace(menuID) != "" {
+		q.Set("menu_id", strings.TrimSpace(menuID))
+	}
+	if vt := strings.TrimSpace(viewType); vt != "" {
+		q.Set("view_type", vt)
+	}
+	if strings.TrimSpace(idStr) != "" {
+		q.Set("id", strings.TrimSpace(idStr))
+	}
+	return q.Encode()
 }

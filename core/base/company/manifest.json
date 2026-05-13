@@ -1,6 +1,6 @@
 {
   "name": "company",
-  "display_name": "Companies",
+  "display_name": "Settings",
   "version": "1.0.0",
   "depends": ["base"],
   "author": "Sumeru",

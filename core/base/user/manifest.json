@@ -5,7 +5,7 @@
   "depends": ["base", "company"],
   "author": "Sumeru",
   "description": "Internal users: authentication, company assignment, localization, and signatures (res.users).",
-  "application": true,
+  "application": false,
   "data": [
     "views/res_users_actions.xml",
     "views/res_users_tree_views.xml",

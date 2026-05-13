@@ -315,3 +315,42 @@ func FindUIDefaultView(modelName, viewType string) (map[string]interface{}, erro
 	}
 	return result, nil
 }
+
+// UpdateRecordByID sets only columns that appear in the model's field definitions (never id).
+func UpdateRecordByID(modelName string, id int, values map[string]interface{}) error {
+	if id <= 0 {
+		return fmt.Errorf("invalid id")
+	}
+	inst, ok := Registry[modelName]
+	if !ok || inst == nil {
+		return fmt.Errorf("model %s not found", modelName)
+	}
+	allowed := map[string]struct{}{}
+	for _, f := range inst.Fields() {
+		if f.Name != "" && f.Name != "id" {
+			allowed[f.Name] = struct{}{}
+		}
+	}
+	var sets []string
+	var args []interface{}
+	i := 1
+	for k, v := range values {
+		if k == "id" {
+			continue
+		}
+		if _, ok := allowed[k]; !ok {
+			continue
+		}
+		sets = append(sets, fmt.Sprintf("%s = $%d", k, i))
+		args = append(args, v)
+		i++
+	}
+	if len(sets) == 0 {
+		return nil
+	}
+	args = append(args, id)
+	tbl := GetTableName(modelName)
+	q := fmt.Sprintf(`UPDATE %s SET %s WHERE id = $%d`, tbl, strings.Join(sets, ", "), i)
+	_, err := DB.Exec(q, args...)
+	return err
+}

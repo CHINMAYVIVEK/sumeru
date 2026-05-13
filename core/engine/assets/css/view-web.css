@@ -136,3 +136,364 @@
   border: 1px dashed #cbd5e1;
   border-radius: 3px;
 }
+
+/* Workspace form chrome + sheet (premium; classes referenced from html_renderer) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sum-ws-form-chrome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.35rem 0.15rem 0.65rem;
+  margin-bottom: 0.35rem;
+}
+
+.sum-ws-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: var(--sum-radius-sm);
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sum-ws-btn--primary {
+  background: #4f46e5;
+  color: #fff;
+  border-color: rgba(79, 70, 229, 0.35);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+.sum-ws-btn--primary:hover {
+  background: #4338ca;
+}
+
+.sum-ws-btn--ghost {
+  background: var(--sum-surface);
+  color: #334155;
+  border-color: var(--sum-line-strong);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.sum-ws-btn--ghost:hover {
+  background: var(--sum-surface-2);
+}
+
+.sum-form-sheet,
+.sum-form-statusbar {
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  box-shadow: var(--sum-shadow-soft);
+}
+
+.sum-form-sheet {
+  padding: 2rem 2rem 2.25rem;
+  min-height: 100%;
+}
+
+.sum-form-sheet--solo {
+  border-radius: var(--sum-radius-sm);
+}
+
+.sum-form-statusbar {
+  border-bottom: none;
+  border-radius: var(--sum-radius-sm) var(--sum-radius-sm) 0 0;
+}
+
+.sum-form-statusbar + .sum-form-sheet {
+  border-top: none;
+  border-radius: 0 0 var(--sum-radius-sm) var(--sum-radius-sm);
+}
+
+/* Odoo-style list / tree control */
+.sum-tree-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  max-width: none;
+  align-self: stretch;
+}
+.sum-tree-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.65rem 0 1rem;
+  border-bottom: 1px solid var(--sum-line);
+  margin-bottom: 0.5rem;
+}
+.sum-tree-control-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sum-tree-btn-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-header);
+  color: #fff !important;
+  text-decoration: none !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.sum-tree-btn-new:hover {
+  filter: brightness(1.05);
+}
+.sum-tree-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--sum-ink);
+  letter-spacing: -0.02em;
+}
+.sum-tree-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--sum-line);
+  border-radius: 8px;
+  background: var(--sum-surface);
+  color: var(--sum-muted);
+  cursor: default;
+}
+.sum-tree-icon-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+.sum-tree-search-wrap {
+  flex: 2 1 220px;
+  position: relative;
+  min-width: 160px;
+}
+.sum-tree-search-icon {
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--sum-muted);
+  pointer-events: none;
+}
+.sum-tree-search {
+  width: 100%;
+  padding: 0.45rem 2rem 0.45rem 2.25rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface-2);
+  color: var(--sum-muted);
+}
+.sum-tree-search-caret {
+  position: absolute;
+  right: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--sum-muted);
+  opacity: 0.5;
+}
+.sum-tree-control-right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+.sum-tree-pager {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--sum-muted);
+  white-space: nowrap;
+}
+.sum-tree-view-tabs {
+  display: flex;
+  gap: 2px;
+  border: 1px solid var(--sum-line);
+  border-radius: 8px;
+  padding: 2px;
+  background: var(--sum-surface-2);
+}
+.sum-tree-view-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 30px;
+  border-radius: 6px;
+  color: var(--sum-muted);
+  text-decoration: none !important;
+}
+.sum-tree-view-tab:hover {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--sum-ink);
+}
+.sum-tree-view-tab.is-active {
+  background: #fff;
+  color: var(--sum-header);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.sum-tree-table-wrap {
+  border-radius: var(--sum-radius-sm);
+  overflow: hidden;
+  width: 100%;
+  align-self: stretch;
+}
+.sum-tree-table {
+  width: 100%;
+  table-layout: auto;
+}
+.sum-tree-table thead {
+  background: linear-gradient(180deg, #fafafa 0%, #f1f5f9 100%);
+}
+.sum-tree-th-check,
+.sum-tree-th-grip {
+  width: 2.5rem;
+  padding: 0.55rem 0.35rem !important;
+  vertical-align: middle;
+}
+.sum-tree-th {
+  padding: 0.65rem 0.75rem !important;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sum-muted);
+  border-bottom: 1px solid var(--sum-line);
+}
+.sum-tree-th-actions {
+  width: 2.75rem;
+  text-align: right;
+}
+.sum-tree-th-muted input {
+  opacity: 0.45;
+}
+.sum-tree-row td {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  vertical-align: middle;
+}
+.sum-tree-row--click:hover {
+  background: rgba(113, 75, 103, 0.05);
+}
+.sum-tree-td-check,
+.sum-tree-td-grip {
+  width: 2.5rem;
+  padding: 0.5rem 0.35rem !important;
+}
+.sum-tree-grip {
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  letter-spacing: -0.05em;
+  user-select: none;
+}
+.sum-tree-td {
+  padding: 0.55rem 0.75rem !important;
+  font-size: 0.8125rem;
+  color: #334155;
+}
+.sum-tree-td-actions {
+  width: 2.75rem;
+}
+.sum-tree-empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--sum-muted);
+}
+
+/* Read-only form (Odoo-like) */
+.sum-form-view--readonly .sum-form-sheet-bg {
+  background: var(--sum-bg) !important;
+}
+.sum-read-fields--sheet {
+  max-width: 56rem;
+}
+.sum-read-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.sum-read-field--row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 28%) 1fr;
+  gap: 1rem 1.5rem;
+  align-items: start;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+.sum-read-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--sum-muted);
+  padding-top: 0.1rem;
+}
+.sum-read-value {
+  font-size: 0.875rem;
+  color: var(--sum-ink);
+  line-height: 1.45;
+  word-break: break-word;
+}
+.sum-read-section {
+  margin-bottom: 1.75rem;
+}
+.sum-read-section-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--sum-muted);
+}
+.sum-read-hero-title {
+  line-height: 1.15;
+}
+.sum-notebook-tabs {
+  gap: 0 !important;
+}
+.sum-notebook-tab {
+  padding: 0.65rem 1.25rem !important;
+  margin: 0;
+  border: none;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  color: var(--sum-muted) !important;
+  cursor: default;
+}
+.sum-notebook-tab--active {
+  color: var(--sum-header) !important;
+  border-bottom-color: var(--sum-header) !important;
+  background: var(--sum-surface) !important;
+}
+.sum-form-sheet-bg {
+  background: var(--sum-bg) !important;
+}

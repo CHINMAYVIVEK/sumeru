@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <sumeru>
     <data>
-        <!-- ir.ui.menu : Companies application -->
-        <menuitem id="menu_company_root" name="Companies" sequence="5" web_icon="building"/>
-        <menuitem id="menu_company_companies" name="All Companies" parent="menu_company_root" sequence="10" action="company.action_res_company" web_icon="building"/>
-        <menuitem id="menu_company_configuration" name="Configuration" parent="menu_company_root" sequence="90" web_icon="settings"/>
+        <!-- ir.ui.menu : Settings application (company registry + configuration) -->
+        <menuitem id="menu_settings_root" name="Settings" sequence="5" web_icon="settings"/>
+        <menuitem id="menu_company_section" name="Companies" parent="menu_settings_root" sequence="10" web_icon="building"/>
+        <menuitem id="menu_company_companies" name="All Companies" parent="menu_company_section" sequence="10" action="company.action_res_company" web_icon="building"/>
+        <menuitem id="menu_company_configuration" name="Configuration" parent="menu_company_section" sequence="90" web_icon="settings"/>
         <menuitem id="menu_company_settings" name="Company Settings" parent="menu_company_configuration" sequence="10" action="company.action_res_company" web_icon="building"/>
     </data>
 </sumeru>

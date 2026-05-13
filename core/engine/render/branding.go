@@ -1,8 +1,11 @@
 package render
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
+	"sumeru/core/mail"
 	"sumeru/core/orm"
 )
 
@@ -56,5 +59,48 @@ func EnrichShellPageData(d *PageData) {
 		if len(r) > 0 {
 			d.UserInitial = strings.ToUpper(string(r[0]))
 		}
+	}
+
+	d.ActivityEnabled = mail.CompanyActivityPanelEnabled()
+	if !d.ActivityEnabled {
+		d.ActivityLogItems = nil
+		return
+	}
+	rows, err := mail.QueryActivityLog(40, d.ActivityContextModel, d.ActivityContextRecordID)
+	if err != nil {
+		d.ActivityLogItems = nil
+		return
+	}
+	for _, r := range rows {
+		author := strings.TrimSpace(r.Author)
+		if author == "" {
+			author = "System"
+		}
+		meta := author
+		if !r.CreateDate.IsZero() {
+			meta = fmt.Sprintf("%s · %s", author, shortRelTime(r.CreateDate))
+		}
+		d.ActivityLogItems = append(d.ActivityLogItems, ActivityItem{Meta: meta, Body: strings.TrimSpace(r.Body)})
+	}
+}
+
+func shortRelTime(t time.Time) string {
+	t = t.UTC()
+	now := time.Now().UTC()
+	if t.After(now) {
+		t = now
+	}
+	d := now.Sub(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	case d < 48*time.Hour:
+		return "yesterday"
+	default:
+		return t.Local().Format("Jan 02")
 	}
 }

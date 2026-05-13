@@ -5,7 +5,7 @@
         <div class="sum-apps-hero-prem-inner">
             <p class="sum-apps-eyebrow">Application catalog</p>
             <h1 class="sum-apps-title-prem">Apps</h1>
-            <p class="sum-apps-lead-prem">Discover, activate, and manage modules. Switch layout from the toolbar above.</p>
+            <p class="sum-apps-lead-prem">Discover, activate, and manage modules. Use Grid or List; open an app for a read-only summary, then Edit to change metadata.</p>
         </div>
     </header>
 
@@ -13,64 +13,85 @@
     <div class="sum-flash-prem">{{.Message}}</div>
     {{end}}
 
-    {{if eq .Layout "kanban"}}
-    <section class="sum-apps-section-prem" aria-label="Applications kanban">
-        <div class="sum-apps-kanban-board">
-            {{range .KanbanCols}}
-            <div class="sum-apps-kanban-col">
-                <div class="sum-apps-kanban-col-head">
-                    <h2 class="sum-apps-kanban-col-title">{{.Title}}</h2>
-                    <p class="sum-apps-kanban-col-sub">{{.Subtitle}}</p>
-                    <span class="sum-apps-kanban-col-count">{{len .Modules}}</span>
-                </div>
-                <div class="sum-apps-kanban-col-body">
-                    {{range .Modules}}
-                    <article class="sum-apps-kanban-card">
-                        <div class="sum-apps-kanban-card-top">
-                            <span class="sum-apps-kanban-card-icon" aria-hidden="true">{{.IconLetter}}</span>
-                            <div class="sum-apps-kanban-card-meta">
-                                <h3 class="sum-apps-kanban-card-name">{{.DisplayName}}</h3>
-                                <p class="sum-apps-kanban-card-tech">{{.Name}} · v{{.Version}}</p>
-                            </div>
-                        </div>
-                        <p class="sum-apps-kanban-card-desc">{{.Description}}</p>
-                        <div class="sum-apps-kanban-card-actions">
-                            {{if .CanInstall}}
-                            <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                                <input type="hidden" name="do" value="install" />
-                                <input type="hidden" name="module" value="{{.Name}}" />
-                                <button type="submit" class="sum-btn-prem sum-btn-prem--primary">Activate</button>
-                            </form>
-                            {{end}}
-                            {{if .CanUninstall}}
-                            <form method="post" action="/web/module/action" onsubmit="return confirm('Uninstall {{.DisplayName}}?');"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                                <input type="hidden" name="do" value="uninstall" />
-                                <input type="hidden" name="module" value="{{.Name}}" />
-                                <button type="submit" class="sum-btn-prem sum-btn-prem--danger">Uninstall</button>
-                            </form>
-                            {{end}}
-                            {{if .CanDeactivate}}
-                            <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                                <input type="hidden" name="do" value="deactivate" />
-                                <input type="hidden" name="module" value="{{.Name}}" />
-                                <button type="submit" class="sum-btn-prem sum-btn-prem--ghost">Off</button>
-                            </form>
-                            {{end}}
-                            {{if .CanActivate}}
-                            <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                                <input type="hidden" name="do" value="activate" />
-                                <input type="hidden" name="module" value="{{.Name}}" />
-                                <button type="submit" class="sum-btn-prem sum-btn-prem--success">On</button>
-                            </form>
-                            {{end}}
-                        </div>
-                    </article>
-                    {{else}}
-                    <p class="sum-apps-kanban-empty">No apps in this column.</p>
-                    {{end}}
-                </div>
+    {{if .ModuleDetail}}
+    <section class="sum-apps-section-prem" aria-label="Module details">
+        <p class="sum-apps-section-label-prem"><a href="/web/apps?{{.ModuleDetail.BackAppsQuery}}" class="sum-apps-back-link">← All apps</a></p>
+        <div class="sum-apps-module-form o_form_sheet bg-white shadow-sm border border-slate-200 rounded-sm p-8 max-w-3xl">
+            <div class="flex flex-wrap items-center justify-end gap-2 mb-6">
+                {{if not .ModuleDetail.Editing}}
+                <a href="{{.ModuleDetail.EditURL}}" class="px-4 py-2 text-sm font-semibold rounded-sm bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 shadow-sm">Edit</a>
+                {{else}}
+                <button type="submit" form="sum-apps-module-save-form" class="px-4 py-2 text-sm font-semibold rounded-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm">Save</button>
+                <a href="{{.ModuleDetail.CancelURL}}" class="px-4 py-2 text-sm font-semibold rounded-sm bg-white text-slate-700 border border-slate-300 hover:bg-slate-50">Cancel</a>
+                {{end}}
             </div>
-            {{end}}
+            <h2 class="text-xl font-bold text-slate-800 mb-6">{{.ModuleDetail.DisplayName}}</h2>
+            <form id="sum-apps-module-save-form" method="post" action="/web/module/action" class="space-y-4">
+                <input type="hidden" name="do" value="save_module" />
+                <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
+                <input type="hidden" name="module_row_id" value="{{.ModuleDetail.ID}}" />
+                <input type="hidden" name="apps_layout" value="{{.ModuleDetail.Layout}}" />
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase">Technical name</label>
+                        <input type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm bg-slate-50 text-slate-600" value="{{.ModuleDetail.Name}}" readonly />
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase">Version</label>
+                        <input type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm bg-slate-50 text-slate-600" value="{{.ModuleDetail.Version}}" readonly />
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase">State</label>
+                        <input type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm bg-slate-50 text-slate-600" value="{{.ModuleDetail.State}}" readonly />
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase">Active</label>
+                        <input type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm bg-slate-50 text-slate-600" value="{{if .ModuleDetail.Active}}yes{{else}}no{{end}}" readonly />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-bold text-slate-500 uppercase" for="mod_display_name">Display name</label>
+                        <input id="mod_display_name" name="display_name" type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm" value="{{.ModuleDetail.DisplayName}}" {{if not .ModuleDetail.Editing}}readonly{{end}} />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-bold text-slate-500 uppercase" for="mod_author">Author</label>
+                        <input id="mod_author" name="author" type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm" value="{{.ModuleDetail.Author}}" {{if not .ModuleDetail.Editing}}readonly{{end}} />
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-bold text-slate-500 uppercase" for="mod_description">Description</label>
+                        <textarea id="mod_description" name="description" rows="4" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm" {{if not .ModuleDetail.Editing}}readonly{{end}}>{{.ModuleDetail.Description}}</textarea>
+                    </div>
+                </div>
+            </form>
+            <div class="mt-8 flex flex-wrap gap-2 border-t border-slate-100 pt-6">
+                {{if .ModuleDetail.CanInstall}}
+                <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{.ModuleDetail.Layout}}" />
+                    <input type="hidden" name="do" value="install" />
+                    <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
+                    <button type="submit" class="sum-btn-prem sum-btn-prem--primary">Activate</button>
+                </form>
+                {{end}}
+                {{if .ModuleDetail.CanUninstall}}
+                <form method="post" action="/web/module/action" onsubmit="return confirm('Uninstall {{.ModuleDetail.DisplayName}}?');"><input type="hidden" name="apps_layout" value="{{.ModuleDetail.Layout}}" />
+                    <input type="hidden" name="do" value="uninstall" />
+                    <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
+                    <button type="submit" class="sum-btn-prem sum-btn-prem--danger">Uninstall</button>
+                </form>
+                {{end}}
+                {{if .ModuleDetail.CanDeactivate}}
+                <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{.ModuleDetail.Layout}}" />
+                    <input type="hidden" name="do" value="deactivate" />
+                    <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
+                    <button type="submit" class="sum-btn-prem sum-btn-prem--ghost">Deactivate</button>
+                </form>
+                {{end}}
+                {{if .ModuleDetail.CanActivate}}
+                <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{.ModuleDetail.Layout}}" />
+                    <input type="hidden" name="do" value="activate" />
+                    <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
+                    <button type="submit" class="sum-btn-prem sum-btn-prem--success">Activate</button>
+                </form>
+                {{end}}
+            </div>
         </div>
     </section>
     {{else if eq .Layout "list"}}
@@ -92,7 +113,7 @@
                 <tbody>
                     {{range .Modules}}
                     {{if .Application}}
-                    <tr class="sum-apps-list-row">
+                    <tr class="sum-apps-list-row sum-apps-list-row--open" data-module="{{.Name}}" data-apps-layout="{{$.Layout}}">
                         <td><span class="sum-apps-list-letter">{{.IconLetter}}</span></td>
                         <td><span class="sum-apps-list-name">{{.DisplayName}}</span></td>
                         <td class="sum-apps-list-mono">{{.Name}}</td>
@@ -151,7 +172,7 @@
         <div class="sum-apps-card-grid-prem">
             {{range .Modules}}
             {{if .Application}}
-            <article class="sum-app-card-prem">
+            <article class="sum-app-card-prem sum-app-card-prem--open" data-module="{{.Name}}" data-apps-layout="{{$.Layout}}">
                 <div class="sum-app-card-prem-shine" aria-hidden="true"></div>
                 <div class="sum-app-card-prem-top">
                     <div class="sum-app-card-prem-icon" aria-hidden="true">{{.IconLetter}}</div>

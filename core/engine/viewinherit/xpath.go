@@ -55,6 +55,12 @@ func fieldNameFromXPathExpr(expr string) (string, error) {
 	return m[1], nil
 }
 
+// fieldTagRe matches one <field name="fn" …/> or <field name="fn" …></field> as produced by encoding/xml.Marshal for parser.Field.
+func fieldTagRe(fn string) *regexp.Regexp {
+	q := regexp.QuoteMeta(fn)
+	return regexp.MustCompile(`<field\s+[^>]*\bname="` + q + `"[^>]*(?:/>|>\s*</field>)`)
+}
+
 func applyOne(arch string, op xpathOp) (string, error) {
 	fn, err := fieldNameFromXPathExpr(strings.TrimSpace(op.Expr))
 	if err != nil {
@@ -62,10 +68,10 @@ func applyOne(arch string, op xpathOp) (string, error) {
 	}
 	pos := strings.ToLower(strings.TrimSpace(op.Position))
 	inner := strings.TrimSpace(op.Inner)
+	re := fieldTagRe(fn)
 
 	switch pos {
 	case "after":
-		re := regexp.MustCompile(`(<field\s+[^>]*\bname="` + regexp.QuoteMeta(fn) + `"[^>]*/>)`)
 		loc := re.FindStringIndex(arch)
 		if loc == nil {
 			return arch, fmt.Errorf("inherit xpath: field %q not found for position=after", fn)
@@ -76,14 +82,12 @@ func applyOne(arch string, op xpathOp) (string, error) {
 		}
 		return arch[:loc[1]] + insert + arch[loc[1]:], nil
 	case "before":
-		re := regexp.MustCompile(`(<field\s+[^>]*\bname="` + regexp.QuoteMeta(fn) + `"[^>]*/>)`)
 		loc := re.FindStringIndex(arch)
 		if loc == nil {
 			return arch, fmt.Errorf("inherit xpath: field %q not found for position=before", fn)
 		}
 		return arch[:loc[0]] + inner + arch[loc[0]:], nil
 	case "replace":
-		re := regexp.MustCompile(`<field\s+[^>]*\bname="` + regexp.QuoteMeta(fn) + `"[^>]*/>`)
 		if !re.MatchString(arch) {
 			return arch, fmt.Errorf("inherit xpath: field %q not found for position=replace", fn)
 		}

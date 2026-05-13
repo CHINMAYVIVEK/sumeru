@@ -10,10 +10,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+
 	"sumeru/core/base/platformmsg"
 	"sumeru/core/engine/parser"
+	"sumeru/core/mail"
 	"sumeru/core/orm"
-	"sync"
 )
 
 const coreModule = "base"
@@ -553,6 +555,10 @@ func installModuleUnlocked(name string) error {
 		}
 	}
 
+	if err := orm.SyncRegistrySchema(); err != nil {
+		return fmt.Errorf("schema sync: %w", err)
+	}
+
 	if _, err := orm.DB.Exec(
 		`UPDATE `+orm.GetTableName("ir.module")+` SET state = 'installed', active = true WHERE name = $1`,
 		name,
@@ -563,6 +569,7 @@ func installModuleUnlocked(name string) error {
 	if err := a.SyncToDB(); err != nil {
 		return err
 	}
+	mail.LogModuleEvent(name, "Installed", "")
 	return nil
 }
 
@@ -639,6 +646,7 @@ func UninstallModuleByName(name string) error {
 	); err != nil {
 		return err
 	}
+	mail.LogModuleEvent(name, "Uninstalled", "")
 	return nil
 }
 
@@ -710,6 +718,11 @@ func SetModuleActive(name string, active bool) error {
 		active, name,
 	); err != nil {
 		return err
+	}
+	if active {
+		mail.LogModuleEvent(name, "Activated", "")
+	} else {
+		mail.LogModuleEvent(name, "Deactivated", "")
 	}
 	return nil
 }
