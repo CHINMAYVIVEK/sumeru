@@ -245,15 +245,29 @@ func ApplicableRuleDomains(ctx context.Context, uid int, model string, op string
 	}
 
 	// Odoo logic: (Global1 AND Global2 ...) AND (GroupRule1 OR GroupRule2 ...)
-	// In our simple domain list, if we have multiple GroupRules, we should technically OR them.
-	// For now, we return all global domains (must satisfy all) and group domains.
-	// The Search engine currently ANDs everything. To fully support OR between group rules,
-	// we would need a more complex domain structure. 
-	// As a compromise, we return all applicable rules. If a user has multiple group rules,
-	// they currently must satisfy ALL of them in this implementation (strict).
-	
+	// Global domains are returned individually so callers AND all of them.
+	// Group domains are OR-merged into a single domain using the "|" prefix operator.
 	out := append([][][]interface{}(nil), globalDomains...)
-	out = append(out, groupDomains...)
+
+	switch len(groupDomains) {
+	case 0:
+		// No group rules applicable — no additional restriction.
+	case 1:
+		// Single group rule — add directly (OR prefix not needed).
+		out = append(out, groupDomains[0])
+	default:
+		// Multiple group rules — OR-merge them.
+		// Odoo prefix-Polish OR: prepend (N-1) "|" operators then all N leaf conditions.
+		merged := [][]interface{}{}
+		for i := 0; i < len(groupDomains)-1; i++ {
+			merged = append(merged, []interface{}{"|"})
+		}
+		for _, gd := range groupDomains {
+			merged = append(merged, gd...)
+		}
+		out = append(out, merged)
+	}
+
 	return out, nil
 }
 

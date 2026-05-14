@@ -26,6 +26,7 @@ type Config struct {
 	CompanyDisplayName string   // optional header label; else first res.company when module installed
 	UserDisplayName    string   // optional header label; else first res.users when module installed
 	LogFile            string   // optional; append logs here (multi-writer with stderr); parent dirs created
+	DevMode            bool     // dev_mode = true → enables dev-only features (e.g. unauthenticated branding fallback)
 }
 
 var AppConfig Config
@@ -99,6 +100,8 @@ func LoadConfig(path string) error {
 			AppConfig.UserDisplayName = val
 		case keyLogFile:
 			AppConfig.LogFile = val
+		case keyDevMode:
+			AppConfig.DevMode = val == "true" || val == "1" || strings.EqualFold(val, "yes")
 		}
 	}
 

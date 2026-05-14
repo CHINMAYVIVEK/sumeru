@@ -25,6 +25,7 @@ const (
 	keyCompanyDisplayName = "company_display_name"
 	keyUserDisplayName    = "user_display_name"
 	keyLogFile            = "log_file"
+	keyDevMode            = "dev_mode"
 )
 
 const (

@@ -127,3 +127,29 @@ func LogoutGet(w http.ResponseWriter, r *http.Request) {
 	DestroySession(w, r)
 	http.Redirect(w, r, "/web/login", http.StatusFound)
 }
+
+// ActionResetPassword is a stub for the "Send reset instructions" button on the user form.
+// Email delivery is not yet wired; this handler logs the attempt and returns a clear message
+// so the button doesn't silently fail. Replace with a real email implementation later.
+func ActionResetPassword(w http.ResponseWriter, r *http.Request) {
+	if !requireLogin(w, r) {
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+	userID := strings.TrimSpace(r.PostFormValue("id"))
+	login := strings.TrimSpace(r.PostFormValue("login"))
+	log.Printf("action_reset_password: requested for user id=%s login=%q (email not yet wired)", userID, login)
+	// Redirect back with a flash-style query param so the UI can surface it.
+	next := strings.TrimSpace(r.PostFormValue("next"))
+	if next == "" || !strings.HasPrefix(next, "/web") || strings.HasPrefix(next, "//") {
+		next = "/web"
+	}
+	http.Redirect(w, r, next+"&msg=reset_requested", http.StatusSeeOther)
+}

@@ -8,6 +8,7 @@ import (
 
 	"sumeru/core/mail"
 	"sumeru/core/orm"
+	"sumeru/core/server/config"
 )
 
 // AppDisplayName is the product name shown in the shell, document title, and manifests.
@@ -55,7 +56,8 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 			}
 		}
 	}
-	if d.ShellUser == "" {
+	// Fallback: only in dev mode — avoids leaking the admin name to unauthenticated users.
+	if d.ShellUser == "" && config.AppConfig.DevMode {
 		if _, ok := orm.Registry["res.users"]; ok {
 			tn := orm.GetTableName("res.users")
 			var nm string

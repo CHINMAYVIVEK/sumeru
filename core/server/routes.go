@@ -26,6 +26,7 @@ func registerAppRoutes() {
 	http.HandleFunc("/web/module/action", web.ModuleActionHandler)
 	http.HandleFunc("/web/record/save", web.RecordSaveHandler)
 	http.HandleFunc("/web/record/delete", web.RecordDeleteHandler)
+	http.HandleFunc("/web/action/reset_password", web.ActionResetPassword)
 	http.HandleFunc("/web/chatter/post", web.ChatterPostHandler)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
