@@ -1,6 +1,9 @@
 package base
 
-import "sumeru/core/orm"
+import (
+	"context"
+	"sumeru/core/orm"
+)
 
 // SearchOneInput finds one row by exact equality on all map keys.
 type SearchOneInput struct {
@@ -9,8 +12,8 @@ type SearchOneInput struct {
 }
 
 // SearchOne delegates to the ORM.
-func SearchOne(in SearchOneInput) (map[string]interface{}, error) {
-	return orm.SearchOne(in.ModelName, in.Criteria)
+func SearchOne(ctx context.Context, in SearchOneInput) (map[string]interface{}, error) {
+	return orm.SearchOne(ctx, in.ModelName, in.Criteria)
 }
 
 // SearchInput runs a simple AND domain (see ORM Search for domain shape).
@@ -20,8 +23,8 @@ type SearchInput struct {
 }
 
 // Search delegates to the ORM.
-func Search(in SearchInput) ([]map[string]interface{}, error) {
-	return orm.Search(in.ModelName, in.Domain)
+func Search(ctx context.Context, in SearchInput) ([]map[string]interface{}, error) {
+	return orm.Search(ctx, in.ModelName, in.Domain)
 }
 
 // CreateInput inserts one row for the given model.
@@ -31,8 +34,8 @@ type CreateInput struct {
 }
 
 // Create delegates to the ORM.
-func Create(in CreateInput) (int, error) {
-	return orm.Create(in.Model, in.Values)
+func Create(ctx context.Context, in CreateInput) (int, error) {
+	return orm.Create(ctx, in.Model, in.Values)
 }
 
 // UpsertInput upserts on a unique conflict column.
@@ -43,8 +46,8 @@ type UpsertInput struct {
 }
 
 // Upsert delegates to the ORM.
-func Upsert(in UpsertInput) (int, error) {
-	return orm.Upsert(in.Model, in.Values, in.ConflictCol)
+func Upsert(ctx context.Context, in UpsertInput) (int, error) {
+	return orm.Upsert(ctx, in.Model, in.Values, in.ConflictCol)
 }
 
 // ResolveXmlIdInput resolves module.xml_id to database id and model name.
@@ -53,6 +56,6 @@ type ResolveXmlIdInput struct {
 }
 
 // ResolveXmlId delegates to the ORM.
-func ResolveXmlId(in ResolveXmlIdInput) (int, string, error) {
-	return orm.ResolveXmlId(in.XMLID)
+func ResolveXmlId(ctx context.Context, in ResolveXmlIdInput) (int, string, error) {
+	return orm.ResolveXmlId(ctx, in.XMLID)
 }

@@ -15,16 +15,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// SecurityMiddleware attaches orm.SecurityUID from the session cookie for each request.
+// SecurityMiddleware attaches orm.UIDFromContext from the session cookie for each request context.
 func SecurityMiddleware(next http.Handler) http.Handler {
 	if next == nil {
 		next = http.DefaultServeMux
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uid := SessionUserID(r)
-		orm.SetSecurityUID(uid)
-		defer orm.ClearSecurityUID()
-		next.ServeHTTP(w, r)
+		ctx := orm.ContextWithUID(r.Context(), uid)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

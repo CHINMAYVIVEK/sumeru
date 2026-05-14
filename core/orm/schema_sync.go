@@ -111,9 +111,6 @@ func loadTableColumns(tableName string) (map[string]struct{}, error) {
 	return out, rows.Err()
 }
 
-func quoteIdent(s string) string {
-	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
-}
 
 func buildAddColumnDefinition(f FieldDefinition, baseType string) string {
 	if f.Type == Boolean {

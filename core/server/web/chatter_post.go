@@ -24,7 +24,7 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid form", http.StatusBadRequest)
 		return
 	}
-	if !mail.CompanyChatterEnabled() {
+	if !mail.CompanyChatterEnabled(r.Context()) {
 		http.Error(w, "Chatter disabled", http.StatusForbidden)
 		return
 	}
@@ -61,12 +61,12 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid res_id", http.StatusBadRequest)
 		return
 	}
-	if _, err := orm.SearchOne(modelName, map[string]interface{}{"id": int(rid)}); err != nil {
+	if _, err := orm.SearchOne(r.Context(), modelName, map[string]interface{}{"id": int(rid)}); err != nil {
 		http.Error(w, "Record not found", http.StatusNotFound)
 		return
 	}
 	author := "User"
-	if err := mail.PostMessage(modelName, rid, body, mail.SubtypeComment, author); err != nil {
+	if err := mail.PostMessage(r.Context(), modelName, rid, body, mail.SubtypeComment, author); err != nil {
 		log.Printf("web: chatter post %s id=%d: %v", modelName, rid, err)
 		http.Error(w, "Post failed", http.StatusInternalServerError)
 		return

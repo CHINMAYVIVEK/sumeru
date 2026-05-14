@@ -1,10 +1,13 @@
 package module
 
 import (
+	"context"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -55,8 +58,7 @@ var (
 // prepends core/base (platform addons: base, user, company), syncs ir.module rows, then loads XML for installed & active modules.
 // Later roots override earlier ones for the same technical module name.
 func LoadAddonPaths(paths []string) error {
-	orm.SetSecurityBypass(true)
-	defer orm.SetSecurityBypass(false)
+	ctx := orm.ContextWithBypass(context.Background(), true)
 
 	var roots []string
 	for _, p := range paths {
@@ -80,7 +82,7 @@ func LoadAddonPaths(paths []string) error {
 		LoadedAddons[k] = v
 	}
 
-	if err := syncIrModuleRows(discovered); err != nil {
+	if err := syncIrModuleRows(ctx, discovered); err != nil {
 		return err
 	}
 
@@ -90,17 +92,14 @@ func LoadAddonPaths(paths []string) error {
 	}
 
 	for _, addon := range order {
-		if !shouldSyncData(addon.Manifest.Name) {
-			continue
-		}
-		missing, err := missingInstalledDependencies(addon.Manifest.Name)
+		missing, err := missingInstalledDependencies(ctx, addon.Manifest.Name)
 		if err != nil {
 			return fmt.Errorf("addon %q: check dependencies: %w", addon.Manifest.Name, err)
 		}
 		if len(missing) > 0 {
 			continue
 		}
-		if err := addon.SyncToDB(); err != nil {
+		if err := addon.SyncToDB(ctx); err != nil {
 			fmt.Printf(platformmsg.FmtErrorSyncingAddon, addon.Manifest.Name, err)
 		} else {
 			fmt.Printf(platformmsg.FmtLoadedAddonData, addon.Manifest.Name, addon.Manifest.Version)
@@ -141,8 +140,8 @@ func DiscoverAddonRoots(paths []string) (map[string]*Addon, error) {
 	return out, nil
 }
 
-func countIrModules() (int, error) {
-	row := orm.DB.QueryRow("SELECT COUNT(*) FROM " + orm.GetTableName("ir.module"))
+func countIrModules(ctx context.Context) (int, error) {
+	row := orm.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+orm.GetTableName("ir.module"))
 	var n int
 	if err := row.Scan(&n); err != nil {
 		return 0, err
@@ -175,21 +174,21 @@ func irModuleDisplayName(a *Addon) string {
 
 // syncIrModuleRows upserts registry metadata. New DB: all modules start installed (bootstrap).
 // New addon on disk later: inserted as uninstalled until user installs from Apps.
-func syncIrModuleRows(discovered map[string]*Addon) error {
-	n, err := countIrModules()
+func syncIrModuleRows(ctx context.Context, discovered map[string]*Addon) error {
+	n, err := countIrModules(ctx)
 	if err != nil {
 		return err
 	}
 	bootstrap := n == 0
 
 	menuCount := 0
-	if err := orm.DB.QueryRow(`SELECT COUNT(*) FROM ` + orm.GetTableName("ir.ui.menu")).Scan(&menuCount); err != nil {
+	if err := orm.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+orm.GetTableName("ir.ui.menu")).Scan(&menuCount); err != nil {
 		return fmt.Errorf("count menus: %w", err)
 	}
 	legacyBootstrap := bootstrap && menuCount > 0
 
 	for _, addon := range discovered {
-		_, err := orm.SearchOne("ir.module", map[string]interface{}{"name": addon.Manifest.Name})
+		_, err := orm.SearchOne(ctx, "ir.module", map[string]interface{}{"name": addon.Manifest.Name})
 		if err == sql.ErrNoRows {
 			state := "uninstalled"
 			if bootstrap {
@@ -202,7 +201,7 @@ func syncIrModuleRows(discovered map[string]*Addon) error {
 					state = "uninstalled"
 				}
 			}
-			_, err = orm.Create(orm.IrModule{}, map[string]interface{}{
+			_, err = orm.Create(ctx, orm.IrModule{}, map[string]interface{}{
 				"name":         addon.Manifest.Name,
 				"display_name": irModuleDisplayName(addon),
 				"author":       addon.Manifest.Author,
@@ -220,7 +219,7 @@ func syncIrModuleRows(discovered map[string]*Addon) error {
 		if err != nil {
 			return err
 		}
-		_, err = orm.DB.Exec(
+		_, err = orm.DB.ExecContext(ctx,
 			`UPDATE `+orm.GetTableName("ir.module")+
 				` SET display_name = $1, author = $2, version = $3, description = $4, application = $5 WHERE name = $6`,
 			irModuleDisplayName(addon),
@@ -237,12 +236,12 @@ func syncIrModuleRows(discovered map[string]*Addon) error {
 	return nil
 }
 
-func moduleRow(name string) (map[string]interface{}, error) {
-	return orm.SearchOne("ir.module", map[string]interface{}{"name": name})
+func moduleRow(ctx context.Context, name string) (map[string]interface{}, error) {
+	return orm.SearchOne(ctx, "ir.module", map[string]interface{}{"name": name})
 }
 
-func shouldSyncData(moduleName string) bool {
-	row, err := moduleRow(moduleName)
+func shouldSyncData(ctx context.Context, moduleName string) bool {
+	row, err := moduleRow(ctx, moduleName)
 	if err != nil {
 		return false
 	}
@@ -320,12 +319,9 @@ func viewArchXML(v *parser.View) string {
 	return string(b)
 }
 
-func (a *Addon) SyncToDB() error {
-	orm.SetSecurityBypass(true)
-	defer orm.SetSecurityBypass(false)
-
+func (a *Addon) SyncToDB(ctx context.Context) error {
 	for _, model := range orm.Registry {
-		_, err := orm.Upsert(orm.IrModel{}, map[string]interface{}{
+		_, err := orm.Upsert(ctx, orm.IrModel{}, map[string]interface{}{
 			"name":  model.ModelName(),
 			"model": model.ModelName(),
 		}, "name")
@@ -335,6 +331,11 @@ func (a *Addon) SyncToDB() error {
 	}
 
 	modName := a.Manifest.Name
+	
+	// Load ir.model.access.csv if it exists
+	if err := a.syncCSVModelAccess(ctx); err != nil {
+		fmt.Printf("Warning: Failed to load CSV ACLs for %s: %v\n", modName, err)
+	}
 	var inheritQueue []parser.Record
 
 	for _, xmlFile := range a.Manifest.Data {
@@ -356,9 +357,9 @@ func (a *Addon) SyncToDB() error {
 					if _, ok := vals["name"]; !ok || vals["name"] == "" {
 						vals["name"] = rec.ID
 					}
-					id, err := orm.Upsert(orm.IrActionsActWindow{}, vals, "name")
+					id, err := orm.Upsert(ctx, orm.IrActionsActWindow{}, vals, "name")
 					if err == nil {
-						orm.Upsert(orm.IrModelData{}, map[string]interface{}{
+						orm.Upsert(ctx, orm.IrModelData{}, map[string]interface{}{
 							"module": modName,
 							"name":   rec.ID,
 							"model":  "ir.actions.act_window",
@@ -371,20 +372,20 @@ func (a *Addon) SyncToDB() error {
 						inheritQueue = append(inheritQueue, rec)
 					}
 				}
-				syncGenericRegistryRecord(modName, rec)
+				syncGenericRegistryRecord(ctx, modName, rec)
 			}
 
 			for _, v := range viewData.Views {
 				arch := viewArchXML(&v)
 
-				id, err := orm.Upsert(orm.IrUiView{}, map[string]interface{}{
+				id, err := orm.Upsert(ctx, orm.IrUiView{}, map[string]interface{}{
 					"name":  v.Model + "." + v.Type,
 					"model": v.Model,
 					"type":  v.Type,
 					"arch":  arch,
 				}, "name")
 				if err == nil {
-					orm.Upsert(orm.IrModelData{}, map[string]interface{}{
+					orm.Upsert(ctx, orm.IrModelData{}, map[string]interface{}{
 						"module": modName,
 						"name":   v.ID,
 						"model":  "ir.ui.view",
@@ -406,7 +407,7 @@ func (a *Addon) SyncToDB() error {
 				}
 
 				if m.Action != "" {
-					actionID, _, _ := orm.ResolveXmlId(m.Action)
+					actionID, _, _ := orm.ResolveXmlId(ctx, m.Action)
 					if actionID != 0 {
 						vals["action_id"] = actionID
 					}
@@ -417,15 +418,15 @@ func (a *Addon) SyncToDB() error {
 				}
 
 				if m.ParentID != "" {
-					parentID, _, _ := orm.ResolveXmlId(m.ParentID)
+					parentID, _, _ := orm.ResolveXmlId(ctx, m.ParentID)
 					if parentID != 0 {
 						vals["parent_id"] = parentID
 					}
 				}
 
-				id, err := orm.Upsert(orm.IrUiMenu{}, vals, "name")
+				id, err := orm.Upsert(ctx, orm.IrUiMenu{}, vals, "name")
 				if err == nil {
-					orm.Upsert(orm.IrModelData{}, map[string]interface{}{
+					orm.Upsert(ctx, orm.IrModelData{}, map[string]interface{}{
 						"module": modName,
 						"name":   m.ID,
 						"model":  "ir.ui.menu",
@@ -437,7 +438,7 @@ func (a *Addon) SyncToDB() error {
 	}
 
 	for _, rec := range inheritQueue {
-		if err := applyIrUIViewInherit(modName, rec); err != nil {
+		if err := applyIrUIViewInherit(ctx, modName, rec); err != nil {
 			fmt.Printf(platformmsg.FmtViewInheritWarning, modName, rec.ID, err)
 		}
 	}
@@ -445,7 +446,7 @@ func (a *Addon) SyncToDB() error {
 	return nil
 }
 
-func syncGenericRegistryRecord(modName string, rec parser.Record) {
+func syncGenericRegistryRecord(ctx context.Context, modName string, rec parser.Record) {
 	if rec.Model == "ir.actions.act_window" || rec.Model == "ir.ui.view" {
 		return
 	}
@@ -455,24 +456,24 @@ func syncGenericRegistryRecord(modName string, rec parser.Record) {
 		if !ok || inst == nil {
 			return
 		}
-		syncRegistryRecordByModel(modName, rec, inst)
+		syncRegistryRecordByModel(ctx, modName, rec, inst)
 		return
 	}
 	inst, ok := orm.Registry[rec.Model]
 	if !ok || inst == nil {
 		return
 	}
-	syncRegistryRecordByModel(modName, rec, inst)
+	syncRegistryRecordByModel(ctx, modName, rec, inst)
 }
 
-func syncRegistryRecordByModel(modName string, rec parser.Record, inst orm.Model) {
+func syncRegistryRecordByModel(ctx context.Context, modName string, rec parser.Record, inst orm.Model) {
 	fmStr := parser.RecordFieldMap(rec)
 	if len(fmStr) == 0 {
 		return
 	}
 	vals := map[string]interface{}{}
 	for k, v := range fmStr {
-		vals[k] = convertRecordScalar(modName, rec.Model, k, v)
+		vals[k] = convertRecordScalar(ctx, modName, rec.Model, k, v)
 	}
 	conflict := "name"
 	if rec.Model == "res.users" {
@@ -481,12 +482,12 @@ func syncRegistryRecordByModel(modName string, rec parser.Record, inst orm.Model
 	if _, ok := vals[conflict]; !ok {
 		return
 	}
-	id, err := orm.Upsert(inst, vals, conflict)
+	id, err := orm.Upsert(ctx, inst, vals, conflict)
 	if err != nil {
 		fmt.Printf(platformmsg.FmtGenericUpsertWarn, rec.Model, rec.ID, err)
 		return
 	}
-	_, _ = orm.Upsert(orm.IrModelData{}, map[string]interface{}{
+	_, _ = orm.Upsert(ctx, orm.IrModelData{}, map[string]interface{}{
 		"module": modName,
 		"name":   rec.ID,
 		"model":  rec.Model,
@@ -507,7 +508,7 @@ func sanitizeWebIcon(s string) string {
 	return s
 }
 
-func convertRecordScalar(modName, model, col, raw string) interface{} {
+func convertRecordScalar(ctx context.Context, modName, model, col, raw string) interface{} {
 	s := strings.TrimSpace(raw)
 	if strings.HasPrefix(col, "perm_") {
 		if b, err := strconv.ParseBool(s); err == nil {
@@ -520,12 +521,12 @@ func convertRecordScalar(modName, model, col, raw string) interface{} {
 			return nil
 		}
 		if strings.Contains(s, ".") {
-			if id, _, err := orm.ResolveXmlId(s); err == nil && id > 0 {
+			if id, _, err := orm.ResolveXmlId(ctx, s); err == nil && id > 0 {
 				return id
 			}
 		}
 		if modName != "" {
-			if id, _, err := orm.ResolveXmlId(modName + "." + s); err == nil && id > 0 {
+			if id, _, err := orm.ResolveXmlId(ctx, modName + "." + s); err == nil && id > 0 {
 				return id
 			}
 		}
@@ -556,13 +557,17 @@ func parseManifest(path string) (*Manifest, error) {
 // --- Install / uninstall / activate ---
 
 // InstallModuleByName marks the module installed and loads its XML (and dependencies first).
-func InstallModuleByName(name string) error {
+func InstallModuleByName(ctx context.Context, name string) error {
+	if err := orm.CheckModelAccess(ctx, orm.SecurityUID(ctx), "ir.module", "write"); err != nil {
+		return err
+	}
+	sysCtx := orm.ContextWithBypass(context.Background(), true)
 	installMu.Lock()
 	defer installMu.Unlock()
-	return installModuleUnlocked(name)
+	return installModuleUnlocked(sysCtx, name)
 }
 
-func installModuleUnlocked(name string) error {
+func installModuleUnlocked(ctx context.Context, name string) error {
 	if name == "" {
 		return fmt.Errorf("module name required")
 	}
@@ -579,7 +584,7 @@ func installModuleUnlocked(name string) error {
 		if _, has := DiscoveredAddons[dep]; !has {
 			continue
 		}
-		row, err := moduleRow(dep)
+		row, err := moduleRow(ctx, dep)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return fmt.Errorf("dependency %q is not registered", dep)
@@ -587,7 +592,7 @@ func installModuleUnlocked(name string) error {
 			return err
 		}
 		if moduleStateString(row) != "installed" {
-			if err := installModuleUnlocked(dep); err != nil {
+			if err := installModuleUnlocked(ctx, dep); err != nil {
 				return fmt.Errorf("install dependency %q: %w", dep, err)
 			}
 		}
@@ -597,17 +602,17 @@ func installModuleUnlocked(name string) error {
 		return fmt.Errorf("schema sync: %w", err)
 	}
 
-	if _, err := orm.DB.Exec(
+	if _, err := orm.DB.ExecContext(ctx,
 		`UPDATE `+orm.GetTableName("ir.module")+` SET state = 'installed', active = true WHERE name = $1`,
 		name,
 	); err != nil {
 		return err
 	}
 
-	if err := a.SyncToDB(); err != nil {
+	if err := a.SyncToDB(ctx); err != nil {
 		return err
 	}
-	mail.LogModuleEvent(name, "Installed", "")
+	mail.LogModuleEvent(ctx, name, "Installed", "")
 	return nil
 }
 
@@ -627,7 +632,7 @@ func moduleStateString(row map[string]interface{}) string {
 
 // missingInstalledDependencies lists manifest depends that are not installed in ir.module
 // (or not registered). On-disk deps missing from DiscoveredAddons are ignored.
-func missingInstalledDependencies(name string) ([]string, error) {
+func missingInstalledDependencies(ctx context.Context, name string) ([]string, error) {
 	a, ok := DiscoveredAddons[name]
 	if !ok {
 		return nil, nil
@@ -641,7 +646,7 @@ func missingInstalledDependencies(name string) ([]string, error) {
 		if _, has := DiscoveredAddons[dep]; !has {
 			continue
 		}
-		row, err := moduleRow(dep)
+		row, err := moduleRow(ctx, dep)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				missing = append(missing, dep)
@@ -657,7 +662,11 @@ func missingInstalledDependencies(name string) ([]string, error) {
 }
 
 // UninstallModuleByName removes XML-linked metadata for the module and marks it uninstalled.
-func UninstallModuleByName(name string) error {
+func UninstallModuleByName(ctx context.Context, name string) error {
+	if err := orm.CheckModelAccess(ctx, orm.SecurityUID(ctx), "ir.module", "write"); err != nil {
+		return err
+	}
+	sysCtx := orm.ContextWithBypass(context.Background(), true)
 	installMu.Lock()
 	defer installMu.Unlock()
 
@@ -668,28 +677,28 @@ func UninstallModuleByName(name string) error {
 		return fmt.Errorf("unknown module %q", name)
 	}
 
-	if dep, err := installedModuleDependingOn(name); err != nil {
+	if dep, err := installedModuleDependingOn(sysCtx, name); err != nil {
 		return err
 	} else if dep != "" {
 		return fmt.Errorf("module %q is required by installed module %q; uninstall that first", name, dep)
 	}
 
-	if err := deleteModuleMetadata(name); err != nil {
+	if err := deleteModuleMetadata(sysCtx, name); err != nil {
 		return err
 	}
 
-	if _, err := orm.DB.Exec(
+	if _, err := orm.DB.ExecContext(sysCtx,
 		`UPDATE `+orm.GetTableName("ir.module")+` SET state = 'uninstalled', active = true WHERE name = $1`,
 		name,
 	); err != nil {
 		return err
 	}
-	mail.LogModuleEvent(name, "Uninstalled", "")
+	mail.LogModuleEvent(sysCtx, name, "Uninstalled", "")
 	return nil
 }
 
-func installedModuleDependingOn(target string) (string, error) {
-	rows, err := orm.DB.Query(
+func installedModuleDependingOn(ctx context.Context, target string) (string, error) {
+	rows, err := orm.DB.QueryContext(ctx,
 		`SELECT name, state FROM `+orm.GetTableName("ir.module")+` WHERE state = 'installed' AND name <> $1`,
 		target,
 	)
@@ -716,23 +725,27 @@ func installedModuleDependingOn(target string) (string, error) {
 	return "", rows.Err()
 }
 
-func deleteModuleMetadata(moduleName string) error {
-	models := []string{"ir.ui.menu", "ir.ui.view", "ir.actions.act_window"}
+func deleteModuleMetadata(ctx context.Context, moduleName string) error {
+	models := []string{"ir.ui.menu", "ir.ui.view", "ir.actions.act_window", "ir.model.access", "ir.rule", "ir.approval.rule"}
 	for _, model := range models {
 		tbl := orm.GetTableName(model)
 		q := `DELETE FROM ` + tbl + ` WHERE id IN (SELECT res_id FROM ` + orm.GetTableName("ir.model.data") + ` WHERE module = $1 AND model = $2)`
-		if _, err := orm.DB.Exec(q, moduleName, model); err != nil {
+		if _, err := orm.DB.ExecContext(ctx, q, moduleName, model); err != nil {
 			return fmt.Errorf("delete %s: %w", model, err)
 		}
 	}
-	if _, err := orm.DB.Exec(`DELETE FROM `+orm.GetTableName("ir.model.data")+` WHERE module = $1`, moduleName); err != nil {
+	if _, err := orm.DB.ExecContext(ctx, `DELETE FROM `+orm.GetTableName("ir.model.data")+` WHERE module = $1`, moduleName); err != nil {
 		return err
 	}
 	return nil
 }
 
 // SetModuleActive toggles visibility of menus for an installed module without removing data.
-func SetModuleActive(name string, active bool) error {
+func SetModuleActive(ctx context.Context, name string, active bool) error {
+	if err := orm.CheckModelAccess(ctx, orm.SecurityUID(ctx), "ir.module", "write"); err != nil {
+		return err
+	}
+	sysCtx := orm.ContextWithBypass(context.Background(), true)
 	installMu.Lock()
 	defer installMu.Unlock()
 
@@ -743,7 +756,7 @@ func SetModuleActive(name string, active bool) error {
 		return fmt.Errorf("unknown module %q", name)
 	}
 
-	row, err := moduleRow(name)
+	row, err := moduleRow(sysCtx, name)
 	if err != nil {
 		return err
 	}
@@ -751,23 +764,23 @@ func SetModuleActive(name string, active bool) error {
 		return fmt.Errorf("module %q is not installed; activate/install it first", name)
 	}
 
-	if _, err := orm.DB.Exec(
+	if _, err := orm.DB.ExecContext(sysCtx,
 		`UPDATE `+orm.GetTableName("ir.module")+` SET active = $1 WHERE name = $2`,
 		active, name,
 	); err != nil {
 		return err
 	}
 	if active {
-		mail.LogModuleEvent(name, "Activated", "")
+		mail.LogModuleEvent(sysCtx, name, "Activated", "")
 	} else {
-		mail.LogModuleEvent(name, "Deactivated", "")
+		mail.LogModuleEvent(sysCtx, name, "Deactivated", "")
 	}
 	return nil
 }
 
 // ListModules returns ir.module rows for the Apps UI (non-application modules included for completeness).
-func ListModules() ([]map[string]interface{}, error) {
-	rows, err := orm.DB.Query(
+func ListModules(ctx context.Context) ([]map[string]interface{}, error) {
+	rows, err := orm.DB.QueryContext(ctx,
 		`SELECT id, name, display_name, author, version, description, state, application, active FROM ` +
 			orm.GetTableName("ir.module") + ` ORDER BY application DESC, name`,
 	)
@@ -804,4 +817,83 @@ func ListModules() ([]map[string]interface{}, error) {
 		out = append(out, m)
 	}
 	return out, rows.Err()
+}
+
+func (a *Addon) syncCSVModelAccess(ctx context.Context) error {
+	csvPath := filepath.Join(a.Path, "ir.model.access.csv")
+	if _, err := os.Stat(csvPath); err != nil {
+		csvPath = filepath.Join(a.Path, "security", "ir.model.access.csv")
+		if _, err := os.Stat(csvPath); err != nil {
+			return nil // No CSV ACL file found
+		}
+	}
+
+	f, err := os.Open(csvPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	r := csv.NewReader(f)
+	// Skip header: id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+	if _, err := r.Read(); err != nil {
+		return err
+	}
+
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if len(rec) < 8 {
+			continue
+		}
+
+		xmlID := rec[0]
+		name := rec[1]
+		modelName := rec[2]
+		groupXMLID := rec[3]
+		permRead := rec[4] == "1"
+		permWrite := rec[5] == "1"
+		permCreate := rec[6] == "1"
+		permUnlink := rec[7] == "1"
+
+		var groupID int
+		if groupXMLID != "" {
+			gid, _, err := orm.ResolveXmlId(ctx, groupXMLID)
+			if err != nil {
+				// Try with module prefix if not absolute
+				if !strings.Contains(groupXMLID, ".") {
+					gid, _, _ = orm.ResolveXmlId(ctx, a.Manifest.Name+"."+groupXMLID)
+				}
+			}
+			groupID = gid
+		}
+
+		vals := map[string]interface{}{
+			"name":        name,
+			"model":       modelName,
+			"perm_read":   permRead,
+			"perm_write":  permWrite,
+			"perm_create": permCreate,
+			"perm_unlink": permUnlink,
+		}
+		if groupID > 0 {
+			vals["group_id"] = groupID
+		}
+
+		id, err := orm.Upsert(ctx, orm.IrModelAccess{}, vals, "name")
+		if err == nil {
+			orm.Upsert(ctx, orm.IrModelData{}, map[string]interface{}{
+				"module": a.Manifest.Name,
+				"name":   xmlID,
+				"model":  "ir.model.access",
+				"res_id": id,
+			}, "name")
+		}
+	}
+	return nil
 }

@@ -115,6 +115,23 @@ func (a IrActionsActWindow) Fields() []FieldDefinition {
 	}
 }
 
+// IrSession stores web session tokens for authenticated users.
+type IrSession struct {
+	ID        int    `orm:"id"`
+	Sid       string `orm:"sid"`
+	UserID    int    `orm:"user_id"`
+	ExpiresAt string `orm:"expires_at"`
+}
+
+func (s IrSession) ModelName() string { return "ir.session" }
+func (s IrSession) Fields() []FieldDefinition {
+	return []FieldDefinition{
+		{Name: "sid", Type: Char, Required: true, Unique: true, Index: true},
+		{Name: "user_id", Type: Many2One, Relation: "res.users", Required: true, Index: true},
+		{Name: "expires_at", Type: DateTime, Required: true},
+	}
+}
+
 // mail_message stores chatter and activity log lines (Odoo-style subset).
 type MailMessage struct {
 	ID         int       `orm:"id"`
@@ -167,4 +184,5 @@ func init() {
 	RegisterModel(IrModelData{})
 	RegisterModel(IrModule{})
 	RegisterModel(MailMessage{})
+	RegisterModel(IrSession{})
 }

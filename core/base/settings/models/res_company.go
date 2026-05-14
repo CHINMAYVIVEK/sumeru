@@ -4,22 +4,22 @@ import "sumeru/core/base"
 
 type ResCompany struct {
 	base.BaseModel
-	Name            string `db:"name"`
-	Street          string `db:"street"`
-	Street2         string `db:"street2"`
-	City            string `db:"city"`
-	Zip             string `db:"zip"`
-	State           string `db:"state"`
-	Country         string `db:"country"`
-	Email           string `db:"email"`
-	Phone           string `db:"phone"`
-	Mobile          string `db:"mobile"`
-	Website         string `db:"website"`
-	Vat                           string `db:"vat"`
-	CompanyRegistry               string `db:"company_registry"`
-	InternalNotes                 string `db:"internal_notes"`
-	MailChatterEnabled            bool   `db:"mail_chatter_enabled"`
-	MailActivityPanelEnabled      bool   `db:"mail_activity_panel_enabled"`
+	Name                     string `db:"name"`
+	Street                   string `db:"street"`
+	Street2                  string `db:"street2"`
+	City                     string `db:"city"`
+	Zip                      string `db:"zip"`
+	State                    string `db:"state"`
+	Country                  string `db:"country"`
+	Email                    string `db:"email"`
+	Phone                    string `db:"phone"`
+	Mobile                   string `db:"mobile"`
+	Website                  string `db:"website"`
+	Vat                      string `db:"vat"`
+	CompanyRegistry          string `db:"company_registry"`
+	InternalNotes            string `db:"internal_notes"`
+	MailChatterEnabled       bool   `db:"mail_chatter_enabled"`
+	MailActivityPanelEnabled bool   `db:"mail_activity_panel_enabled"`
 }
 
 func (ResCompany) ModelName() string { return "res.company" }

@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 // EnsureBootstrapSecurity creates default groups, admin user, ACLs, and implied links when missing.
 func EnsureBootstrapSecurity() error {
+	ctx := ContextWithBypass(context.Background(), true)
 	if DB == nil {
 		return nil
 	}
@@ -17,7 +19,7 @@ func EnsureBootstrapSecurity() error {
 		return err
 	}
 	// Default groups
-	adminGID, err := Upsert(ResGroups{}, map[string]interface{}{
+	adminGID, err := Upsert(ctx, ResGroups{}, map[string]interface{}{
 		"name":     "Administration / Settings",
 		"category": "Administration",
 		"sequence": 1,
@@ -25,14 +27,14 @@ func EnsureBootstrapSecurity() error {
 	if err != nil {
 		return fmt.Errorf("bootstrap res.groups admin: %w", err)
 	}
-	_, _ = Upsert(IrModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, IrModelData{}, map[string]interface{}{
 		"module": "user",
 		"name":   "group_system",
 		"model":  "res.groups",
 		"res_id": adminGID,
 	}, "name")
 
-	userGID, err := Upsert(ResGroups{}, map[string]interface{}{
+	userGID, err := Upsert(ctx, ResGroups{}, map[string]interface{}{
 		"name":     "User types / Internal User",
 		"category": "User types",
 		"sequence": 10,
@@ -40,7 +42,7 @@ func EnsureBootstrapSecurity() error {
 	if err != nil {
 		return fmt.Errorf("bootstrap res.groups user: %w", err)
 	}
-	_, _ = Upsert(IrModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, IrModelData{}, map[string]interface{}{
 		"module": "user",
 		"name":   "group_user",
 		"model":  "res.groups",
@@ -48,14 +50,14 @@ func EnsureBootstrapSecurity() error {
 	}, "name")
 
 	// Admin implies internal user
-	_, _ = DB.Exec(`INSERT INTO `+GetTableName("res.groups.implied")+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`, adminGID, userGID)
+	_, _ = DB.ExecContext(ctx, `INSERT INTO `+GetTableName("res.groups.implied")+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`, adminGID, userGID)
 
 	// Admin user
 	inst, ok := Registry["res.users"]
 	if !ok || inst == nil {
 		return fmt.Errorf("res.users not registered")
 	}
-	adminUID, err := Upsert(inst, map[string]interface{}{
+	adminUID, err := Upsert(ctx, inst, map[string]interface{}{
 		"login":    "admin",
 		"name":     "Administrator",
 		"active":   true,
@@ -73,31 +75,31 @@ func EnsureBootstrapSecurity() error {
 	if err != nil {
 		return err
 	}
-	row := DB.QueryRow(`SELECT COALESCE(NULLIF(TRIM(password), ''), '') FROM `+GetTableName("res.users")+` WHERE id = $1`, adminUID)
+	row := DB.QueryRowContext(ctx, `SELECT COALESCE(NULLIF(TRIM(password), ''), '') FROM `+GetTableName("res.users")+` WHERE id = $1`, adminUID)
 	var pw string
 	_ = row.Scan(&pw)
 	if pw == "" {
-		if _, err := DB.Exec(`UPDATE `+GetTableName("res.users")+` SET password = $1 WHERE id = $2`, string(hash), adminUID); err != nil {
+		if _, err := DB.ExecContext(ctx, `UPDATE `+GetTableName("res.users")+` SET password = $1 WHERE id = $2`, string(hash), adminUID); err != nil {
 			return err
 		}
 		log.Printf("security bootstrap: set default password for login 'admin' (change after first login)")
 	}
 
-	_, _ = Upsert(IrModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, IrModelData{}, map[string]interface{}{
 		"module": "user",
 		"name":   "user_admin",
 		"model":  "res.users",
 		"res_id": adminUID,
 	}, "name")
 
-	if _, err := DB.Exec(`INSERT INTO `+GetTableName("res.groups.user.rel")+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, adminGID); err != nil {
+	if _, err := DB.ExecContext(ctx, `INSERT INTO `+GetTableName("res.groups.user.rel")+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, adminGID); err != nil {
 		return err
 	}
 
 	// Full CRUD for Administration group on every registered model
 	for modelName := range Registry {
 		accName := fmt.Sprintf("access_%s_admin", strings.ReplaceAll(modelName, ".", "_"))
-		if _, err := Upsert(IrModelAccess{}, map[string]interface{}{
+		if _, err := Upsert(ctx, IrModelAccess{}, map[string]interface{}{
 			"name":        accName,
 			"model":       modelName,
 			"group_id":    NullableGroupIDForAccess(adminGID),
@@ -114,7 +116,7 @@ func EnsureBootstrapSecurity() error {
 	globalReads := []string{"ir.model.data", "ir.ui.menu", "ir.actions.act_window", "ir.ui.view", "ir.module"}
 	for _, m := range globalReads {
 		accName := fmt.Sprintf("access_%s_global_read", strings.ReplaceAll(m, ".", "_"))
-		_, _ = Upsert(IrModelAccess{}, map[string]interface{}{
+		_, _ = Upsert(ctx, IrModelAccess{}, map[string]interface{}{
 			"name":        accName,
 			"model":       m,
 			"group_id":    nil,
@@ -132,7 +134,7 @@ func EnsureBootstrapSecurity() error {
 		{"ir.model.access", "access_ir_model_access_user_read"},
 		{"ir.rule", "access_ir_rule_user_read"},
 	} {
-		_, _ = Upsert(IrModelAccess{}, map[string]interface{}{
+		_, _ = Upsert(ctx, IrModelAccess{}, map[string]interface{}{
 			"name":        pair.name,
 			"model":       pair.model,
 			"group_id":    NullableGroupIDForAccess(userGID),
@@ -145,7 +147,7 @@ func EnsureBootstrapSecurity() error {
 
 	for _, m := range []string{"sale.order", "crm.lead", "product.product", "stock.picking", "mail.message"} {
 		accName := fmt.Sprintf("access_%s_internal", strings.ReplaceAll(m, ".", "_"))
-		_, _ = Upsert(IrModelAccess{}, map[string]interface{}{
+		_, _ = Upsert(ctx, IrModelAccess{}, map[string]interface{}{
 			"name":        accName,
 			"model":       m,
 			"group_id":    NullableGroupIDForAccess(userGID),

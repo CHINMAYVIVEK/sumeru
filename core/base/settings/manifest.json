@@ -1,17 +1,22 @@
 {
-  "name": "company",
+  "name": "settings",
   "display_name": "Settings",
   "version": "1.0.0",
   "depends": ["base"],
   "author": "Sumeru",
-  "description": "Corporate registry: legal entities, fiscal data, addresses, and company profile (res.company).",
+  "description": "Unified settings: corporate registry, fiscal data, and internal user management.",
   "application": true,
   "data": [
     "data/res_company_data.xml",
+    "security/security_admin.xml",
     "views/res_company_actions.xml",
     "views/res_company_tree_views.xml",
     "views/res_company_kanban_views.xml",
     "views/res_company_form_views.xml",
+    "views/res_users_actions.xml",
+    "views/res_users_tree_views.xml",
+    "views/res_users_kanban_views.xml",
+    "views/res_users_form_views.xml",
     "views/menus.xml"
   ]
 }

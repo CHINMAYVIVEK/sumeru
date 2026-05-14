@@ -1,18 +1,19 @@
 package orm
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
 )
 
 // Create inserts a new record into the database
-func Create(model Model, values map[string]interface{}) (int, error) {
-	uid := SecurityUID()
-	if err := CheckModelAccess(uid, model.ModelName(), "create"); err != nil {
+func Create(ctx context.Context, model Model, values map[string]interface{}) (int, error) {
+	uid := SecurityUID(ctx)
+	if err := CheckModelAccess(ctx, uid, model.ModelName(), "create"); err != nil {
 		return 0, err
 	}
-	if err := CheckRecordRules(uid, model.ModelName(), "create", values); err != nil {
+	if err := CheckRecordRules(ctx, uid, model.ModelName(), "create", values); err != nil {
 		return 0, err
 	}
 	var cols []string
@@ -31,12 +32,20 @@ func Create(model Model, values map[string]interface{}) (int, error) {
 		GetTableName(model.ModelName()), strings.Join(cols, ", "), strings.Join(placeholders, ", "))
 
 	var id int
-	err := DB.QueryRow(query, args...).Scan(&id)
+	err := DB.QueryRowContext(ctx, query, args...).Scan(&id)
 	return id, err
 }
 
 // Upsert inserts or updates a record based on a unique field (usually 'name' or 'id')
-func Upsert(model Model, values map[string]interface{}, conflictCol string) (int, error) {
+func Upsert(ctx context.Context, model Model, values map[string]interface{}, conflictCol string) (int, error) {
+	uid := SecurityUID(ctx)
+	// UPSERT security: Check create/write permissions
+	if err := CheckModelAccess(ctx, uid, model.ModelName(), "create"); err != nil {
+		return 0, err
+	}
+	// Note: Odoo often skips record rules for upsert in bootstrap, but we should check them if possible.
+	// For simplicity, we check model access. Full record rule check on upsert is complex because we don't know if it's create or update yet.
+
 	var cols []string
 	var placeholders []string
 	var updates []string
@@ -58,21 +67,44 @@ func Upsert(model Model, values map[string]interface{}, conflictCol string) (int
 		conflictCol, strings.Join(updates, ", "))
 
 	var id int
-	err := DB.QueryRow(query, args...).Scan(&id)
+	err := DB.QueryRowContext(ctx, query, args...).Scan(&id)
 	if err == sql.ErrNoRows {
 		return 0, nil
 	}
 	return id, err
 }
 
+// Unlink deletes a record by ID.
+func Unlink(ctx context.Context, modelName string, id int) error {
+	if id <= 0 {
+		return fmt.Errorf("invalid id")
+	}
+	uid := SecurityUID(ctx)
+	if err := CheckModelAccess(ctx, uid, modelName, "unlink"); err != nil {
+		return err
+	}
+	rec, err := SearchOne(ctx, modelName, map[string]interface{}{"id": id})
+	if err != nil {
+		return err
+	}
+	if err := CheckRecordRules(ctx, uid, modelName, "unlink", rec); err != nil {
+		return err
+	}
+
+	tbl := GetTableName(modelName)
+	query := fmt.Sprintf("DELETE FROM %s WHERE id = $1", tbl)
+	_, err = DB.ExecContext(ctx, query, id)
+	return err
+}
+
 // SearchOne finds a single record matching the criteria
-func SearchOne(modelName string, criteria map[string]interface{}) (map[string]interface{}, error) {
+func SearchOne(ctx context.Context, modelName string, criteria map[string]interface{}) (map[string]interface{}, error) {
 	if _, ok := Registry[modelName]; !ok {
 		return nil, fmt.Errorf("model %s not registered", modelName)
 	}
-	uid := SecurityUID()
-	if !SecurityBypass() {
-		if err := CheckModelAccess(uid, modelName, "read"); err != nil {
+	uid := SecurityUID(ctx)
+	if !SecurityBypass(ctx) {
+		if err := CheckModelAccess(ctx, uid, modelName, "read"); err != nil {
 			return nil, err
 		}
 	}
@@ -87,7 +119,7 @@ func SearchOne(modelName string, criteria map[string]interface{}) (map[string]in
 	}
 
 	query := fmt.Sprintf("SELECT * FROM %s WHERE %s LIMIT 1", GetTableName(modelName), strings.Join(where, " AND "))
-	rows, err := DB.Query(query, args...)
+	rows, err := DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +145,8 @@ func SearchOne(modelName string, criteria map[string]interface{}) (map[string]in
 		result[col] = vals[i]
 	}
 
-	if !SecurityBypass() && uid > 0 {
-		if err := CheckRecordRules(uid, modelName, "read", result); err != nil {
+	if !SecurityBypass(ctx) && uid > 0 {
+		if err := CheckRecordRules(ctx, uid, modelName, "read", result); err != nil {
 			return nil, sql.ErrNoRows
 		}
 	}
@@ -123,7 +155,7 @@ func SearchOne(modelName string, criteria map[string]interface{}) (map[string]in
 }
 
 // ResolveXmlId returns the database ID for a given XML ID (module.name)
-func ResolveXmlId(xmlID string) (int, string, error) {
+func ResolveXmlId(ctx context.Context, xmlID string) (int, string, error) {
 	parts := strings.Split(xmlID, ".")
 	module := ""
 	name := xmlID
@@ -137,7 +169,7 @@ func ResolveXmlId(xmlID string) (int, string, error) {
 		criteria["module"] = module
 	}
 
-	data, err := SearchOne("ir.model.data", criteria)
+	data, err := SearchOne(ctx, "ir.model.data", criteria)
 	if err != nil {
 		return 0, "", err
 	}
@@ -149,16 +181,16 @@ func ResolveXmlId(xmlID string) (int, string, error) {
 }
 
 // Search finds records matching the criteria
-func Search(modelName string, domain [][]interface{}) ([]map[string]interface{}, error) {
+func Search(ctx context.Context, modelName string, domain [][]interface{}) ([]map[string]interface{}, error) {
 	if _, ok := Registry[modelName]; !ok {
 		return nil, fmt.Errorf("model %s not found", modelName)
 	}
-	uid := SecurityUID()
-	if err := CheckModelAccess(uid, modelName, "read"); err != nil {
+	uid := SecurityUID(ctx)
+	if err := CheckModelAccess(ctx, uid, modelName, "read"); err != nil {
 		return nil, err
 	}
 	var err error
-	domain, err = MergeRuleDomainsIntoSearch(uid, modelName, "read", domain)
+	domain, err = MergeRuleDomainsIntoSearch(ctx, uid, modelName, "read", domain)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +201,7 @@ func Search(modelName string, domain [][]interface{}) ([]map[string]interface{},
 	}
 
 	query := fmt.Sprintf("SELECT * FROM %s WHERE %s", GetTableName(modelName), whereClause)
-	rows, err := DB.Query(query, args...)
+	rows, err := DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -201,19 +233,19 @@ func Search(modelName string, domain [][]interface{}) ([]map[string]interface{},
 
 // SearchLimit returns up to limit rows for modelName matching domain, ordered by id.
 // limit must be positive; otherwise it defaults to 500.
-func SearchLimit(modelName string, domain [][]interface{}, limit int) ([]map[string]interface{}, error) {
+func SearchLimit(ctx context.Context, modelName string, domain [][]interface{}, limit int) ([]map[string]interface{}, error) {
 	if _, ok := Registry[modelName]; !ok {
 		return nil, fmt.Errorf("model %s not found", modelName)
 	}
 	if limit <= 0 {
 		limit = 500
 	}
-	uid := SecurityUID()
-	if err := CheckModelAccess(uid, modelName, "read"); err != nil {
+	uid := SecurityUID(ctx)
+	if err := CheckModelAccess(ctx, uid, modelName, "read"); err != nil {
 		return nil, err
 	}
 	var err error
-	domain, err = MergeRuleDomainsIntoSearch(uid, modelName, "read", domain)
+	domain, err = MergeRuleDomainsIntoSearch(ctx, uid, modelName, "read", domain)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +257,7 @@ func SearchLimit(modelName string, domain [][]interface{}, limit int) ([]map[str
 
 	query := fmt.Sprintf("SELECT * FROM %s WHERE %s ORDER BY id ASC LIMIT %d",
 		GetTableName(modelName), whereClause, limit)
-	rows, err := DB.Query(query, args...)
+	rows, err := DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -302,13 +334,13 @@ func AsString(v interface{}) string {
 
 // FindUIDefaultView returns the highest-priority ir.ui.view for a model and type.
 // view_mode "list" maps to type "tree".
-func FindUIDefaultView(modelName, viewType string) (map[string]interface{}, error) {
+func FindUIDefaultView(ctx context.Context, modelName, viewType string) (map[string]interface{}, error) {
 	if _, ok := Registry["ir.ui.view"]; !ok {
 		return nil, fmt.Errorf("model ir.ui.view not registered")
 	}
-	uid := SecurityUID()
-	if !SecurityBypass() {
-		if err := CheckModelAccess(uid, "ir.ui.view", "read"); err != nil {
+	uid := SecurityUID(ctx)
+	if !SecurityBypass(ctx) {
+		if err := CheckModelAccess(ctx, uid, "ir.ui.view", "read"); err != nil {
 			return nil, err
 		}
 	}
@@ -321,7 +353,7 @@ func FindUIDefaultView(modelName, viewType string) (map[string]interface{}, erro
 		`SELECT * FROM %s WHERE model = $1 AND type = $2 ORDER BY priority DESC NULLS LAST, id DESC LIMIT 1`,
 		tbl,
 	)
-	rows, err := DB.Query(q, modelName, vt)
+	rows, err := DB.QueryContext(ctx, q, modelName, vt)
 	if err != nil {
 		return nil, err
 	}
@@ -348,27 +380,39 @@ func FindUIDefaultView(modelName, viewType string) (map[string]interface{}, erro
 }
 
 // UpdateRecordByID sets only columns that appear in the model's field definitions (never id).
-func UpdateRecordByID(modelName string, id int, values map[string]interface{}) error {
+func UpdateRecordByID(ctx context.Context, modelName string, id int, values map[string]interface{}) error {
 	if id <= 0 {
 		return fmt.Errorf("invalid id")
 	}
-	uid := SecurityUID()
-	if err := CheckModelAccess(uid, modelName, "write"); err != nil {
+	uid := SecurityUID(ctx)
+	if err := CheckModelAccess(ctx, uid, modelName, "write"); err != nil {
 		return err
 	}
 	inst, ok := Registry[modelName]
 	if !ok || inst == nil {
 		return fmt.Errorf("model %s not found", modelName)
 	}
-	before, err := SearchOne(modelName, map[string]interface{}{"id": id})
+	before, err := SearchOne(ctx, modelName, map[string]interface{}{"id": id})
 	if err != nil {
 		return err
 	}
-	if err := CheckRecordRules(uid, modelName, "write", before); err != nil {
+	if err := CheckRecordRules(ctx, uid, modelName, "write", before); err != nil {
 		return err
 	}
+
+	// STAGE APPROVAL CHECK
+	// If the model has a 'state' field and it's being changed, check for approval rules.
+	if newState, ok := values["state"].(string); ok {
+		oldState := AsString(before["state"])
+		if newState != oldState {
+			if err := CheckStageApproval(ctx, modelName, id, newState); err != nil {
+				return err
+			}
+		}
+	}
+
 	merged := mergeRecordMap(before, values)
-	if err := CheckRecordRules(uid, modelName, "write", merged); err != nil {
+	if err := CheckRecordRules(ctx, uid, modelName, "write", merged); err != nil {
 		return err
 	}
 	allowed := map[string]struct{}{}
@@ -397,7 +441,7 @@ func UpdateRecordByID(modelName string, id int, values map[string]interface{}) e
 	args = append(args, id)
 	tbl := GetTableName(modelName)
 	q := fmt.Sprintf(`UPDATE %s SET %s WHERE id = $%d`, tbl, strings.Join(sets, ", "), i)
-	_, execErr := DB.Exec(q, args...)
+	_, execErr := DB.ExecContext(ctx, q, args...)
 	return execErr
 }
 
@@ -459,4 +503,8 @@ func buildSearchWhereClause(domain [][]interface{}) (string, []interface{}, erro
 		}
 	}
 	return strings.Join(parts, " AND "), args, nil
+}
+
+func quoteIdent(s string) string {
+	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 }

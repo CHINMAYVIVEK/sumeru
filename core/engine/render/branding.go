@@ -1,6 +1,7 @@
 package render
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -27,7 +28,7 @@ func SetShellBranding(b ShellBranding) {
 }
 
 // EnrichShellPageData merges global shell branding and optional DB labels into page data.
-func EnrichShellPageData(d *PageData) {
+func EnrichShellPageData(ctx context.Context, d *PageData) {
 	d.AppName = AppDisplayName
 	d.LogoURL = shell.LogoURL
 	d.ShellCompany = strings.TrimSpace(shell.Company)
@@ -39,14 +40,14 @@ func EnrichShellPageData(d *PageData) {
 		if _, ok := orm.Registry["res.company"]; ok {
 			tn := orm.GetTableName("res.company")
 			var name string
-			if err := orm.DB.QueryRow(`SELECT name FROM ` + tn + ` ORDER BY id ASC LIMIT 1`).Scan(&name); err == nil && strings.TrimSpace(name) != "" {
+			if err := orm.DB.QueryRowContext(ctx, `SELECT name FROM `+tn+` ORDER BY id ASC LIMIT 1`).Scan(&name); err == nil && strings.TrimSpace(name) != "" {
 				d.ShellCompany = strings.TrimSpace(name)
 			}
 		}
 	}
 	if d.ShellUser == "" {
-		if uid := orm.SecurityUID(); uid > 0 {
-			if u, err := orm.SearchOne("res.users", map[string]interface{}{"id": uid}); err == nil {
+		if uid := orm.UIDFromContext(ctx); uid > 0 {
+			if u, err := orm.SearchOne(ctx, "res.users", map[string]interface{}{"id": uid}); err == nil {
 				d.ShellUser = strings.TrimSpace(orm.AsString(u["name"]))
 				if d.ShellUser == "" {
 					d.ShellUser = strings.TrimSpace(orm.AsString(u["login"]))
@@ -59,7 +60,7 @@ func EnrichShellPageData(d *PageData) {
 			tn := orm.GetTableName("res.users")
 			var nm string
 			q := `SELECT COALESCE(NULLIF(TRIM(name), ''), TRIM(login), '') FROM ` + tn + ` ORDER BY id ASC LIMIT 1`
-			if err := orm.DB.QueryRow(q).Scan(&nm); err == nil && strings.TrimSpace(nm) != "" {
+			if err := orm.DB.QueryRowContext(ctx, q).Scan(&nm); err == nil && strings.TrimSpace(nm) != "" {
 				d.ShellUser = strings.TrimSpace(nm)
 			}
 		}
@@ -71,12 +72,12 @@ func EnrichShellPageData(d *PageData) {
 		}
 	}
 
-	d.ActivityEnabled = mail.CompanyActivityPanelEnabled()
+	d.ActivityEnabled = mail.CompanyChatterEnabled(ctx) && mail.CompanyActivityPanelEnabled(ctx)
 	if !d.ActivityEnabled {
 		d.ActivityLogItems = nil
 		return
 	}
-	rows, err := mail.QueryActivityLog(40, d.ActivityContextModel, d.ActivityContextRecordID)
+	rows, err := mail.QueryActivityLog(ctx, 40, d.ActivityContextModel, d.ActivityContextRecordID)
 	if err != nil {
 		d.ActivityLogItems = nil
 		return

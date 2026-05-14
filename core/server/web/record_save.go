@@ -50,14 +50,14 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		newID, err := orm.Create(inst, vals)
+		newID, err := orm.Create(r.Context(), inst, vals)
 		if err != nil {
 			log.Printf("web: create %s: %v", modelName, err)
 			http.Error(w, "Save failed", http.StatusInternalServerError)
 			return
 		}
 		applyResUsersSecurityPost(r, modelName, newID)
-		_ = mail.PostMessage(modelName, int64(newID), fmt.Sprintf("Record created (id %d).", newID), mail.SubtypeNotification, "System")
+		_ = mail.PostMessage(r.Context(), modelName, int64(newID), fmt.Sprintf("Record created (id %d).", newID), mail.SubtypeNotification, "System")
 		redir := appendRecordIDToNext(next, newID)
 		http.Redirect(w, r, redir, http.StatusSeeOther)
 		return
@@ -73,13 +73,13 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := orm.UpdateRecordByID(modelName, id, vals); err != nil {
+	if err := orm.UpdateRecordByID(r.Context(), modelName, id, vals); err != nil {
 		log.Printf("web: update %s id=%d: %v", modelName, id, err)
 		http.Error(w, "Save failed", http.StatusInternalServerError)
 		return
 	}
 	applyResUsersSecurityPost(r, modelName, id)
-	_ = mail.PostMessage(modelName, int64(id), fmt.Sprintf("Record updated (id %d).", id), mail.SubtypeNotification, "System")
+	_ = mail.PostMessage(r.Context(), modelName, int64(id), fmt.Sprintf("Record updated (id %d).", id), mail.SubtypeNotification, "System")
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
@@ -152,7 +152,7 @@ func applyResUsersSecurityPost(r *http.Request, modelName string, userID int) {
 	if modelName != "res.users" || userID <= 0 {
 		return
 	}
-	if err := orm.CheckModelAccess(orm.SecurityUID(), "res.users", "write"); err != nil {
+	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), "res.users", "write"); err != nil {
 		return
 	}
 	if r.PostFormValue("security_groups_touched") == "1" {
@@ -163,7 +163,7 @@ func applyResUsersSecurityPost(r *http.Request, modelName string, userID int) {
 				gids = append(gids, n)
 			}
 		}
-		if err := orm.SetUserGroupLinks(userID, gids); err != nil {
+		if err := orm.SetUserGroupLinks(r.Context(), userID, gids); err != nil {
 			log.Printf("web: set user %d groups: %v", userID, err)
 		}
 	}
@@ -175,7 +175,7 @@ func applyResUsersSecurityPost(r *http.Request, modelName string, userID int) {
 				return
 			}
 			tbl := orm.GetTableName("res.users")
-			if _, err := orm.DB.Exec(`UPDATE `+tbl+` SET password = $1 WHERE id = $2`, string(hash), userID); err != nil {
+			if _, err := orm.DB.ExecContext(r.Context(), `UPDATE `+tbl+` SET password = $1 WHERE id = $2`, string(hash), userID); err != nil {
 				log.Printf("web: password update user %d: %v", userID, err)
 			}
 		}

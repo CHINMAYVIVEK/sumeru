@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -27,7 +28,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		if id, err := strconv.Atoi(actionIDStr); err == nil {
 			actionID = id
 		} else {
-			if resID, _, err := orm.ResolveXmlId(actionIDStr); err == nil {
+			if resID, _, err := orm.ResolveXmlId(r.Context(), actionIDStr); err == nil {
 				actionID = resID
 			}
 		}
@@ -36,7 +37,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	if actionID == 0 && menuIDStr != "" {
 		menuID, err := strconv.Atoi(menuIDStr)
 		if err == nil {
-			actionID = actionIDFromMenu(menuID)
+			actionID = actionIDFromMenu(r.Context(), menuID)
 		}
 	}
 
@@ -47,7 +48,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actionData, err := orm.SearchOne("ir.actions.act_window", map[string]interface{}{"id": actionID})
+	actionData, err := orm.SearchOne(r.Context(), "ir.actions.act_window", map[string]interface{}{"id": actionID})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Action %d not found", actionID), http.StatusNotFound)
 		return
@@ -85,7 +86,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		if nm == "" {
 			continue
 		}
-		vd, err := orm.FindUIDefaultView(resModel, nm)
+		vd, err := orm.FindUIDefaultView(r.Context(), resModel, nm)
 		if err == nil {
 			viewData = vd
 			selectedMode = nm
@@ -128,7 +129,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 			vr.RecordID = rid
 		}
 	}
-	vr.ViewTabs = render.WorkspaceViewTabs(resModel, actionID, menuID, selectedMode, idQ)
+	vr.ViewTabs = render.WorkspaceViewTabs(r.Context(), resModel, actionID, menuID, selectedMode, idQ)
 
 	switch selectedMode {
 	case "form":
@@ -139,7 +140,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Invalid id", http.StatusBadRequest)
 				return
 			}
-			rec, err := orm.SearchOne(resModel, map[string]interface{}{"id": id})
+			rec, err := orm.SearchOne(r.Context(), resModel, map[string]interface{}{"id": id})
 			if err != nil {
 				if err == sql.ErrNoRows {
 					http.Error(w, fmt.Sprintf("Record %d not found", id), http.StatusNotFound)
@@ -152,7 +153,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 			vr.Record = rec
 		}
 	case "tree", "list":
-		rows, err := orm.SearchLimit(resModel, nil, 500)
+		rows, err := orm.SearchLimit(r.Context(), resModel, nil, 500)
 		if err != nil {
 			log.Printf("web: list %s: %v", resModel, err)
 			http.Error(w, "Failed to load records", http.StatusInternalServerError)
@@ -160,7 +161,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		vr.ListRows = rows
 	case "kanban":
-		rows, err := orm.SearchLimit(resModel, nil, 200)
+		rows, err := orm.SearchLimit(r.Context(), resModel, nil, 200)
 		if err != nil {
 			log.Printf("web: kanban %s: %v", resModel, err)
 			http.Error(w, "Failed to load records", http.StatusInternalServerError)
@@ -169,14 +170,14 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		vr.ListRows = rows
 	}
 
-	html := render.RenderView(view, menuID, config.AppConfig.TemplatesPath, vr)
+	html := render.RenderView(r.Context(), view, menuID, config.AppConfig.TemplatesPath, vr)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(html))
 }
 
-func actionIDFromMenu(menuID int) int {
-	menuData, err := orm.SearchOne("ir.ui.menu", map[string]interface{}{"id": menuID})
+func actionIDFromMenu(ctx context.Context, menuID int) int {
+	menuData, err := orm.SearchOne(ctx, "ir.ui.menu", map[string]interface{}{"id": menuID})
 	if err != nil {
 		return 0
 	}
@@ -184,13 +185,13 @@ func actionIDFromMenu(menuID int) int {
 		return aID
 	}
 	// Section roots (Sales, CRM, …) often have no action; walk descendants in sequence order.
-	return firstDescendantActionID(menuID)
+	return firstDescendantActionID(ctx, menuID)
 }
 
 // firstDescendantActionID returns the first non-zero action_id in a depth-first walk
 // of children ordered by sequence, then id (matches typical “first submenu” behavior).
-func firstDescendantActionID(parentID int) int {
-	rows, err := orm.DB.Query(
+func firstDescendantActionID(ctx context.Context, parentID int) int {
+	rows, err := orm.DB.QueryContext(ctx,
 		`SELECT id, action_id FROM `+orm.GetTableName("ir.ui.menu")+
 			` WHERE parent_id = $1 ORDER BY sequence ASC, id ASC`,
 		parentID,
@@ -208,7 +209,7 @@ func firstDescendantActionID(parentID int) int {
 		if aid.Valid && aid.Int64 != 0 {
 			return int(aid.Int64)
 		}
-		if sub := firstDescendantActionID(cid); sub != 0 {
+		if sub := firstDescendantActionID(ctx, cid); sub != 0 {
 			return sub
 		}
 	}

@@ -1,6 +1,7 @@
 package module
 
 import (
+	"context"
 	"sumeru/core/orm"
 	"sumeru/core/engine/parser"
 	"sumeru/core/engine/viewinherit"
@@ -9,7 +10,7 @@ import (
 )
 
 // applyIrUIViewInherit merges an ir.ui.view inherit <record> into the parent view row (same DB id).
-func applyIrUIViewInherit(modName string, rec parser.Record) error {
+func applyIrUIViewInherit(ctx context.Context, modName string, rec parser.Record) error {
 	fm := parser.RecordFieldMap(rec)
 	ref := strings.TrimSpace(fm["inherit_id"])
 	frag := fm["arch"]
@@ -19,11 +20,11 @@ func applyIrUIViewInherit(modName string, rec parser.Record) error {
 	if strings.TrimSpace(frag) == "" {
 		return fmt.Errorf("arch missing on inherit record %q", rec.ID)
 	}
-	parentID, _, err := orm.ResolveXmlId(ref)
+	parentID, _, err := orm.ResolveXmlId(ctx, ref)
 	if err != nil || parentID == 0 {
 		return fmt.Errorf("resolve inherit_id %q: %w", ref, err)
 	}
-	parent, err := orm.SearchOne("ir.ui.view", map[string]interface{}{"id": parentID})
+	parent, err := orm.SearchOne(ctx, "ir.ui.view", map[string]interface{}{"id": parentID})
 	if err != nil {
 		return fmt.Errorf("load parent view id %d: %w", parentID, err)
 	}
@@ -36,12 +37,12 @@ func applyIrUIViewInherit(modName string, rec parser.Record) error {
 		return fmt.Errorf("merge inherit %q: %w", rec.ID, err)
 	}
 	tbl := orm.GetTableName("ir.ui.view")
-	if _, err := orm.DB.Exec(`UPDATE `+tbl+` SET arch = $1 WHERE id = $2`, merged, parentID); err != nil {
+	if _, err := orm.DB.ExecContext(ctx, `UPDATE `+tbl+` SET arch = $1 WHERE id = $2`, merged, parentID); err != nil {
 		return err
 	}
 	// Optional: map extension xml id to parent row for external id lookups
 	if rec.ID != "" {
-		if _, err := orm.Upsert(orm.IrModelData{}, map[string]interface{}{
+		if _, err := orm.Upsert(ctx, orm.IrModelData{}, map[string]interface{}{
 			"module": modName,
 			"name":   rec.ID,
 			"model":  "ir.ui.view",

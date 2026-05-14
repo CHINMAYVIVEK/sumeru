@@ -1,6 +1,7 @@
 package render
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -19,7 +20,7 @@ type ViewSwitchTab struct {
 // WorkspaceViewTabs builds URLs for each view mode that has a default ir.ui.view for resModel.
 // selectedMode is the normalized mode in use (e.g. tree, kanban, form; "list" maps to tree).
 // recordID is optional; when set, the Form tab includes id= so the same record opens in form.
-func WorkspaceViewTabs(resModel string, actionID int, menuID, selectedMode, recordID string) []ViewSwitchTab {
+func WorkspaceViewTabs(ctx context.Context, resModel string, actionID int, menuID, selectedMode, recordID string) []ViewSwitchTab {
 	order := []struct {
 		mode  string
 		label string
@@ -37,7 +38,7 @@ func WorkspaceViewTabs(resModel string, actionID int, menuID, selectedMode, reco
 
 	var out []ViewSwitchTab
 	for _, o := range order {
-		if _, err := orm.FindUIDefaultView(resModel, o.mode); err != nil {
+		if _, err := orm.FindUIDefaultView(ctx, resModel, o.mode); err != nil {
 			continue
 		}
 		q := url.Values{}

@@ -2,13 +2,14 @@ package render
 
 import (
 	"bytes"
+	"context"
 	"html/template"
 	"path/filepath"
 )
 
 // RenderPage executes base.html with the given shell + content data.
-func RenderPage(templatesDir string, data PageData) (string, error) {
-	EnrichShellPageData(&data)
+func RenderPage(ctx context.Context, templatesDir string, data PageData) (string, error) {
+	EnrichShellPageData(ctx, &data)
 	tmpl, err := template.ParseFiles(
 		filepath.Join(templatesDir, "base.html"),
 		filepath.Join(templatesDir, "shell_partials.html"),

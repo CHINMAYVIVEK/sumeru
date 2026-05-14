@@ -1,6 +1,7 @@
 package render
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -27,7 +28,7 @@ func sanitizeMenuIcon(s string) string {
 // root menuitem's sequence (then name), like Odoo XML. The Settings app root (company module) is
 // always placed second-to-last; the Apps link is rendered after TopMenus in base.html (always last).
 // Sidebar: menus under the active app root (may span modules, e.g. Settings).
-func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMenus []SidebarMenu, activeModuleID string) {
+func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser.MenuItem, sidebarMenus []SidebarMenu, activeModuleID string) {
 	modTbl := orm.GetTableName("ir.module")
 	menuTbl := orm.GetTableName("ir.ui.menu")
 	query := fmt.Sprintf(
@@ -43,7 +44,7 @@ func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMen
 		  ORDER BY m.sequence`,
 		menuTbl, modTbl,
 	)
-	rows, err := orm.DB.Query(query)
+	rows, err := orm.DB.QueryContext(ctx, query)
 	if err != nil {
 		log.Printf("Error fetching menus: %v", err)
 		return nil, nil, ""
@@ -81,14 +82,14 @@ func LoadShellMenus(activeMenuID string) (topMenus []parser.MenuItem, sidebarMen
 		log.Printf("Menu rows error: %v", err)
 	}
 
-	appMods, err := queryInstalledApplicationNames()
+	appMods, err := queryInstalledApplicationNames(ctx)
 	if err != nil {
 		log.Printf("installed application modules: %v", err)
 	}
 
-	uid := orm.SecurityUID()
+	uid := orm.UIDFromContext(ctx)
 	menuAllowed := func(mi parser.MenuItem) bool {
-		return orm.UserHasAnyAccessGroup(uid, mi.AccessGroups)
+		return orm.UserHasAnyAccessGroup(ctx, uid, mi.AccessGroups)
 	}
 
 	for _, m := range allMenus {
@@ -244,13 +245,13 @@ func ModuleNameForTopMenu(topMenus []parser.MenuItem, activeModuleID string) str
 	return moduleName
 }
 
-func queryInstalledApplicationNames() (map[string]struct{}, error) {
+func queryInstalledApplicationNames(ctx context.Context) (map[string]struct{}, error) {
 	out := make(map[string]struct{})
 	if orm.DB == nil {
 		return out, fmt.Errorf("database not initialized")
 	}
 	q := `SELECT name FROM ` + orm.GetTableName("ir.module") + ` WHERE state = 'installed' AND active = true AND application = true`
-	rows, err := orm.DB.Query(q)
+	rows, err := orm.DB.QueryContext(ctx, q)
 	if err != nil {
 		return nil, err
 	}

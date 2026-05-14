@@ -25,6 +25,7 @@
                     <group string="Access">
                         <field name="login" string="Login"/>
                         <field name="active" string="Active"/>
+                        <field name="user_type" string="User Type"/>
                     </group>
                     <group string="Company">
                         <field name="company_id" string="Company"/>
@@ -42,6 +43,11 @@
                                 <field name="signature" string="Email signature"/>
                             </group>
                         </group>
+                    </page>
+                    <page string="Access Rights">
+                        <!-- Groups checkboxes and password change are injected here by the renderer
+                             via writeResUsersSecuritySection (html_renderer.go). This page acts as
+                             the visual tab anchor. -->
                     </page>
                     <page string="Account Security">
                         <group>

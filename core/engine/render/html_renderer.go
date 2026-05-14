@@ -1,6 +1,7 @@
 package render
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"log"
@@ -187,25 +188,25 @@ func renderWorkspaceFormChromeClose(sb *strings.Builder, vr *ViewRecordData) {
 	}
 }
 
-func RenderView(view *parser.View, activeMenuID, templatesDir string, recData *ViewRecordData) string {
+func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesDir string, recData *ViewRecordData) string {
 	if recData == nil {
 		recData = &ViewRecordData{}
 	}
 	var content string
 	switch view.Type {
 	case "form":
-		content = RenderForm(view, recData)
+		content = RenderForm(ctx, view, recData)
 	case "tree", "list":
-		content = RenderTree(view, recData.ListRows, recData.ActionID, activeMenuID, recData.ViewTabs)
+		content = RenderTree(ctx, view, recData.ListRows, recData.ActionID, activeMenuID, recData.ViewTabs)
 	case "kanban":
-		content = RenderKanban(view, recData.ListRows, recData.ActionID, activeMenuID)
+		content = RenderKanban(ctx, view, recData.ListRows, recData.ActionID, activeMenuID)
 	case "pivot":
-		content = RenderPivot(view)
+		content = RenderPivot(ctx, view)
 	default:
-		content = RenderForm(view, recData)
+		content = RenderForm(ctx, view, recData)
 	}
 
-	topMenus, sidebarMenus, activeModuleID := LoadShellMenus(activeMenuID)
+	topMenus, sidebarMenus, activeModuleID := LoadShellMenus(ctx, activeMenuID)
 	moduleName := ModuleNameForTopMenu(topMenus, activeModuleID)
 	viewBC := HumanViewBreadcrumb(view.Model, view.Type)
 
@@ -233,16 +234,16 @@ func RenderView(view *parser.View, activeMenuID, templatesDir string, recData *V
 		HideBreadcrumbViewTabs:  strings.EqualFold(view.Type, "tree") || strings.EqualFold(view.Type, "list"),
 	}
 	if strings.EqualFold(view.Type, "form") && view.Chatter != nil && recData.RecordID > 0 &&
-		mail.CompanyChatterEnabled() && mail.CompanyActivityPanelEnabled() {
+		mail.CompanyChatterEnabled(ctx) && mail.CompanyActivityPanelEnabled(ctx) {
 		pageData.ActivityPanelChatter = true
 		var ch strings.Builder
-		writeActivityChatterPanel(&ch, view.Chatter, recData, view.Model)
+		writeActivityChatterPanel(ctx, &ch, view.Chatter, recData, view.Model)
 		pageData.ActivityChatterHTML = template.HTML(ch.String())
 	}
 
 	log.Printf("Rendering view for model %s (ActiveMenu: %s, ActiveModule: %s)", view.Model, activeMenuID, activeModuleID)
 
-	out, err := RenderPage(templatesDir, pageData)
+	out, err := RenderPage(ctx, templatesDir, pageData)
 	if err != nil {
 		log.Printf("Error rendering page: %v", err)
 		return content
@@ -250,7 +251,7 @@ func RenderView(view *parser.View, activeMenuID, templatesDir string, recData *V
 	return out
 }
 
-func RenderForm(view *parser.View, vr *ViewRecordData) string {
+func RenderForm(ctx context.Context, view *parser.View, vr *ViewRecordData) string {
 	if vr == nil {
 		vr = &ViewRecordData{}
 	}
@@ -276,24 +277,20 @@ func RenderForm(view *parser.View, vr *ViewRecordData) string {
 	}
 
 	if view.Header != nil {
-		renderHeader(&sb, view.Header, record)
+		renderHeader(ctx, &sb, view.Header, record)
 	}
 
 	if view.Sheet != nil {
-		renderSheet(&sb, view.Sheet, record, ro)
+		renderSheet(ctx, &sb, view.Sheet, record, ro, vr)
 	} else {
 		sb.WriteString(`<div class="o_form_sheet sum-form-sheet sum-form-sheet--solo">`)
 		for _, f := range view.Field {
-			renderField(&sb, f, record, ro)
+			renderField(ctx, &sb, f, record, ro)
 		}
 		for _, g := range view.Group {
-			renderGroup(&sb, g, record, ro)
+			renderGroup(ctx, &sb, g, record, ro)
 		}
 		sb.WriteString(`</div>`)
-	}
-
-	if strings.TrimSpace(vr.ResModel) == "res.users" {
-		writeResUsersSecuritySection(&sb, vr, ro)
 	}
 
 	if view.Footer != nil {
@@ -311,7 +308,7 @@ func RenderForm(view *parser.View, vr *ViewRecordData) string {
 	return sb.String()
 }
 
-func renderHeader(sb *strings.Builder, h *parser.Header, record map[string]interface{}) {
+func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, record map[string]interface{}) {
 	sb.WriteString(`<div class="o_form_statusbar sum-form-statusbar flex items-center justify-between p-2 mb-0 border-b-0">`)
 
 	// Buttons
@@ -343,7 +340,7 @@ func renderHeader(sb *strings.Builder, h *parser.Header, record map[string]inter
 	sb.WriteString(`</div>`)
 }
 
-func renderSheet(sb *strings.Builder, s *parser.Sheet, record map[string]interface{}, ro bool) {
+func renderSheet(ctx context.Context, sb *strings.Builder, s *parser.Sheet, record map[string]interface{}, ro bool, vr *ViewRecordData) {
 	sb.WriteString(`<div class="o_form_sheet sum-form-sheet">`)
 
 	// Render Stat Buttons if any (Usually inside a div with class oe_button_box)
@@ -356,7 +353,7 @@ func renderSheet(sb *strings.Builder, s *parser.Sheet, record map[string]interfa
 	// Render Title/Avatar area
 	for _, d := range s.Div {
 		if strings.Contains(d.Class, "oe_title") {
-			renderTitle(sb, d, record, ro)
+			renderTitle(ctx, sb, d, record, ro)
 		}
 	}
 
@@ -373,16 +370,16 @@ func renderSheet(sb *strings.Builder, s *parser.Sheet, record map[string]interfa
 		renderLabel(sb, lab)
 	}
 	for _, g := range s.Group {
-		renderGroup(sb, g, record, ro)
+		renderGroup(ctx, sb, g, record, ro)
 	}
 	for _, f := range s.Field {
-		renderField(sb, f, record, ro)
+		renderField(ctx, sb, f, record, ro)
 	}
 	sb.WriteString(`</div>`)
 
-	// Render Notebooks (Tabs)
+	// Render Notebooks (Tabs) — passing vr so security hook can inject into Access Rights page
 	for _, nb := range s.Notebook {
-		renderNotebook(sb, nb, record, ro)
+		renderNotebook(ctx, sb, nb, record, ro, vr)
 	}
 
 	sb.WriteString(`</div>`)
@@ -393,7 +390,7 @@ func renderButtonBox(sb *strings.Builder, d parser.Div) {
 	sb.WriteString(`<div class="flex justify-end mb-8 -mr-8 -mt-8 border-b border-slate-100 min-h-[1px]"></div>`)
 }
 
-func renderTitle(sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
+func renderTitle(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
 	sb.WriteString(`<div class="sum-form-title-row flex items-start gap-8 mb-10">`)
 
 	sb.WriteString(`<div class="sum-form-avatar shrink-0">`)
@@ -463,7 +460,7 @@ func renderTitle(sb *strings.Builder, d parser.Div, record map[string]interface{
 	sb.WriteString(`</div>`)
 }
 
-func renderNotebook(sb *strings.Builder, nb parser.Notebook, record map[string]interface{}, ro bool) {
+func renderNotebook(ctx context.Context, sb *strings.Builder, nb parser.Notebook, record map[string]interface{}, ro bool, vr *ViewRecordData) {
 	sb.WriteString(`<div class="o_notebook sum-notebook mt-10">`)
 
 	sb.WriteString(`<div class="sum-notebook-tabs flex border-b border-slate-200 mb-6 gap-1" role="tablist">`)
@@ -484,20 +481,26 @@ func renderNotebook(sb *strings.Builder, nb parser.Notebook, record map[string]i
 			display = "block"
 		}
 		sb.WriteString(fmt.Sprintf(`<div class="o_notebook_page" style="display: %s">`, display))
-		sb.WriteString(`<div class="grid grid-cols-1 md:grid-cols-2 gap-8">`)
-		for _, sep := range p.Separator {
-			renderSeparator(sb, sep)
+
+		// Inject Access Rights security section for res.users inside the matching tab.
+		if vr != nil && strings.TrimSpace(vr.ResModel) == "res.users" && strings.EqualFold(strings.TrimSpace(p.Title), "access rights") {
+			writeResUsersSecuritySection(ctx, sb, vr, ro)
+		} else {
+			sb.WriteString(`<div class="grid grid-cols-1 md:grid-cols-2 gap-8">`)
+			for _, sep := range p.Separator {
+				renderSeparator(sb, sep)
+			}
+			for _, lab := range p.Label {
+				renderLabel(sb, lab)
+			}
+			for _, g := range p.Group {
+				renderGroup(ctx, sb, g, record, ro)
+			}
+			for _, f := range p.Field {
+				renderField(ctx, sb, f, record, ro)
+			}
+			sb.WriteString(`</div>`)
 		}
-		for _, lab := range p.Label {
-			renderLabel(sb, lab)
-		}
-		for _, g := range p.Group {
-			renderGroup(sb, g, record, ro)
-		}
-		for _, f := range p.Field {
-			renderField(sb, f, record, ro)
-		}
-		sb.WriteString(`</div>`)
 		sb.WriteString(`</div>`)
 	}
 	sb.WriteString(`</div>`)
@@ -548,9 +551,9 @@ func renderFormFooter(sb *strings.Builder, ft *parser.Footer) {
 }
 
 // writeActivityChatterPanel renders thread + composer for the right activity panel (comments only).
-func writeActivityChatterPanel(sb *strings.Builder, c *parser.Chatter, vr *ViewRecordData, viewModel string) {
+func writeActivityChatterPanel(ctx context.Context, sb *strings.Builder, c *parser.Chatter, vr *ViewRecordData, viewModel string) {
 	_ = c
-	if !mail.CompanyChatterEnabled() || vr == nil || vr.RecordID <= 0 {
+	if !mail.CompanyChatterEnabled(ctx) || vr == nil || vr.RecordID <= 0 {
 		return
 	}
 	model := strings.TrimSpace(viewModel)
@@ -561,7 +564,7 @@ func writeActivityChatterPanel(sb *strings.Builder, c *parser.Chatter, vr *ViewR
 		return
 	}
 
-	msgs, err := mail.ListCommentsForRecord(model, int64(vr.RecordID), 120)
+	msgs, err := mail.ListCommentsForRecord(ctx, model, int64(vr.RecordID), 120)
 	if err != nil {
 		log.Printf("activity chatter list %s %d: %v", model, vr.RecordID, err)
 		msgs = nil
@@ -623,7 +626,7 @@ func formNewRecordURL(actionID int, menuID string) string {
 	return "/web?" + q.Encode()
 }
 
-func RenderTree(view *parser.View, rows []map[string]interface{}, actionID int, menuID string, viewTabs []ViewSwitchTab) string {
+func RenderTree(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string, viewTabs []ViewSwitchTab) string {
 	if rows == nil {
 		rows = []map[string]interface{}{}
 	}
@@ -723,7 +726,7 @@ func RenderTree(view *parser.View, rows []map[string]interface{}, actionID int, 
 	return sb.String()
 }
 
-func RenderKanban(view *parser.View, rows []map[string]interface{}, actionID int, menuID string) string {
+func RenderKanban(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string) string {
 	if rows == nil {
 		rows = []map[string]interface{}{}
 	}
@@ -770,7 +773,7 @@ func RenderKanban(view *parser.View, rows []map[string]interface{}, actionID int
 	return sb.String()
 }
 
-func RenderPivot(view *parser.View) string {
+func RenderPivot(ctx context.Context, view *parser.View) string {
 	var sb strings.Builder
 	sb.WriteString(`<div class="bg-white p-8 rounded-lg shadow-sm border border-slate-200 flex flex-col items-center justify-center min-h-[400px]">`)
 	sb.WriteString(`<svg class="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>`)
@@ -780,7 +783,7 @@ func RenderPivot(view *parser.View) string {
 	return sb.String()
 }
 
-func renderGroup(sb *strings.Builder, g parser.Group, record map[string]interface{}, ro bool) {
+func renderGroup(ctx context.Context, sb *strings.Builder, g parser.Group, record map[string]interface{}, ro bool) {
 	if ro {
 		sb.WriteString(`<section class="sum-read-section">`)
 		if g.Title != "" {
@@ -804,10 +807,10 @@ func renderGroup(sb *strings.Builder, g parser.Group, record map[string]interfac
 		sb.WriteString(`<div class="grid grid-cols-1 md:grid-cols-2 gap-6">`)
 	}
 	for _, f := range g.Field {
-		renderField(sb, f, record, ro)
+		renderField(ctx, sb, f, record, ro)
 	}
 	for _, subG := range g.Group {
-		renderGroup(sb, subG, record, ro)
+		renderGroup(ctx, sb, subG, record, ro)
 	}
 	sb.WriteString(`</div>`)
 	if ro {
@@ -825,9 +828,9 @@ func rawField(record map[string]interface{}, name string) (interface{}, bool) {
 	return v, ok
 }
 
-func renderField(sb *strings.Builder, f parser.Field, record map[string]interface{}, ro bool) {
+func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, record map[string]interface{}, ro bool) {
 	if gs := strings.TrimSpace(f.Groups); gs != "" {
-		if !orm.UserHasAnyAccessGroup(orm.SecurityUID(), gs) {
+		if !orm.UserHasAnyAccessGroup(ctx, orm.SecurityUID(ctx), gs) {
 			return
 		}
 	}
@@ -931,12 +934,12 @@ func renderField(sb *strings.Builder, f parser.Field, record map[string]interfac
 	}
 }
 
-func writeResUsersSecuritySection(sb *strings.Builder, vr *ViewRecordData, ro bool) {
-	uid := orm.SecurityUID()
+func writeResUsersSecuritySection(ctx context.Context, sb *strings.Builder, vr *ViewRecordData, ro bool) {
+	uid := orm.SecurityUID(ctx)
 	if uid <= 0 {
 		return
 	}
-	if err := orm.CheckModelAccess(uid, "res.groups", "read"); err != nil {
+	if err := orm.CheckModelAccess(ctx, uid, "res.groups", "read"); err != nil {
 		return
 	}
 	sb.WriteString(`<div class="border border-slate-200 rounded-lg p-6 mb-6 bg-slate-50/80">`)
@@ -962,7 +965,7 @@ func writeResUsersSecuritySection(sb *strings.Builder, vr *ViewRecordData, ro bo
 			rows.Close()
 		}
 	}
-	groups, err := orm.ListAllGroupRows()
+	groups, err := orm.ListAllGroupRows(ctx)
 	if err != nil || len(groups) == 0 {
 		sb.WriteString(`<p class="text-sm text-slate-500">No groups defined.</p></div>`)
 		return

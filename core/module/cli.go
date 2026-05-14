@@ -1,6 +1,7 @@
 package module
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,7 +11,7 @@ import (
 )
 
 // UpdateModuleData reloads XML for an installed module (-u): drops module-linked UI metadata then re-syncs.
-func UpdateModuleData(name string) error {
+func UpdateModuleData(ctx context.Context, name string) error {
 	installMu.Lock()
 	defer installMu.Unlock()
 
@@ -18,14 +19,14 @@ func UpdateModuleData(name string) error {
 	if !ok {
 		return fmt.Errorf("unknown module %q", name)
 	}
-	row, err := moduleRow(name)
+	row, err := moduleRow(ctx, name)
 	if err != nil {
 		return err
 	}
 	if moduleStateString(row) != "installed" {
 		return fmt.Errorf("module %q is not installed", name)
 	}
-	missing, err := missingInstalledDependencies(name)
+	missing, err := missingInstalledDependencies(ctx, name)
 	if err != nil {
 		return fmt.Errorf("module %q: %w", name, err)
 	}
@@ -36,13 +37,13 @@ func UpdateModuleData(name string) error {
 	if err := orm.SyncRegistrySchema(); err != nil {
 		return fmt.Errorf("schema sync: %w", err)
 	}
-	if err := deleteModuleMetadata(name); err != nil {
+	if err := deleteModuleMetadata(ctx, name); err != nil {
 		return err
 	}
-	if err := a.SyncToDB(); err != nil {
+	if err := a.SyncToDB(ctx); err != nil {
 		return err
 	}
-	mail.LogModuleEvent(name, "Updated", "module data reloaded")
+	mail.LogModuleEvent(ctx, name, "Updated", "module data reloaded")
 	return nil
 }
 
@@ -50,29 +51,28 @@ func UpdateModuleData(name string) error {
 // For -u, the token "all" (case-insensitive) means every module with ir.module.state = installed,
 // in dependency order when manifests are on disk.
 func RunModuleCLI(installCSV, updateCSV string) error {
-	orm.SetSecurityBypass(true)
-	defer orm.SetSecurityBypass(false)
+	ctx := orm.ContextWithBypass(context.Background(), true)
 
 	for _, name := range splitCSV(installCSV) {
-		if err := InstallModuleByName(name); err != nil {
+		if err := InstallModuleByName(ctx, name); err != nil {
 			return fmt.Errorf("install %q: %w", name, err)
 		}
 	}
-	updateList, err := expandUpdateModuleNames(splitCSV(updateCSV))
+	updateList, err := expandUpdateModuleNames(ctx, splitCSV(updateCSV))
 	if err != nil {
 		return err
 	}
 	for _, name := range updateList {
-		if err := UpdateModuleData(name); err != nil {
+		if err := UpdateModuleData(ctx, name); err != nil {
 			return fmt.Errorf("update %q: %w", name, err)
 		}
 	}
 	return nil
 }
 
-func listInstalledModuleNames() ([]string, error) {
+func listInstalledModuleNames(ctx context.Context) ([]string, error) {
 	q := `SELECT name FROM ` + orm.GetTableName("ir.module") + ` WHERE state = $1 ORDER BY name`
-	rows, err := orm.DB.Query(q, "installed")
+	rows, err := orm.DB.QueryContext(ctx, q, "installed")
 	if err != nil {
 		return nil, fmt.Errorf("list installed modules: %w", err)
 	}
@@ -90,7 +90,7 @@ func listInstalledModuleNames() ([]string, error) {
 
 // expandUpdateModuleNames resolves -u all into installed module names, dedupes, and orders by addon dependency topo.
 // Installed rows not present on disk (stale ir.module) are skipped for "all" only.
-func expandUpdateModuleNames(parts []string) ([]string, error) {
+func expandUpdateModuleNames(ctx context.Context, parts []string) ([]string, error) {
 	if len(parts) == 0 {
 		return nil, nil
 	}
@@ -101,7 +101,7 @@ func expandUpdateModuleNames(parts []string) ([]string, error) {
 			return nil, installedErr
 		}
 		if installedCache == nil {
-			installedCache, installedErr = listInstalledModuleNames()
+			installedCache, installedErr = listInstalledModuleNames(ctx)
 		}
 		return installedCache, installedErr
 	}

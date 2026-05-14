@@ -6,6 +6,5 @@ import (
 	_ "sumeru/addons/crm"
 	_ "sumeru/addons/inventory"
 	_ "sumeru/addons/sales"
-	_ "sumeru/core/base/company"
-	_ "sumeru/core/base/user"
+	_ "sumeru/core/base/settings"
 )

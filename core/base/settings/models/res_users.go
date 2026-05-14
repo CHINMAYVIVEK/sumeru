@@ -15,6 +15,7 @@ type ResUsers struct {
 	Lang      string `db:"lang"`
 	TZ        string `db:"tz"`
 	Signature string `db:"signature"`
+	UserType  string `db:"user_type"` // internal | portal | public
 }
 
 func (ResUsers) ModelName() string { return "res.users" }
@@ -32,6 +33,7 @@ func (ResUsers) Fields() []base.FieldDefinition {
 		{Name: "lang", Type: base.Selection, String: "Language", DefaultVal: "en_US"},
 		{Name: "tz", Type: base.Char, String: "Timezone"},
 		{Name: "signature", Type: base.Text, String: "Email Signature"},
+		{Name: "user_type", Type: base.Selection, String: "User Type", DefaultVal: "internal"},
 	}
 }
 

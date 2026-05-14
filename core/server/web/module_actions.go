@@ -16,7 +16,7 @@ func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
 	}
-	if err := orm.CheckModelAccess(orm.SecurityUID(), "ir.module", "write"); err != nil {
+	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), "ir.module", "write"); err != nil {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -39,16 +39,16 @@ func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
 	var msg string
 	switch action {
 	case "install":
-		err = module.InstallModuleByName(mod)
+		err = module.InstallModuleByName(r.Context(), mod)
 		msg = "installed_" + mod
 	case "uninstall":
-		err = module.UninstallModuleByName(mod)
+		err = module.UninstallModuleByName(r.Context(), mod)
 		msg = "uninstalled_" + mod
 	case "deactivate":
-		err = module.SetModuleActive(mod, false)
+		err = module.SetModuleActive(r.Context(), mod, false)
 		msg = "deactivated_" + mod
 	case "activate":
-		err = module.SetModuleActive(mod, true)
+		err = module.SetModuleActive(r.Context(), mod, true)
 		msg = "activated_" + mod
 	case "save_module":
 		err = saveModuleFromForm(r)
@@ -102,7 +102,7 @@ func saveModuleFromForm(r *http.Request) error {
 	if err != nil || id <= 0 {
 		return fmt.Errorf("invalid_module_row")
 	}
-	row, err := orm.SearchOne("ir.module", map[string]interface{}{"id": id})
+	row, err := orm.SearchOne(r.Context(), "ir.module", map[string]interface{}{"id": id})
 	if err != nil {
 		return fmt.Errorf("module_not_found")
 	}
@@ -114,5 +114,5 @@ func saveModuleFromForm(r *http.Request) error {
 		"author":       strings.TrimSpace(r.FormValue("author")),
 		"description":  strings.TrimSpace(r.FormValue("description")),
 	}
-	return orm.UpdateRecordByID("ir.module", id, vals)
+	return orm.UpdateRecordByID(r.Context(), "ir.module", id, vals)
 }

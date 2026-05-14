@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <!-- ============================================================
+             res.groups — tree + form
+        ============================================================ -->
+        <view id="view_res_groups_tree" model="res.groups" type="tree">
+            <field name="name" string="Name"/>
+            <field name="category" string="Category"/>
+            <field name="sequence" string="Sequence"/>
+        </view>
+
+        <view id="view_res_groups_form" model="res.groups" type="form">
+            <sheet>
+                <div class="oe_title">
+                    <h1>
+                        <field name="name" placeholder="e.g. Sales / User"/>
+                    </h1>
+                </div>
+                <group>
+                    <group string="Identification">
+                        <field name="category" string="Category"/>
+                        <field name="sequence" string="Display Order"/>
+                    </group>
+                </group>
+            </sheet>
+        </view>
+
+        <!-- ============================================================
+             ir.model.access — tree + form
+        ============================================================ -->
+        <view id="view_ir_model_access_tree" model="ir.model.access" type="tree">
+            <field name="name" string="Name"/>
+            <field name="model" string="Model"/>
+            <field name="perm_read" string="Read"/>
+            <field name="perm_write" string="Write"/>
+            <field name="perm_create" string="Create"/>
+            <field name="perm_unlink" string="Delete"/>
+        </view>
+
+        <view id="view_ir_model_access_form" model="ir.model.access" type="form">
+            <sheet>
+                <div class="oe_title">
+                    <h1>
+                        <field name="name" placeholder="e.g. access_sale_order_manager"/>
+                    </h1>
+                </div>
+                <group>
+                    <group string="Scope">
+                        <field name="model" string="Model (technical name)"/>
+                        <field name="group_id" string="Group (leave empty for global)"/>
+                    </group>
+                    <group string="Permissions">
+                        <field name="perm_read" string="Read"/>
+                        <field name="perm_write" string="Write"/>
+                        <field name="perm_create" string="Create"/>
+                        <field name="perm_unlink" string="Delete"/>
+                    </group>
+                </group>
+            </sheet>
+        </view>
+
+        <!-- ============================================================
+             ir.rule — tree + form
+        ============================================================ -->
+        <view id="view_ir_rule_tree" model="ir.rule" type="tree">
+            <field name="name" string="Name"/>
+            <field name="model" string="Model"/>
+            <field name="active" string="Active"/>
+        </view>
+
+        <view id="view_ir_rule_form" model="ir.rule" type="form">
+            <sheet>
+                <div class="oe_title">
+                    <h1>
+                        <field name="name" placeholder="e.g. Sales: own records only"/>
+                    </h1>
+                </div>
+                <group>
+                    <group string="Scope">
+                        <field name="model" string="Model (technical name)"/>
+                        <field name="active" string="Active"/>
+                    </group>
+                    <group string="Applicable Operations">
+                        <field name="perm_read" string="Read"/>
+                        <field name="perm_write" string="Write"/>
+                        <field name="perm_create" string="Create"/>
+                        <field name="perm_unlink" string="Delete"/>
+                    </group>
+                </group>
+                <group>
+                    <group string="Domain Filter" colspan="2">
+                        <field name="domain_force" string="Domain (JSON, e.g. [[&quot;user_id&quot;,&quot;=&quot;,&quot;uid&quot;]])"/>
+                    </group>
+                </group>
+            </sheet>
+        </view>
+
+        <!-- ============================================================
+             Actions — point to both tree and form so "New" works
+        ============================================================ -->
+        <record id="access_action_res_groups" model="ir.actions.act_window">
+            <field name="name">access_action_res_groups</field>
+            <field name="res_model">res.groups</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <record id="access_action_ir_model_access" model="ir.actions.act_window">
+            <field name="name">access_action_ir_model_access</field>
+            <field name="res_model">ir.model.access</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <record id="access_action_ir_rule" model="ir.actions.act_window">
+            <field name="name">access_action_ir_rule</field>
+            <field name="res_model">ir.rule</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <!-- ============================================================
+             Menus (Settings > Configuration) — admin only
+        ============================================================ -->
+        <menuitem id="menu_security_groups"  name="Groups"        parent="settings.menu_company_configuration" sequence="15" action="settings.access_action_res_groups"       groups="settings.group_system" web_icon="users"/>
+        <menuitem id="menu_security_access"  name="Access Rights" parent="settings.menu_company_configuration" sequence="16" action="settings.access_action_ir_model_access"  groups="settings.group_system" web_icon="settings"/>
+        <menuitem id="menu_security_rules"   name="Record Rules"  parent="settings.menu_company_configuration" sequence="17" action="settings.access_action_ir_rule"           groups="settings.group_system" web_icon="settings"/>
+    </data>
+</sumeru>

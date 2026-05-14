@@ -77,7 +77,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	moduleParam := strings.TrimSpace(r.URL.Query().Get("module"))
 	editing := strings.TrimSpace(r.URL.Query().Get("edit")) == "1"
 
-	raw, err := module.ListModules()
+	raw, err := module.ListModules(r.Context())
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to list modules: %v", err), http.StatusInternalServerError)
 		return
@@ -122,7 +122,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	var detail *appsModuleDetailVM
 	breadcrumb := "Applications"
 	if moduleParam != "" {
-		row, err := orm.SearchOne("ir.module", map[string]interface{}{"name": moduleParam})
+		row, err := orm.SearchOne(r.Context(), "ir.module", map[string]interface{}{"name": moduleParam})
 		if err != nil {
 			http.Error(w, "Module not found", http.StatusNotFound)
 			return
@@ -195,7 +195,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	topMenus, sidebarMenus, activeModuleID := render.LoadShellMenus("")
+	topMenus, sidebarMenus, activeModuleID := render.LoadShellMenus(r.Context(), "")
 	page := render.PageData{
 		Title:               "Apps",
 		ViewBreadcrumb:      breadcrumb,
@@ -214,7 +214,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		page.ActivityContextModel = "ir.module"
 		page.ActivityContextRecordID = int64(detail.ID)
 	}
-	html, err := render.RenderPage(config.AppConfig.TemplatesPath, page)
+	html, err := render.RenderPage(r.Context(), config.AppConfig.TemplatesPath, page)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Layout render: %v", err), http.StatusInternalServerError)
 		return

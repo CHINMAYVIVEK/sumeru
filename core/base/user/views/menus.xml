@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<sumeru>
-    <data>
-        <!-- ir.ui.menu : Users under Settings (root defined in company.views) -->
-        <menuitem id="menu_user_section" name="Users" parent="company.menu_settings_root" sequence="20" web_icon="users"/>
-        <menuitem id="menu_user_directory" name="User Accounts" parent="menu_user_section" sequence="10" action="user.action_res_users" web_icon="user"/>
-        <menuitem id="menu_user_companies" name="Company Directory" parent="menu_user_section" sequence="20" action="company.action_res_company" web_icon="building"/>
-    </data>
-</sumeru>
