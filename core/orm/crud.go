@@ -40,7 +40,7 @@ func Create(ctx context.Context, model Model, values map[string]interface{}) (in
 		i++
 	}
 
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id", 
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id",
 		GetTableName(model.ModelName()), strings.Join(cols, ", "), strings.Join(placeholders, ", "))
 
 	var id int
@@ -74,8 +74,14 @@ func Upsert(ctx context.Context, model Model, values map[string]interface{}, con
 		i++
 	}
 
+	// PostgreSQL requires at least one assignment in DO UPDATE SET; single-column upserts
+	// (e.g. only conflict key) would otherwise produce "DO UPDATE SET RETURNING".
+	if len(updates) == 0 {
+		updates = append(updates, fmt.Sprintf("%s = EXCLUDED.%s", conflictCol, conflictCol))
+	}
+
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT (%s) DO UPDATE SET %s RETURNING id",
-		GetTableName(model.ModelName()), strings.Join(cols, ", "), strings.Join(placeholders, ", "), 
+		GetTableName(model.ModelName()), strings.Join(cols, ", "), strings.Join(placeholders, ", "),
 		conflictCol, strings.Join(updates, ", "))
 
 	var id int
@@ -166,14 +172,15 @@ func SearchOne(ctx context.Context, modelName string, criteria map[string]interf
 	return result, nil
 }
 
-// ResolveXmlId returns the database ID for a given XML ID (module.name)
+// ResolveXmlId returns the database ID for a given XML ID (module.name).
+// The name segment may contain dots (e.g. base.action_core.company → module base, name action_core.company).
 func ResolveXmlId(ctx context.Context, xmlID string) (int, string, error) {
 	parts := strings.Split(xmlID, ".")
 	module := ""
 	name := xmlID
-	if len(parts) == 2 {
+	if len(parts) >= 2 {
 		module = parts[0]
-		name = parts[1]
+		name = strings.Join(parts[1:], ".")
 	}
 
 	criteria := map[string]interface{}{"name": name}

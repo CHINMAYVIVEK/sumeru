@@ -36,24 +36,35 @@ type appsModule struct {
 
 // appsModuleDetailVM is the readonly / edit form for one sys.module row on the Apps screen.
 type appsModuleDetailVM struct {
-	Layout                                    string
-	Editing                                   bool
-	Name, DisplayName, Author, Version        string
-	Description, State                        string
-	Active                                    bool
-	ID                                        int
-	CanInstall, CanUninstall                  bool
-	CanDeactivate, CanActivate                bool
-	BackAppsQuery                             string // layout=… (no module)
-	EditURL, CancelURL                        string
+	Layout                             string
+	Editing                            bool
+	Name, DisplayName, Author, Version string
+	Description, State                 string
+	Active                             bool
+	ID                                 int
+	CanInstall, CanUninstall           bool
+	CanDeactivate, CanActivate         bool
+	BackAppsQuery                      string // query string without leading ?
+	EditURL, CancelURL                 string
+}
+
+type appsNavVM struct {
+	FilterAll, FilterInstalled, FilterUninstalled string
+	ScopeAll, ScopeApps, ScopeTechnical           string
 }
 
 type appsPageData struct {
-	Title         string
-	Message       string
-	Modules       []appsModule
-	Layout        string
-	ModuleDetail  *appsModuleDetailVM
+	Title          string
+	Message        string
+	Modules        []appsModule
+	AppModules     []appsModule
+	TechModules    []appsModule
+	Layout         string
+	Filter         string
+	Scope          string
+	Search         string
+	Nav            appsNavVM
+	ModuleDetail   *appsModuleDetailVM
 	ViewBreadcrumb string
 }
 
@@ -76,6 +87,9 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 
 	moduleParam := strings.TrimSpace(r.URL.Query().Get("module"))
 	editing := strings.TrimSpace(r.URL.Query().Get("edit")) == "1"
+	filter := normalizeAppsFilter(r.URL.Query().Get("filter"))
+	scope := normalizeAppsScope(r.URL.Query().Get("scope"))
+	searchQ := strings.TrimSpace(r.URL.Query().Get("q"))
 
 	raw, err := module.ListModules(r.Context())
 	if err != nil {
@@ -119,6 +133,24 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		mods = append(mods, am)
 	}
 
+	var appMods, techMods []appsModule
+	for _, m := range mods {
+		if !appsModuleMatchesSearch(m, searchQ) || !appsModuleMatchesFilter(m, filter) {
+			continue
+		}
+		if m.Application {
+			appMods = append(appMods, m)
+		} else {
+			techMods = append(techMods, m)
+		}
+	}
+	switch scope {
+	case "apps":
+		techMods = nil
+	case "technical":
+		appMods = nil
+	}
+
 	var detail *appsModuleDetailVM
 	breadcrumb := "Applications"
 	if moduleParam != "" {
@@ -140,32 +172,32 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		backQ := "layout=" + layout
+		backQ := appsBrowseQuery(layout, filter, scope, searchQ)
 		qEdit := url.Values{}
+		appendAppsQueryBase(qEdit, layout, filter, scope, searchQ)
 		qEdit.Set("module", name)
-		qEdit.Set("layout", layout)
 		qEdit.Set("edit", "1")
 		qCancel := url.Values{}
+		appendAppsQueryBase(qCancel, layout, filter, scope, searchQ)
 		qCancel.Set("module", name)
-		qCancel.Set("layout", layout)
 		detail = &appsModuleDetailVM{
-			Layout:          layout,
-			Editing:         editing,
-			Name:            name,
-			DisplayName:     stringField(row["display_name"]),
-			Author:          stringField(row["author"]),
-			Version:         stringField(row["version"]),
-			Description:     stringField(row["description"]),
-			State:           stringField(row["state"]),
-			Active:          boolField(row["active"]),
-			ID:              int(id64),
-			CanInstall:      found.CanInstall,
-			CanUninstall:    found.CanUninstall,
-			CanDeactivate:   found.CanDeactivate,
-			CanActivate:     found.CanActivate,
-			BackAppsQuery:   backQ,
-			EditURL:         "/web/apps?" + qEdit.Encode(),
-			CancelURL:       "/web/apps?" + qCancel.Encode(),
+			Layout:        layout,
+			Editing:       editing,
+			Name:          name,
+			DisplayName:   stringField(row["display_name"]),
+			Author:        stringField(row["author"]),
+			Version:       stringField(row["version"]),
+			Description:   stringField(row["description"]),
+			State:         stringField(row["state"]),
+			Active:        boolField(row["active"]),
+			ID:            int(id64),
+			CanInstall:    found.CanInstall,
+			CanUninstall:  found.CanUninstall,
+			CanDeactivate: found.CanDeactivate,
+			CanActivate:   found.CanActivate,
+			BackAppsQuery: backQ,
+			EditURL:       "/web/apps?" + qEdit.Encode(),
+			CancelURL:     "/web/apps?" + qCancel.Encode(),
 		}
 		if detail.DisplayName == "" {
 			detail.DisplayName = detail.Name
@@ -182,12 +214,18 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var innerBuf bytes.Buffer
 	data := appsPageData{
-		Title:           "Apps",
-		Message:         msg,
-		Modules:         mods,
-		Layout:          layout,
-		ModuleDetail:    detail,
-		ViewBreadcrumb:  breadcrumb,
+		Title:          "Apps",
+		Message:        msg,
+		Modules:        mods,
+		AppModules:     appMods,
+		TechModules:    techMods,
+		Layout:         layout,
+		Filter:         filter,
+		Scope:          scope,
+		Search:         searchQ,
+		Nav:            buildAppsNavVM(layout, filter, scope, searchQ),
+		ModuleDetail:   detail,
+		ViewBreadcrumb: breadcrumb,
 	}
 	if err := innerTmpl.Execute(&innerBuf, data); err != nil {
 		log.Printf("%s: execute apps_inner: %v", platformmsg.MsgHTTPTemplateError, err)
@@ -195,7 +233,15 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	topMenus, sidebarMenus, activeModuleID := render.LoadShellMenus(r.Context(), "")
+	topMenus, sidebarMenus, activeModuleID, _ := render.LoadShellMenus(r.Context(), "")
+	listHref := "/web/apps"
+	if bq := appsBrowseQuery(layout, filter, scope, searchQ); bq != "" {
+		listHref = "/web/apps?" + bq
+	}
+	detailTitle := ""
+	if detail != nil {
+		detailTitle = detail.DisplayName
+	}
 	page := render.PageData{
 		Title:               "Apps",
 		ViewBreadcrumb:      breadcrumb,
@@ -205,10 +251,11 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		SidebarMenus:        sidebarMenus,
 		ActiveModuleID:      activeModuleID,
 		ActiveMenuID:        "",
-		ViewStylesheetURLs:  []string{"/static/css/view-apps.css"},
+		ViewStylesheetURLs:  []string{"/static/css/sumeru-apps.css"},
 		AppsNavActive:       true,
 		ExtraStylesheetURLs: render.ExtraStylesheetURLs,
-		ViewTabs:            render.AppsViewTabs(layout, msg, moduleParam),
+		ViewTabs:            render.AppsViewTabs(layout, msg, moduleParam, filter, scope, searchQ),
+		BreadcrumbItems:     render.BuildAppsBreadcrumbs(r.Context(), listHref, detailTitle),
 	}
 	if detail != nil {
 		page.ActivityContextModel = "sys.module"
@@ -248,5 +295,81 @@ func boolField(v interface{}) bool {
 	default:
 		s := strings.ToLower(stringField(v))
 		return s == "true" || s == "t" || s == "1"
+	}
+}
+
+func normalizeAppsFilter(s string) string {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "installed", "uninstalled":
+		return strings.ToLower(strings.TrimSpace(s))
+	default:
+		return "all"
+	}
+}
+
+func normalizeAppsScope(s string) string {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "apps", "technical":
+		return strings.ToLower(strings.TrimSpace(s))
+	default:
+		return "all"
+	}
+}
+
+func appsModuleMatchesFilter(m appsModule, filter string) bool {
+	switch filter {
+	case "installed":
+		return m.State == "installed"
+	case "uninstalled":
+		return m.State != "installed"
+	default:
+		return true
+	}
+}
+
+func appsModuleMatchesSearch(m appsModule, q string) bool {
+	q = strings.TrimSpace(q)
+	if q == "" {
+		return true
+	}
+	lq := strings.ToLower(q)
+	return strings.Contains(strings.ToLower(m.Name), lq) || strings.Contains(strings.ToLower(m.DisplayName), lq)
+}
+
+func appendAppsQueryBase(v url.Values, layout, filter, scope, q string) {
+	if layout == "list" || layout == "grid" {
+		v.Set("layout", layout)
+	}
+	if filter != "" && filter != "all" {
+		v.Set("filter", filter)
+	}
+	if scope != "" && scope != "all" {
+		v.Set("scope", scope)
+	}
+	if strings.TrimSpace(q) != "" {
+		v.Set("q", strings.TrimSpace(q))
+	}
+}
+
+func appsBrowseQuery(layout, filter, scope, q string) string {
+	v := url.Values{}
+	appendAppsQueryBase(v, layout, filter, scope, q)
+	return v.Encode()
+}
+
+func appsLink(layout, filter, scope, q string) string {
+	v := url.Values{}
+	appendAppsQueryBase(v, layout, filter, scope, q)
+	return "/web/apps?" + v.Encode()
+}
+
+func buildAppsNavVM(layout, filter, scope, q string) appsNavVM {
+	return appsNavVM{
+		FilterAll:         appsLink(layout, "all", scope, q),
+		FilterInstalled:   appsLink(layout, "installed", scope, q),
+		FilterUninstalled: appsLink(layout, "uninstalled", scope, q),
+		ScopeAll:          appsLink(layout, filter, "all", q),
+		ScopeApps:         appsLink(layout, filter, "apps", q),
+		ScopeTechnical:    appsLink(layout, filter, "technical", q),
 	}
 }

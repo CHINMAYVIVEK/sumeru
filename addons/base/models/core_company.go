@@ -46,5 +46,5 @@ func (CoreCompany) Fields() []base.FieldDefinition {
 }
 
 func init() {
-	base.RegisterModel(base.RegisterModelInput{Model: &CoreCompany{}})
+	base.RegisterModel(base.RegisterModelInput{Model: &CoreCompany{}, Module: "base"})
 }

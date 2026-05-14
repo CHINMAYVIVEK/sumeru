@@ -12,7 +12,7 @@
 
         <view id="view_core.group_form" model="core.group" type="form">
             <sheet>
-                <div class="oe_title">
+                <div class="sum_title">
                     <h1>
                         <field name="name" placeholder="e.g. Sales / User"/>
                     </h1>
@@ -40,7 +40,7 @@
 
         <view id="view_sys.access_form" model="sys.access" type="form">
             <sheet>
-                <div class="oe_title">
+                <div class="sum_title">
                     <h1>
                         <field name="name" placeholder="e.g. access_sale_order_manager"/>
                     </h1>
@@ -71,7 +71,7 @@
 
         <view id="view_sys.rule_form" model="sys.rule" type="form">
             <sheet>
-                <div class="oe_title">
+                <div class="sum_title">
                     <h1>
                         <field name="name" placeholder="e.g. Sales: own records only"/>
                     </h1>
@@ -120,8 +120,8 @@
         <!-- ============================================================
              Menus (Settings > Configuration) — admin only
         ============================================================ -->
-        <menuitem id="menu_security_groups"  name="Groups"        parent="settings.menu_company_configuration" sequence="15" action="settings.access_action_core.group"       groups="settings.group_system" web_icon="users"/>
-        <menuitem id="menu_security_access"  name="Access Rights" parent="settings.menu_company_configuration" sequence="16" action="settings.access_action_sys.access"  groups="settings.group_system" web_icon="settings"/>
-        <menuitem id="menu_security_rules"   name="Record Rules"  parent="settings.menu_company_configuration" sequence="17" action="settings.access_action_sys.rule"           groups="settings.group_system" web_icon="settings"/>
+        <menuitem id="menu_security_groups"  name="Groups"        parent="base.menu_company_configuration" sequence="15" action="base.access_action_core.group"       groups="base.group_system" web_icon="users"/>
+        <menuitem id="menu_security_access"  name="Access Rights" parent="base.menu_company_configuration" sequence="16" action="base.access_action_sys.access"  groups="base.group_system" web_icon="settings"/>
+        <menuitem id="menu_security_rules"   name="Record Rules"  parent="base.menu_company_configuration" sequence="17" action="base.access_action_sys.rule"           groups="base.group_system" web_icon="settings"/>
     </data>
 </sumeru>

@@ -86,6 +86,30 @@ func (w *sqlDBWrapper) Ping() error {
 	return w.db.Ping()
 }
 
+// TableExists checks if a table exists in the current database.
+func (w *sqlDBWrapper) TableExists(tableName string) bool {
+	var exists bool
+	query := `SELECT EXISTS (
+		SELECT FROM information_schema.tables 
+		WHERE  table_schema = 'public'
+		AND    table_name   = $1
+	)`
+	_ = w.db.QueryRow(query, tableName).Scan(&exists)
+	return exists
+}
+
+// IsInitialized checks if the core Sumeru tables are present.
+func IsInitialized() bool {
+	if DB == nil {
+		return false
+	}
+	// Check if sys_module exists as a proxy for initialization.
+	if wrapper, ok := DB.(*sqlDBWrapper); ok {
+		return wrapper.TableExists("sys_module")
+	}
+	return false
+}
+
 // sqlTxWrapper implements TxWrapper using a standard *sql.Tx.
 type sqlTxWrapper struct {
 	tx *sql.Tx

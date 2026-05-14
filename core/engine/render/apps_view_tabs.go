@@ -5,8 +5,29 @@ import (
 	"strings"
 )
 
-// AppsViewTabs builds Grid / List links for the Apps dashboard (?layout=).
-func AppsViewTabs(currentLayout, msg, module string) []ViewSwitchTab {
+func appendAppsTabQuery(q url.Values, layout, msg, module, filter, scope, search string) {
+	if layout == "list" || layout == "grid" {
+		q.Set("layout", layout)
+	}
+	if strings.TrimSpace(msg) != "" {
+		q.Set("msg", strings.TrimSpace(msg))
+	}
+	if strings.TrimSpace(module) != "" {
+		q.Set("module", strings.TrimSpace(module))
+	}
+	if filter != "" && filter != "all" {
+		q.Set("filter", filter)
+	}
+	if scope != "" && scope != "all" {
+		q.Set("scope", scope)
+	}
+	if strings.TrimSpace(search) != "" {
+		q.Set("q", strings.TrimSpace(search))
+	}
+}
+
+// AppsViewTabs builds Grid / List links for the Apps dashboard (?layout=) preserving filter/search/scope.
+func AppsViewTabs(currentLayout, msg, module, filter, scope, search string) []ViewSwitchTab {
 	cur := strings.ToLower(strings.TrimSpace(currentLayout))
 	if cur == "" {
 		cur = "grid"
@@ -16,6 +37,16 @@ func AppsViewTabs(currentLayout, msg, module string) []ViewSwitchTab {
 	}
 	msg = strings.TrimSpace(msg)
 	module = strings.TrimSpace(module)
+	filter = strings.ToLower(strings.TrimSpace(filter))
+	if filter == "" {
+		filter = "all"
+	}
+	scope = strings.ToLower(strings.TrimSpace(scope))
+	if scope == "" {
+		scope = "all"
+	}
+	search = strings.TrimSpace(search)
+
 	order := []struct {
 		layoutKey string
 		label     string
@@ -27,13 +58,7 @@ func AppsViewTabs(currentLayout, msg, module string) []ViewSwitchTab {
 	var out []ViewSwitchTab
 	for _, o := range order {
 		q := url.Values{}
-		q.Set("layout", o.layoutKey)
-		if msg != "" {
-			q.Set("msg", msg)
-		}
-		if module != "" {
-			q.Set("module", module)
-		}
+		appendAppsTabQuery(q, o.layoutKey, msg, module, filter, scope, search)
 		out = append(out, ViewSwitchTab{
 			Label:  o.label,
 			Href:   "/web/apps?" + q.Encode(),

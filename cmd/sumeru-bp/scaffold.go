@@ -36,7 +36,7 @@ func RunScaffold(cfg *ScaffoldConfig) {
 		"views",
 		"security",
 		"static/src/img",
-		"static/src/scss",
+		"static/src/css",
 		"static/src/js",
 	}
 	for _, d := range dirs {

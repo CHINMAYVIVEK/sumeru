@@ -24,8 +24,8 @@ func AbsPaths() error {
 }
 
 // InitDB opens the database pool.
-func InitDB(dsn string) {
-	base.InitDB(base.InitDBInput{DSN: dsn})
+func InitDB(databaseConnectionString string) {
+	base.InitDB(base.InitDBInput{DSN: databaseConnectionString})
 }
 
 // SyncModels syncs registered models to the database.
@@ -39,8 +39,8 @@ func LoadAddonPaths(paths []string) error {
 }
 
 // RunModuleCLI runs -i / -u module lists.
-func RunModuleCLI(install, update string) error {
-	return base.RunModuleCLI(base.RunModuleCLIInput{Install: install, Update: update})
+func RunModuleCLI(installCSV, updateCSV string) error {
+	return base.RunModuleCLI(base.RunModuleCLIInput{Install: installCSV, Update: updateCSV})
 }
 
 // SetExtraStylesheetURLs registers extra CSS URLs for the shell.

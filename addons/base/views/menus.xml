@@ -1,18 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <sumeru>
     <data>
+        <!-- Top-bar application root (Settings is pinned separately in the shell; this is the default app hub). -->
+        <menuitem id="menu_home_root" name="Home" sequence="1" web_icon="apps"/>
+        <menuitem id="menu_home_overview" name="Overview" parent="menu_home_root" sequence="10" action="base.action_core.company" web_icon="building"/>
+
         <!-- sys.menu : Settings application (company registry + users) -->
         <menuitem id="menu_settings_root" name="Settings" sequence="5" web_icon="settings"/>
 
         <!-- Companies -->
         <menuitem id="menu_company_section" name="Companies" parent="menu_settings_root" sequence="10" web_icon="building"/>
-        <menuitem id="menu_company_companies" name="All Companies" parent="menu_company_section" sequence="10" action="settings.action_core.company" web_icon="building"/>
+        <menuitem id="menu_company_companies" name="All Companies" parent="menu_company_section" sequence="10" action="base.action_core.company" web_icon="building"/>
         <menuitem id="menu_company_configuration" name="Configuration" parent="menu_company_section" sequence="90" web_icon="settings"/>
-        <menuitem id="menu_company_settings" name="Company Settings" parent="menu_company_configuration" sequence="10" action="settings.action_core.company" web_icon="building"/>
+        <menuitem id="menu_company_settings" name="Company Settings" parent="menu_company_configuration" sequence="10" action="base.action_core.company" web_icon="building"/>
 
         <!-- Users -->
         <menuitem id="menu_user_section" name="Users" parent="menu_settings_root" sequence="20" web_icon="users"/>
-        <menuitem id="menu_user_directory" name="User Accounts" parent="menu_user_section" sequence="10" action="settings.action_core.user" web_icon="user"/>
-        <menuitem id="menu_user_companies" name="Company Directory" parent="menu_user_section" sequence="20" action="settings.action_core.company" web_icon="building"/>
+        <menuitem id="menu_user_directory" name="User Accounts" parent="menu_user_section" sequence="10" action="base.action_core.user" web_icon="user"/>
+        <menuitem id="menu_user_companies" name="Company Directory" parent="menu_user_section" sequence="20" action="base.action_core.company" web_icon="building"/>
+        <!-- App Logs: module lifecycle event history (install / uninstall / update) -->
+        <menuitem id="menu_app_logs_section" name="App Logs"    parent="menu_settings_root" sequence="90" web_icon="log"/>
+        <menuitem id="menu_app_logs"         name="Event Log"   parent="menu_app_logs_section" sequence="10" web_icon="log"/>
     </data>
 </sumeru>

@@ -1,0 +1,118 @@
+/* ORM / workspace views: app catalog grid, form sheets, list tables, notebooks. */
+
+.sum-app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.sum-app-grid .sum-app-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: transform var(--sum-dur-slow) var(--sum-ease);
+}
+
+.sum-app-grid .sum-app-card:hover {
+  transform: translateY(-4px);
+}
+
+.sum-app-grid .sum-app-card:hover .sum-app-icon {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.sum-app-grid .sum-app-card .sum-app-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--sum-radius);
+  background: var(--sum-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all var(--sum-dur-slow) var(--sum-ease);
+}
+
+.sum-app-grid .sum-app-card .sum-app-name {
+  font-size: var(--sum-font-size-md);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-ink);
+  text-align: center;
+}
+
+.sum-form-view {
+  background-color: var(--sum-bg);
+}
+
+.sum-form-view .sum-form-sheet {
+  max-width: 1200px;
+  margin: 1.5rem auto;
+  padding: 2.5rem;
+  background: var(--sum-surface);
+  border-radius: var(--sum-radius-sm);
+  box-shadow: var(--sum-shadow-md);
+  border: 1px solid var(--sum-line);
+}
+
+/* Legacy list container (if used by embedded markup). */
+.sum-list-view {
+  background: var(--sum-surface);
+  border-radius: var(--sum-radius-sm);
+  box-shadow: var(--sum-shadow-sm);
+  overflow: hidden;
+}
+
+.sum-list-view table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sum-list-view table th {
+  background: var(--sum-surface-alt);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: var(--sum-font-weight-bold);
+  font-size: var(--sum-font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
+  color: var(--sum-muted);
+  border-bottom: 1px solid var(--sum-line);
+}
+
+.sum-list-view table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--sum-line);
+  font-size: var(--sum-font-size-root);
+}
+
+.sum-list-view table tr:hover td {
+  background-color: var(--sum-row-hover-bg);
+}
+
+.sum-notebook {
+  margin-top: 2rem;
+}
+
+.sum-notebook-tab {
+  padding: 0.5rem 0.75rem;
+  font-size: var(--sum-font-size-root);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  transition: color var(--sum-dur-slow) var(--sum-ease), border-color var(--sum-dur-slow) var(--sum-ease);
+}
+
+.sum-notebook-tab:hover {
+  color: var(--sum-header);
+}
+
+.sum-notebook-tab--active {
+  color: var(--sum-header);
+  border-bottom-color: var(--sum-header);
+}

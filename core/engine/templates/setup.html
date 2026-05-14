@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database setup — Sumeru</title>
+    {{range .Stylesheets}}
+    <link rel="stylesheet" href="{{.}}">
+    {{end}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+</head>
+<body class="sum-login-page">
+<div class="sum-login-card sum-setup-card sum-setup-card--wide">
+    <div class="sum-login-logo sum-login-logo--placeholder" aria-hidden="true">S</div>
+
+    <p class="sum-setup-progress" id="stepLabel" aria-live="polite">Step 1 of 4</p>
+    <h1 id="stepTitle">Welcome</h1>
+
+    <form id="setupForm" class="sum-setup-form" onsubmit="return false;">
+        <section class="sum-setup-step" data-step="1">
+            <p class="sum-setup-intro">You are about to create your Sumeru workspace. This uses database <strong>{{.DbName}}</strong> from your configuration file. You will define your company, language, and the first administrator — there is no built-in default login.</p>
+        </section>
+
+        <section class="sum-setup-step" data-step="2" hidden>
+            <p class="sum-setup-hint">Organization</p>
+            <div class="field">
+                <label for="company_name">Company name</label>
+                <input id="company_name" name="company_name" type="text" autocomplete="organization" required maxlength="200" placeholder="Acme Inc."/>
+            </div>
+            <div class="field">
+                <label for="lang">Language</label>
+                <select id="lang" name="lang" required>
+                    <option value="en_US" selected>English (US)</option>
+                    <option value="en_GB">English (UK)</option>
+                    <option value="fr_FR">Français</option>
+                    <option value="de_DE">Deutsch</option>
+                    <option value="es_ES">Español</option>
+                    <option value="it_IT">Italiano</option>
+                    <option value="pt_BR">Português (Brasil)</option>
+                    <option value="nl_NL">Nederlands</option>
+                </select>
+            </div>
+        </section>
+
+        <section class="sum-setup-step" data-step="3" hidden>
+            <p class="sum-setup-hint">Administrator account</p>
+            <div class="field">
+                <label for="admin_name">Full name</label>
+                <input id="admin_name" name="admin_name" type="text" autocomplete="name" required maxlength="200" placeholder="Jane Doe"/>
+            </div>
+            <div class="field">
+                <label for="email">Email (sign-in)</label>
+                <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@company.com"/>
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72" placeholder="At least 8 characters"/>
+            </div>
+            <div class="field">
+                <label for="password2">Confirm password</label>
+                <input id="password2" name="password2" type="password" autocomplete="new-password" required minlength="8" maxlength="72" placeholder="Repeat password"/>
+            </div>
+        </section>
+
+        <section class="sum-setup-step" data-step="4" hidden>
+            <p class="sum-setup-hint">Review</p>
+            <dl class="sum-setup-review">
+                <dt>Company</dt><dd id="rev_company"></dd>
+                <dt>Language</dt><dd id="rev_lang"></dd>
+                <dt>Administrator</dt><dd id="rev_admin"></dd>
+                <dt>Email (login)</dt><dd id="rev_email"></dd>
+                <dt>Password</dt><dd>••••••••</dd>
+            </dl>
+            <p class="sum-setup-intro sum-setup-intro--compact">When you continue, the system creates tables, installs the base module, applies security, and restarts once.</p>
+        </section>
+    </form>
+
+    <div class="sum-setup-nav">
+        <button type="button" id="btnBack" class="sum-setup-btn-secondary" hidden>Back</button>
+        <button type="button" id="btnNext" class="sum-login-btn sum-setup-btn-primary">Continue</button>
+    </div>
+
+    <div id="loader" class="sum-setup-loader" hidden>Working… please wait.</div>
+    <div id="result" class="sum-setup-result" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+(function () {
+    const titles = ['Welcome', 'Organization', 'Administrator', 'Create database'];
+    let step = 1;
+    const maxStep = 4;
+
+    const stepLabel = document.getElementById('stepLabel');
+    const stepTitle = document.getElementById('stepTitle');
+    const sections = document.querySelectorAll('.sum-setup-step');
+    const btnBack = document.getElementById('btnBack');
+    const btnNext = document.getElementById('btnNext');
+    const loader = document.getElementById('loader');
+    const result = document.getElementById('result');
+
+    const companyName = document.getElementById('company_name');
+    const lang = document.getElementById('lang');
+    const adminName = document.getElementById('admin_name');
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const password2 = document.getElementById('password2');
+
+    const revCompany = document.getElementById('rev_company');
+    const revLang = document.getElementById('rev_lang');
+    const revAdmin = document.getElementById('rev_admin');
+    const revEmail = document.getElementById('rev_email');
+
+    function setResult(kind, text) {
+        result.textContent = text || '';
+        result.classList.remove('sum-setup-result--error', 'sum-setup-result--success');
+        if (kind === 'error') result.classList.add('sum-setup-result--error');
+        if (kind === 'success') result.classList.add('sum-setup-result--success');
+    }
+
+    function showStep(n) {
+        step = n;
+        stepLabel.textContent = 'Step ' + n + ' of ' + maxStep;
+        stepTitle.textContent = titles[n - 1];
+        sections.forEach(function (el) {
+            el.hidden = parseInt(el.getAttribute('data-step'), 10) !== n;
+        });
+        btnBack.hidden = n <= 1;
+        btnNext.textContent = n === maxStep ? 'Create database' : 'Continue';
+    }
+
+    function langLabel() {
+        var sel = lang.options[lang.selectedIndex];
+        return sel ? sel.text : lang.value;
+    }
+
+    function validateStep(n) {
+        if (n === 2) {
+            if (!companyName.value.trim()) {
+                setResult('error', 'Enter a company name.');
+                companyName.focus();
+                return false;
+            }
+        }
+        if (n === 3) {
+            if (!adminName.value.trim()) {
+                setResult('error', 'Enter the administrator full name.');
+                adminName.focus();
+                return false;
+            }
+            if (!email.value.trim() || email.value.indexOf('@') < 0) {
+                setResult('error', 'Enter a valid email address; you will use it to sign in.');
+                email.focus();
+                return false;
+            }
+            if (password.value.length < 8) {
+                setResult('error', 'Password must be at least 8 characters.');
+                password.focus();
+                return false;
+            }
+            if (password.value !== password2.value) {
+                setResult('error', 'Passwords do not match.');
+                password2.focus();
+                return false;
+            }
+        }
+        setResult('', '');
+        return true;
+    }
+
+    function fillReview() {
+        revCompany.textContent = companyName.value.trim();
+        revLang.textContent = langLabel();
+        revAdmin.textContent = adminName.value.trim();
+        revEmail.textContent = email.value.trim();
+    }
+
+    btnBack.addEventListener('click', function () {
+        if (step > 1) showStep(step - 1);
+    });
+
+    btnNext.addEventListener('click', async function () {
+        if (step < maxStep) {
+            if (!validateStep(step)) return;
+            if (step === 3) fillReview();
+            showStep(step + 1);
+            return;
+        }
+
+        if (!validateStep(3)) {
+            showStep(3);
+            return;
+        }
+        fillReview();
+
+        btnBack.hidden = true;
+        btnNext.hidden = true;
+        loader.hidden = false;
+        loader.textContent = 'Creating database and installing base module…';
+        setResult('', '');
+
+        var payload = {
+            company_name: companyName.value.trim(),
+            lang: lang.value,
+            admin_name: adminName.value.trim(),
+            email: email.value.trim(),
+            password: password.value
+        };
+
+        try {
+            var response = await fetch('/setup/init', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            var text = await response.text();
+            if (!response.ok) {
+                setResult('error', text || 'Setup failed');
+                btnBack.hidden = false;
+                btnNext.hidden = false;
+                loader.hidden = true;
+                return;
+            }
+            setResult('success', text.trim());
+            loader.textContent = 'Server restarting — redirecting to sign-in…';
+
+            var attempts = 0;
+            var maxAttempts = 40;
+            var poll = setInterval(async function () {
+                attempts++;
+                try {
+                    var ping = await fetch('/web/login', { method: 'GET', cache: 'no-store' });
+                    if (ping.ok || ping.status === 302) {
+                        clearInterval(poll);
+                        window.location.href = '/web/login';
+                    }
+                } catch (_) { /* ignore */ }
+                if (attempts >= maxAttempts) {
+                    clearInterval(poll);
+                    loader.textContent = 'Server is taking longer than expected. Open /web/login manually.';
+                }
+            }, 600);
+        } catch (err) {
+            setResult('error', 'Connection failed: ' + err.message);
+            btnBack.hidden = false;
+            btnNext.hidden = false;
+            loader.hidden = true;
+        }
+    });
+
+    showStep(1);
+})();
+</script>
+</body>
+</html>

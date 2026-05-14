@@ -1,0 +1,82 @@
+/* Form fields and small utility classes used by templates and legacy markup. */
+
+.field {
+  margin-bottom: 1.25rem;
+}
+
+.field label {
+  display: block;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-bold);
+  color: var(--sum-muted);
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: var(--sum-font-size-root);
+  border: 1px solid var(--sum-border-input);
+  border-radius: var(--sum-radius-sm);
+  transition: border-color var(--sum-dur) var(--sum-ease);
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--sum-header);
+  box-shadow: var(--sum-focus-ring);
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.p-4 {
+  padding: 1rem;
+}
+
+.m-0 {
+  margin: 0;
+}
+
+.text-success {
+  color: var(--sum-success);
+}
+
+.text-danger {
+  color: var(--sum-danger);
+}
+
+.text-warning {
+  color: var(--sum-warning);
+}
+
+.rounded-lg {
+  border-radius: var(--sum-radius);
+}
+
+.shadow-sm {
+  box-shadow: var(--sum-shadow-sm);
+}

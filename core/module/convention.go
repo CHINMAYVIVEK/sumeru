@@ -13,173 +13,173 @@ import (
 // ModuleNamePattern is the strict technical name for addon directories and manifest "name".
 var ModuleNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
-// ReadModulePath returns the Go module path from go.mod in repoRoot (e.g. "sumeru").
-func ReadModulePath(repoRoot string) (string, error) {
-	data, err := os.ReadFile(filepath.Join(repoRoot, "go.mod"))
+// ReadModulePath returns the Go module path from go.mod in repositoryRoot (e.g. "sumeru").
+func ReadModulePath(repositoryRoot string) (string, error) {
+	moduleData, err := os.ReadFile(filepath.Join(repositoryRoot, "go.mod"))
 	if err != nil {
 		return "", err
 	}
-	for _, line := range strings.Split(string(data), "\n") {
+	for _, line := range strings.Split(string(moduleData), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "module ") {
 			return strings.TrimSpace(strings.TrimPrefix(line, "module ")), nil
 		}
 	}
-	return "", fmt.Errorf("no module directive in %s", filepath.Join(repoRoot, "go.mod"))
+	return "", fmt.Errorf("no module directive in %s", filepath.Join(repositoryRoot, "go.mod"))
 }
 
 // FindRepoRoot walks parents from any path under the repo until go.mod is found.
-func FindRepoRoot(fromAbs string) (string, error) {
-	dir := fromAbs
-	if fi, err := os.Stat(dir); err == nil && !fi.IsDir() {
-		dir = filepath.Dir(dir)
+func FindRepoRoot(fromAbsolutePath string) (string, error) {
+	currentDirectory := fromAbsolutePath
+	if fileInfo, err := os.Stat(currentDirectory); err == nil && !fileInfo.IsDir() {
+		currentDirectory = filepath.Dir(currentDirectory)
 	}
 	for i := 0; i < 20; i++ {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir, nil
+		if _, err := os.Stat(filepath.Join(currentDirectory, "go.mod")); err == nil {
+			return currentDirectory, nil
 		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
+		parentDirectory := filepath.Dir(currentDirectory)
+		if parentDirectory == currentDirectory {
 			break
 		}
-		dir = parent
+		currentDirectory = parentDirectory
 	}
-	return "", fmt.Errorf("go.mod not found above %q", fromAbs)
+	return "", fmt.Errorf("go.mod not found above %q", fromAbsolutePath)
 }
 
 func isBuiltinAddonPath(addonPath string) bool {
-	s := filepath.Clean(addonPath)
-	if strings.Contains(s, "module"+string(filepath.Separator)+"builtin") {
+	sanitizedPath := filepath.Clean(addonPath)
+	if strings.Contains(sanitizedPath, "module"+string(filepath.Separator)+"builtin") {
 		return true
 	}
 	// .../core/base/base — minimal "base" sys.module (manifest only; no init.go requirement)
-	return strings.Contains(filepath.ToSlash(s), "/core/base/base") &&
-		filepath.Base(s) == "base" && filepath.Base(filepath.Dir(s)) == "base"
+	return strings.Contains(filepath.ToSlash(sanitizedPath), "/core/base/base") &&
+		filepath.Base(sanitizedPath) == "base" && filepath.Base(filepath.Dir(sanitizedPath)) == "base"
 }
 
 // addonGoModuleContext resolves the Go module root, module import path, and repo-relative
 // directory path for an addon filesystem path.
-func addonGoModuleContext(addonPath string) (repoRoot, modPath, rel string, err error) {
+func addonGoModuleContext(addonPath string) (repositoryRoot, moduleImportPath, relativePath string, err error) {
 	addonPath = filepath.Clean(addonPath)
-	repoRoot, err = FindRepoRoot(addonPath)
+	repositoryRoot, err = FindRepoRoot(addonPath)
 	if err != nil {
 		return "", "", "", err
 	}
-	modPath, err = ReadModulePath(repoRoot)
+	moduleImportPath, err = ReadModulePath(repositoryRoot)
 	if err != nil {
 		return "", "", "", err
 	}
-	rel, err = filepath.Rel(repoRoot, addonPath)
+	relativePath, err = filepath.Rel(repositoryRoot, addonPath)
 	if err != nil {
 		return "", "", "", err
 	}
-	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", "", "", fmt.Errorf("addon path %q escapes module root %q", addonPath, repoRoot)
+	if relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) {
+		return "", "", "", fmt.Errorf("addon path %q escapes module root %q", addonPath, repositoryRoot)
 	}
-	return repoRoot, modPath, rel, nil
+	return repositoryRoot, moduleImportPath, relativePath, nil
 }
 
 // ValidateDiscoveredAddons checks strict layout for every discovered addon.
 // Filesystem-only modules under core/module/builtin or core/base/base skip the Go init.go / models rules.
 // Each addon is validated against the Go module root that contains it (supports multiple
 // addon roots, e.g. standard sumeru plus a sibling workspace module).
-func ValidateDiscoveredAddons(discovered map[string]*Addon) error {
-	if len(discovered) == 0 {
+func ValidateDiscoveredAddons(discoveredAddons map[string]*Addon) error {
+	if len(discoveredAddons) == 0 {
 		return nil
 	}
 
-	names := make([]string, 0, len(discovered))
-	for n := range discovered {
-		names = append(names, n)
+	addonNames := make([]string, 0, len(discoveredAddons))
+	for name := range discoveredAddons {
+		addonNames = append(addonNames, name)
 	}
-	sort.Strings(names)
+	sort.Strings(addonNames)
 
-	var errs []string
-	for _, name := range names {
-		a := discovered[name]
-		if err := validateOneAddon(a); err != nil {
-			errs = append(errs, fmt.Sprintf("%s: %v", a.Manifest.Name, err))
+	var validationErrors []string
+	for _, name := range addonNames {
+		addon := discoveredAddons[name]
+		if err := validateOneAddon(addon); err != nil {
+			validationErrors = append(validationErrors, fmt.Sprintf("%s: %v", addon.Manifest.Name, err))
 		}
 	}
-	if len(errs) > 0 {
-		return fmt.Errorf("addon convention violations:\n- %s", strings.Join(errs, "\n- "))
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("addon convention violations:\n- %s", strings.Join(validationErrors, "\n- "))
 	}
 	return nil
 }
 
-func validateOneAddon(a *Addon) error {
-	m := &a.Manifest
-	dirName := filepath.Base(a.Path)
+func validateOneAddon(addon *Addon) error {
+	manifest := &addon.Manifest
+	directoryName := filepath.Base(addon.Path)
 
-	if !ModuleNamePattern.MatchString(m.Name) {
-		return fmt.Errorf("manifest name %q must match %s", m.Name, ModuleNamePattern.String())
+	if !ModuleNamePattern.MatchString(manifest.Name) {
+		return fmt.Errorf("manifest name %q must match %s", manifest.Name, ModuleNamePattern.String())
 	}
-	if m.Name != dirName {
-		return fmt.Errorf("folder name %q must equal manifest name %q", dirName, m.Name)
+	if manifest.Name != directoryName {
+		return fmt.Errorf("folder name %q must equal manifest name %q", directoryName, manifest.Name)
 	}
-	if strings.TrimSpace(m.Version) == "" {
+	if strings.TrimSpace(manifest.Version) == "" {
 		return fmt.Errorf("manifest version is required")
 	}
-	if strings.TrimSpace(m.Author) == "" {
+	if strings.TrimSpace(manifest.Author) == "" {
 		return fmt.Errorf("manifest author is required")
 	}
-	if strings.TrimSpace(m.Description) == "" {
+	if strings.TrimSpace(manifest.Description) == "" {
 		return fmt.Errorf("manifest description is required")
 	}
-	dataFiles := m.Data
+	dataFiles := manifest.Data
 	if dataFiles == nil {
 		dataFiles = []string{}
 	}
 
-	for _, rel := range dataFiles {
-		rel = strings.TrimSpace(rel)
-		if rel == "" {
+	for _, relativeDataPath := range dataFiles {
+		relativeDataPath = strings.TrimSpace(relativeDataPath)
+		if relativeDataPath == "" {
 			return fmt.Errorf("manifest data contains empty entry")
 		}
-		fp := filepath.Join(a.Path, rel)
-		if _, err := os.Stat(fp); err != nil {
-			return fmt.Errorf("data file %q: %w", rel, err)
+		absoluteFilePath := filepath.Join(addon.Path, relativeDataPath)
+		if _, err := os.Stat(absoluteFilePath); err != nil {
+			return fmt.Errorf("data file %q: %w", relativeDataPath, err)
 		}
-		if strings.HasSuffix(strings.ToLower(rel), ".xml") {
-			if err := validateModuleXMLRoot(fp); err != nil {
-				return fmt.Errorf("data %q: %w", rel, err)
+		if strings.HasSuffix(strings.ToLower(relativeDataPath), ".xml") {
+			if err := validateModuleXMLRoot(absoluteFilePath); err != nil {
+				return fmt.Errorf("data %q: %w", relativeDataPath, err)
 			}
 		}
 	}
 
-	if isBuiltinAddonPath(a.Path) {
+	if isBuiltinAddonPath(addon.Path) {
 		return nil
 	}
 
-	initPath := filepath.Join(a.Path, "init.go")
-	initBytes, err := os.ReadFile(initPath)
+	initPath := filepath.Join(addon.Path, "init.go")
+	initFileBytes, err := os.ReadFile(initPath)
 	if err != nil {
 		return fmt.Errorf("strict addon requires init.go: %w", err)
 	}
-	if err := validateRootInitGo(string(initBytes), m.Name); err != nil {
+	if err := validateRootInitGo(string(initFileBytes), manifest.Name); err != nil {
 		return err
 	}
 
-	modelsDir := filepath.Join(a.Path, "models")
-	hasModels, err := dirHasGoFiles(modelsDir)
+	modelsDirectory := filepath.Join(addon.Path, "models")
+	hasModels, err := dirHasGoFiles(modelsDirectory)
 	if err != nil {
 		return err
 	}
 	if hasModels {
-		want, err := expectedModelsImport(a.Path)
+		expectedImport, err := expectedModelsImport(addon.Path)
 		if err != nil {
 			return err
 		}
-		if !strings.Contains(string(initBytes), `"`+want+`"`) {
-			return fmt.Errorf("init.go must blank-import models package %q (found models/*.go)", want)
+		if !strings.Contains(string(initFileBytes), `"`+expectedImport+`"`) {
+			return fmt.Errorf("init.go must blank-import models package %q (found models/*.go)", expectedImport)
 		}
 	}
 
 	return nil
 }
 
-func validateRootInitGo(src, wantPkg string) error {
-	lines := strings.Split(src, "\n")
+func validateRootInitGo(sourceCode, expectedPackage string) error {
+	lines := strings.Split(sourceCode, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "//") || line == "" {
@@ -190,8 +190,8 @@ func validateRootInitGo(src, wantPkg string) error {
 			if len(fields) < 2 {
 				return fmt.Errorf("invalid package declaration in init.go")
 			}
-			if fields[1] != wantPkg {
-				return fmt.Errorf("init.go package must be %q, got %q", wantPkg, fields[1])
+			if fields[1] != expectedPackage {
+				return fmt.Errorf("init.go package must be %q, got %q", expectedPackage, fields[1])
 			}
 			return nil
 		}
@@ -200,52 +200,52 @@ func validateRootInitGo(src, wantPkg string) error {
 }
 
 func expectedModelsImport(addonPath string) (string, error) {
-	_, modPath, rel, err := addonGoModuleContext(addonPath)
+	_, moduleImportPath, relativePath, err := addonGoModuleContext(addonPath)
 	if err != nil {
 		return "", err
 	}
-	return modPath + "/" + filepath.ToSlash(rel) + "/models", nil
+	return moduleImportPath + "/" + filepath.ToSlash(relativePath) + "/models", nil
 }
 
-func dirHasGoFiles(dir string) (bool, error) {
-	fi, err := os.Stat(dir)
+func dirHasGoFiles(directoryPath string) (bool, error) {
+	fileInfo, err := os.Stat(directoryPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
 		return false, err
 	}
-	if !fi.IsDir() {
+	if !fileInfo.IsDir() {
 		return false, nil
 	}
-	entries, err := os.ReadDir(dir)
+	directoryEntries, err := os.ReadDir(directoryPath)
 	if err != nil {
 		return false, err
 	}
-	for _, e := range entries {
-		if e.IsDir() {
+	for _, entry := range directoryEntries {
+		if entry.IsDir() {
 			continue
 		}
-		if strings.HasSuffix(e.Name(), ".go") && !strings.HasSuffix(e.Name(), "_test.go") {
+		if strings.HasSuffix(entry.Name(), ".go") && !strings.HasSuffix(entry.Name(), "_test.go") {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-func validateModuleXMLRoot(xmlPath string) error {
-	b, err := os.ReadFile(xmlPath)
+func validateModuleXMLRoot(xmlFilePath string) error {
+	fileBytes, err := os.ReadFile(xmlFilePath)
 	if err != nil {
 		return err
 	}
-	s := string(bytes.TrimPrefix(b, []byte{0xEF, 0xBB, 0xBF}))
-	s = strings.TrimSpace(s)
-	if strings.HasPrefix(s, "<?xml") {
-		if i := strings.Index(s, ">"); i >= 0 {
-			s = strings.TrimSpace(s[i+1:])
+	contentString := string(bytes.TrimPrefix(fileBytes, []byte{0xEF, 0xBB, 0xBF}))
+	contentString = strings.TrimSpace(contentString)
+	if strings.HasPrefix(contentString, "<?xml") {
+		if index := strings.Index(contentString, ">"); index >= 0 {
+			contentString = strings.TrimSpace(contentString[index+1:])
 		}
 	}
-	if !strings.HasPrefix(s, "<sumeru") {
+	if !strings.HasPrefix(contentString, "<sumeru") {
 		return fmt.Errorf("module XML root must be <sumeru>, file does not start with <sumeru")
 	}
 	return nil
@@ -254,28 +254,28 @@ func validateModuleXMLRoot(xmlPath string) error {
 // AddonImportPaths returns blank-import paths for every strict addon that ships Go (init.go).
 // Each path is under its own Go module root (e.g. sumeru/addons/sales and
 // sumeru_custom_addons/addons/acme_demo for a workspace sibling).
-func AddonImportPaths(discovered map[string]*Addon) ([]string, error) {
-	var out []string
-	names := make([]string, 0, len(discovered))
-	for n := range discovered {
-		names = append(names, n)
+func AddonImportPaths(discoveredAddons map[string]*Addon) ([]string, error) {
+	var importPaths []string
+	addonNames := make([]string, 0, len(discoveredAddons))
+	for name := range discoveredAddons {
+		addonNames = append(addonNames, name)
 	}
-	sort.Strings(names)
-	for _, name := range names {
-		a := discovered[name]
-		if isBuiltinAddonPath(a.Path) {
+	sort.Strings(addonNames)
+	for _, name := range addonNames {
+		addon := discoveredAddons[name]
+		if isBuiltinAddonPath(addon.Path) {
 			continue
 		}
-		initPath := filepath.Join(a.Path, "init.go")
+		initPath := filepath.Join(addon.Path, "init.go")
 		if _, err := os.Stat(initPath); err != nil {
 			continue
 		}
-		_, modPath, rel, err := addonGoModuleContext(a.Path)
+		_, moduleImportPath, relativePath, err := addonGoModuleContext(addon.Path)
 		if err != nil {
-			return nil, fmt.Errorf("addon %s: %w", a.Manifest.Name, err)
+			return nil, fmt.Errorf("addon %s: %w", addon.Manifest.Name, err)
 		}
-		out = append(out, modPath+"/"+filepath.ToSlash(rel))
+		importPaths = append(importPaths, moduleImportPath+"/"+filepath.ToSlash(relativePath))
 	}
-	sort.Strings(out)
-	return out, nil
+	sort.Strings(importPaths)
+	return importPaths, nil
 }

@@ -1,0 +1,268 @@
+/* Standalone login screen (no shell chrome). */
+
+.sum-login-page {
+  background-color: var(--sum-bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--sum-font-sans);
+}
+
+.sum-login-card {
+  background: var(--sum-surface);
+  padding: 3rem;
+  border-radius: var(--sum-radius);
+  box-shadow: var(--sum-shadow-md);
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid var(--sum-line);
+}
+
+.sum-login-card .sum-login-logo {
+  display: block;
+  margin: 0 auto 2rem;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--sum-radius-login-logo);
+  box-shadow: var(--sum-shadow-login-logo);
+}
+
+.sum-login-card h1 {
+  font-size: var(--sum-font-size-title);
+  font-weight: var(--sum-font-weight-bold);
+  color: var(--sum-header);
+  margin: 0 0 0.5rem;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+
+.sum-login-card .sum-login-subtitle {
+  color: var(--sum-muted);
+  font-size: var(--sum-font-size-md);
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.sum-login-card .sum-login-error {
+  background: var(--sum-danger-bg-soft);
+  color: var(--sum-danger);
+  padding: 0.75rem 1rem;
+  border-radius: var(--sum-radius-sm);
+  font-size: var(--sum-font-size-root);
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--sum-danger-border-soft);
+  font-weight: var(--sum-font-weight-medium);
+}
+
+.sum-login-card .field {
+  margin-bottom: 1.25rem;
+}
+
+.sum-login-card .field label {
+  display: block;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-bold);
+  color: var(--sum-muted);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
+}
+
+.sum-login-card .field input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: var(--sum-font-size-md);
+  border: 1px solid var(--sum-border-input);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-gray-50);
+  transition: all var(--sum-dur-slow) var(--sum-ease);
+}
+
+.sum-login-card .field input:focus {
+  outline: none;
+  background: var(--sum-surface);
+  border-color: var(--sum-header);
+  box-shadow: var(--sum-focus-ring-lg);
+}
+
+.sum-login-card .sum-login-btn {
+  width: 100%;
+  padding: 0.875rem;
+  background: var(--sum-header);
+  color: var(--sum-surface);
+  border: none;
+  border-radius: var(--sum-radius-sm);
+  font-weight: var(--sum-font-weight-bold);
+  font-size: var(--sum-font-size-login-btn);
+  cursor: pointer;
+  transition: all var(--sum-dur-slow) var(--sum-ease);
+  margin-top: 1rem;
+  box-shadow: var(--sum-shadow-login-btn);
+}
+
+.sum-login-card .sum-login-btn:hover {
+  background: var(--sum-header-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--sum-shadow-login-btn-hover);
+}
+
+.sum-login-card .sum-login-btn:active {
+  transform: translateY(0);
+}
+
+.sum-login-logo--placeholder {
+  background: linear-gradient(135deg, var(--sum-header) 0%, var(--sum-header-dark) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sum-surface);
+  font-weight: var(--sum-font-weight-bold);
+  font-size: 24px;
+}
+
+/* One-time database setup (/setup) — same card shell as login */
+.sum-setup-card .sum-setup-intro {
+  color: var(--sum-muted);
+  font-size: var(--sum-font-size-md);
+  text-align: center;
+  margin: 0 0 2rem;
+  line-height: 1.55;
+}
+
+.sum-setup-card .sum-setup-intro strong {
+  color: var(--sum-ink);
+  font-weight: var(--sum-font-weight-semibold);
+}
+
+.sum-setup-loader {
+  margin-top: 1rem;
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.sum-setup-result {
+  margin-top: 1.25rem;
+  font-size: var(--sum-font-size-root);
+  text-align: center;
+  font-weight: var(--sum-font-weight-medium);
+  min-height: 1.25rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.sum-setup-result--error {
+  color: var(--sum-danger);
+}
+
+.sum-setup-result--success {
+  color: var(--sum-success);
+}
+
+.sum-setup-card--wide {
+  max-width: 520px;
+}
+
+.sum-setup-progress {
+  margin: 0 0 0.35rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-medium);
+  color: var(--sum-muted);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
+}
+
+.sum-setup-form {
+  margin-top: 0.5rem;
+}
+
+.sum-setup-step {
+  margin-bottom: 0.25rem;
+}
+
+.sum-setup-hint {
+  margin: 0 0 1rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-header);
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
+}
+
+.sum-setup-intro--compact {
+  margin-top: 1.25rem;
+  margin-bottom: 0;
+}
+
+.sum-setup-card .field select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: var(--sum-font-size-md);
+  border: 1px solid var(--sum-border-input);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-gray-50);
+  color: var(--sum-ink);
+  cursor: pointer;
+}
+
+.sum-setup-card .field select:focus {
+  outline: none;
+  background: var(--sum-surface);
+  border-color: var(--sum-header);
+  box-shadow: var(--sum-focus-ring-lg);
+}
+
+.sum-setup-nav {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  align-items: stretch;
+}
+
+.sum-setup-nav .sum-setup-btn-primary {
+  flex: 1;
+  margin-top: 0;
+}
+
+.sum-setup-btn-secondary {
+  flex: 0 0 auto;
+  min-width: 6.5rem;
+  padding: 0.875rem 1rem;
+  background: var(--sum-surface);
+  color: var(--sum-muted-ink);
+  border: 1px solid var(--sum-line-strong);
+  border-radius: var(--sum-radius-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  font-size: var(--sum-font-size-md);
+  cursor: pointer;
+  transition: background var(--sum-dur-slow) var(--sum-ease), border-color var(--sum-dur-slow) var(--sum-ease);
+}
+
+.sum-setup-btn-secondary:hover {
+  background: var(--sum-gray-50);
+  border-color: var(--sum-gray-300);
+}
+
+.sum-setup-review {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1.25rem;
+  font-size: var(--sum-font-size-md);
+}
+
+.sum-setup-review dt {
+  margin: 0;
+  color: var(--sum-muted);
+  font-weight: var(--sum-font-weight-medium);
+}
+
+.sum-setup-review dd {
+  margin: 0;
+  color: var(--sum-ink);
+  font-weight: var(--sum-font-weight-medium);
+}

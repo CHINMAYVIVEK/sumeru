@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"sumeru/core/base/platformmsg"
+	"sumeru/core/engine/assets"
+	"sumeru/core/engine/render"
 	"sumeru/core/orm"
 	"sumeru/core/server/config"
 
@@ -33,10 +35,17 @@ func requireLogin(w http.ResponseWriter, r *http.Request) bool {
 	}
 	q := r.URL.RequestURI()
 	if q == "" {
-		q = "/web"
+		q = "/web/home"
 	}
 	http.Redirect(w, r, "/web/login?next="+url.QueryEscape(q), http.StatusFound)
 	return false
+}
+
+type loginTemplateData struct {
+	Next        string
+	Error       string
+	Stylesheets []string
+	LogoURL     string
 }
 
 // LoginGet renders the login form.
@@ -48,7 +57,7 @@ func LoginGet(w http.ResponseWriter, r *http.Request) {
 	if SessionUserID(r) > 0 {
 		next := strings.TrimSpace(r.URL.Query().Get("next"))
 		if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-			next = "/web/apps"
+			next = "/web/home"
 		}
 		http.Redirect(w, r, next, http.StatusFound)
 		return
@@ -61,9 +70,11 @@ func LoginGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = t.Execute(w, map[string]string{
-		"Next":  strings.TrimSpace(r.URL.Query().Get("next")),
-		"Error": "",
+	_ = t.Execute(w, loginTemplateData{
+		Next:        strings.TrimSpace(r.URL.Query().Get("next")),
+		Error:       "",
+		Stylesheets: assets.DefaultStylesheetURLs(),
+		LogoURL:     render.ShellLogoURL(),
 	})
 }
 
@@ -81,7 +92,7 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 	password := r.PostFormValue("password")
 	next := strings.TrimSpace(r.PostFormValue("next"))
 	if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-		next = "/web/apps"
+		next = "/web/home"
 	}
 	tbl := orm.GetTableName("core.user")
 	var id int
@@ -116,9 +127,11 @@ func renderLoginError(w http.ResponseWriter, r *http.Request, next, msg string) 
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusUnauthorized)
-	_ = t.Execute(w, map[string]string{
-		"Next":  next,
-		"Error": msg,
+	_ = t.Execute(w, loginTemplateData{
+		Next:        next,
+		Error:       msg,
+		Stylesheets: assets.DefaultStylesheetURLs(),
+		LogoURL:     render.ShellLogoURL(),
 	})
 }
 
@@ -149,7 +162,7 @@ func ActionResetPassword(w http.ResponseWriter, r *http.Request) {
 	// Redirect back with a flash-style query param so the UI can surface it.
 	next := strings.TrimSpace(r.PostFormValue("next"))
 	if next == "" || !strings.HasPrefix(next, "/web") || strings.HasPrefix(next, "//") {
-		next = "/web"
+		next = "/web/home"
 	}
 	http.Redirect(w, r, next+"&msg=reset_requested", http.StatusSeeOther)
 }

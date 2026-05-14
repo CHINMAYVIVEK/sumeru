@@ -61,6 +61,6 @@ func (m *{{.TypeName}}) UpdateRecord(ctx context.Context, id int, vals map[strin
 }
 
 func init() {
-	// Register the model in the global Sumeru registry.
-	base.RegisterModel(base.RegisterModelInput{Model: &{{.TypeName}}{}})
+	// Register the model in the global Sumeru registry (Module must match manifest.json "name").
+	base.RegisterModel(base.RegisterModelInput{Model: &{{.TypeName}}{}, Module: "{{.Name}}"})
 }

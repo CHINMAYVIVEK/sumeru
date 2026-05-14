@@ -29,6 +29,11 @@ func SetShellBranding(b ShellBranding) {
 	shell = b
 }
 
+// ShellLogoURL returns the configured shell logo URL (e.g. "/static/app-logo"), or empty.
+func ShellLogoURL() string {
+	return strings.TrimSpace(shell.LogoURL)
+}
+
 // EnrichShellPageData merges global shell branding and optional DB labels into page data.
 func EnrichShellPageData(ctx context.Context, d *PageData) {
 	d.AppName = AppDisplayName
@@ -76,6 +81,9 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 	}
 
 	d.ActivityEnabled = mail.CompanyChatterEnabled(ctx) && mail.CompanyActivityPanelEnabled(ctx)
+	if d.SuppressActivityDock {
+		d.ActivityEnabled = false
+	}
 	if !d.ActivityEnabled {
 		d.ActivityLogItems = nil
 		return

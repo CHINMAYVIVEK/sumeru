@@ -25,13 +25,18 @@ func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, appsRedirectPath("invalid_form", r.FormValue("apps_layout")), http.StatusSeeOther)
+		http.Redirect(w, r, appsRedirectPath("invalid_form", r), http.StatusSeeOther)
 		return
 	}
+	layout := strings.ToLower(strings.TrimSpace(r.FormValue("apps_layout")))
+	appsFilter := normalizeAppsFilter(r.FormValue("apps_filter"))
+	appsScope := normalizeAppsScope(r.FormValue("apps_scope"))
+	appsQ := strings.TrimSpace(r.FormValue("apps_q"))
+
 	action := strings.TrimSpace(r.FormValue("do"))
 	mod := strings.TrimSpace(r.FormValue("module"))
 	if mod == "" {
-		http.Redirect(w, r, appsRedirectPath("missing_module", r.FormValue("apps_layout")), http.StatusSeeOther)
+		http.Redirect(w, r, appsRedirectPath("missing_module", r), http.StatusSeeOther)
 		return
 	}
 
@@ -53,40 +58,47 @@ func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
 	case "save_module":
 		err = saveModuleFromForm(r)
 		if err != nil {
-			http.Redirect(w, r, appsRedirectPath(err.Error(), r.FormValue("apps_layout")), http.StatusSeeOther)
+			http.Redirect(w, r, appsRedirectPath(err.Error(), r), http.StatusSeeOther)
 			return
 		}
 		q := url.Values{}
 		q.Set("msg", "saved")
-		if l := strings.ToLower(strings.TrimSpace(r.FormValue("apps_layout"))); l == "list" || l == "grid" {
-			q.Set("layout", l)
-		}
 		q.Set("module", mod)
+		if layout == "list" || layout == "grid" {
+			q.Set("layout", layout)
+		}
+		appendAppsQueryBase(q, layout, appsFilter, appsScope, appsQ)
 		http.Redirect(w, r, "/web/apps?"+q.Encode(), http.StatusSeeOther)
 		return
 	default:
-		http.Redirect(w, r, appsRedirectPath("unknown_action", r.FormValue("apps_layout")), http.StatusSeeOther)
+		http.Redirect(w, r, appsRedirectPath("unknown_action", r), http.StatusSeeOther)
 		return
 	}
 	if err != nil {
-		http.Redirect(w, r, appsRedirectPath(err.Error(), r.FormValue("apps_layout")), http.StatusSeeOther)
+		http.Redirect(w, r, appsRedirectPath(err.Error(), r), http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, appsRedirectPath(msg, r.FormValue("apps_layout")), http.StatusSeeOther)
+	http.Redirect(w, r, appsRedirectPath(msg, r), http.StatusSeeOther)
 }
 
-func appsRedirectPath(msg, layout string) string {
+// appsRedirectPath builds a redirect URL preserving Apps filters from the POST form (apps_* fields).
+func appsRedirectPath(msg string, r *http.Request) string {
 	q := url.Values{}
 	if strings.TrimSpace(msg) != "" {
 		q.Set("msg", strings.TrimSpace(msg))
 	}
-	layout = strings.ToLower(strings.TrimSpace(layout))
+	layout := strings.ToLower(strings.TrimSpace(r.FormValue("apps_layout")))
 	if layout == "kanban" {
 		layout = "grid"
 	}
 	if layout == "list" || layout == "grid" {
 		q.Set("layout", layout)
 	}
+	appendAppsQueryBase(q, layout,
+		normalizeAppsFilter(r.FormValue("apps_filter")),
+		normalizeAppsScope(r.FormValue("apps_scope")),
+		strings.TrimSpace(r.FormValue("apps_q")),
+	)
 	if enc := q.Encode(); enc != "" {
 		return "/web/apps?" + enc
 	}

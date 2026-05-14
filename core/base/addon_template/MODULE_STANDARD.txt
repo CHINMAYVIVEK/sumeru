@@ -8,7 +8,7 @@ Directory (technical name = folder name, should match manifest "name"):
   addons/<technical_name>/
     manifest.json     — required
     init.go           — optional blank import of models: _ "sumeru/addons/<name>/models"
-    models/           — Go structs + RegisterModel in init via sumeru/core/base
+    models/           — Go structs + base.RegisterModel(RegisterModelInput{Model, Module}) in init; Module must match manifest.json "name" (sys.module technical name).
     views/            — XML under <sumeru> root (see below)
 
 Core ships:
@@ -36,7 +36,7 @@ Multiple addon roots (sumeru.conf)
 
 Module XML (standard)
 ---------------------
-  **Root element (required):** `<sumeru>` (same role as `<odoo>` in Odoo module data files).
+  **Root element (required):** `<sumeru>` — wraps all module data records for the Sumeru loader.
 
   **File header (recommended):** `<?xml version="1.0" encoding="utf-8"?>` on the first line.
 
@@ -127,7 +127,7 @@ After adding a new addon, restart the server and install the module from /web/ap
 
 Activity and mail logging (Go)
 ------------------------------
-XML data files cannot run Go code, so there is no Sumeru-style automatic `message_post` from static `<record>` rows alone. After a successful mutation in your own Go code (services, HTTP handlers, cron, and so on), import **`sumeru/core/mail`** and call **`mail.PostMessage(model, resID, body, subtype, author)`** (use **`mail.SubtypeComment`**, **`mail.SubtypeNotification`**, or **`mail.SubtypeModule`**) or **`mail.LogModuleEvent(moduleName, verb, detail)`** for **`sys.module`** audit lines. The stock server already posts from module install / uninstall / activate / update, workspace record save, and user chatter posts. Addons should follow the same pattern from their Go hooks rather than expecting XML to intercept ORM writes.
+XML data files cannot run Go code, so there is no Sumeru-style automatic `message_post` from static `<record>` rows alone. After a successful mutation in your own Go code (services, HTTP handlers, cron, and so on): use **`sumeru/core/mail`** and **`mail.PostMessage(...)`** with **`mail.SubtypeComment`** for user-to-user chatter on a record, or **`mail.SubtypeNotification`** for record-level system notes (shown in the activity panel). **`mail.message`** is for that chatter and notifications only. For module install / uninstall / activate / update audit lines, call **`mail.LogModuleEvent(ctx, moduleName, verb, detail)`** (implemented on **`app.log`**) or import **`sumeru/core/applog`** and **`applog.Log`**. The stock server posts module events via **`mail.LogModuleEvent`**, record saves as notifications, and chatter posts as comments. Addons should follow the same pattern from their Go hooks rather than expecting XML to intercept ORM writes.
 
 Server CLI
 ----------
@@ -137,5 +137,6 @@ Server CLI
 
 Branding outside core
 ---------------------
-  1) Edit plain CSS under core/engine/assets/css/ (tokens.css, shell.css, or a new file linked from templates).
-  2) Runtime CSS: set brand_css in sumeru.conf to a file path; it is linked as /static/brand.css after view stylesheets.
+  1) Default shell colors and typography: edit **`core/engine/assets/css/sumeru-theme.css`** only (design tokens on `:root`). Load order is defined in **`core/engine/assets/stylesheets.go`** (`DefaultStylesheetURLs`).
+  2) Optional per-addon overrides: add **`static/css/theme-overrides.css`** in the addon tree (override `:root` custom properties); the server serves it as **`/static/addon-css/<module>.css`** after the core sheets.
+  3) Site-wide extra rules: set **`brand_css`** in sumeru.conf to a file path; it is linked as **`/static/brand.css`** after core and addon theme sheets.

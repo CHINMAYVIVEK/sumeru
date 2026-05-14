@@ -1,0 +1,108 @@
+/*
+ * Sumeru default shell theme — enterprise-style light backend (brand purple #875A7B).
+ * Change branding here only; structural CSS references var(--sum-*).
+ */
+:root {
+  /* —— Brand (primary shell purple) —— */
+  --sum-header: #875a7b;
+  --sum-header-dark: #6b4660;
+  --sum-gold: #f0ad4e;
+  --sum-gold-soft: rgba(240, 173, 78, 0.22);
+
+  /* —— Semantic —— */
+  --sum-primary: var(--sum-header);
+  --sum-primary-hover: var(--sum-header-dark);
+  --sum-accent: var(--sum-gold);
+
+  /* —— Surfaces & text (light enterprise shell) —— */
+  --sum-bg: #f9f9f9;
+  --sum-surface: #ffffff;
+  --sum-surface-alt: #f5f5f5;
+  --sum-ink: #212529;
+  --sum-muted: #6c757d;
+  --sum-muted-ink: #495057;
+
+  /* —— Neutrals —— */
+  --sum-gray-50: #f8f9fa;
+  --sum-gray-100: #f1f3f5;
+  --sum-gray-200: #dee2e6;
+  --sum-gray-300: #ced4da;
+  --sum-gray-700: #495057;
+  --sum-gray-800: #343a40;
+  --sum-gray-900: #212529;
+
+  /* —— Status —— */
+  --sum-success: #198754;
+  --sum-danger: #dc3545;
+  --sum-warning: #ffc107;
+  --sum-danger-bg-soft: rgba(220, 53, 69, 0.1);
+  --sum-danger-border-soft: rgba(220, 53, 69, 0.22);
+
+  /* Tinted surfaces (tuned for #875A7B) */
+  --sum-row-hover-bg: rgba(135, 90, 123, 0.06);
+  --sum-header-tint-12: rgba(135, 90, 123, 0.12);
+
+  /* —— Lines & borders —— */
+  --sum-line: rgba(33, 37, 41, 0.09);
+  --sum-line-strong: rgba(33, 37, 41, 0.14);
+  --sum-border-input: var(--sum-gray-200);
+
+  /* —— Sidebar —— */
+  --sum-sidebar-bg-top: #fafafa;
+  --sum-sidebar-bg-bottom: #f0f0f0;
+
+  /* —— Top bar —— */
+  --sum-topbar-fg: #f8f9fa;
+  --sum-topbar-fg-muted: rgba(248, 249, 250, 0.82);
+  --sum-topbar-hover-bg: rgba(255, 255, 255, 0.08);
+  --sum-topbar-active-bg: rgba(255, 255, 255, 0.1);
+  --sum-topbar-border: rgba(0, 0, 0, 0.12);
+  --sum-topbar-shadow: 0 1px 2px rgba(33, 37, 41, 0.06);
+
+  /* —— Typography (shell default: Roboto) —— */
+  --sum-font-sans: "Roboto", "Inter", system-ui, -apple-system, sans-serif;
+  --sum-font-mono: "JetBrains Mono", "Roboto Mono", monospace;
+  --sum-font-size-root: 0.8125rem;
+  --sum-font-size-sm: 0.75rem;
+  --sum-font-size-md: 0.875rem;
+  --sum-font-size-lg: 1.05rem;
+  --sum-font-size-title: 1.5rem;
+  --sum-font-size-login-btn: 0.9375rem;
+  --sum-font-weight-medium: 500;
+  --sum-font-weight-semibold: 600;
+  --sum-font-weight-bold: 700;
+  --sum-letter-spacing-tight: -0.03em;
+  --sum-letter-spacing-ui: 0.05em;
+
+  /* —— Layout —— */
+  --sum-sidebar-width: 15.5rem;
+  --sum-header-height: 52px;
+  --sum-breadcrumb-min-height: 48px;
+  --sum-activity-width: 300px;
+  --sum-activity-width-min: 200px;
+  --sum-activity-width-max: 520px;
+
+  /* —— Radii —— */
+  --sum-radius: 14px;
+  --sum-radius-sm: 10px;
+  --sum-radius-pill: 999px;
+  --sum-radius-logo: 8px;
+  --sum-radius-login-logo: 14px;
+
+  /* —— Shadows —— */
+  --sum-shadow-sm: 0 1px 2px rgba(33, 37, 41, 0.05);
+  --sum-shadow-md: 0 1px 2px rgba(33, 37, 41, 0.05), 0 8px 24px rgba(33, 37, 41, 0.08);
+  --sum-shadow-login-logo: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --sum-shadow-login-btn: 0 4px 12px rgba(135, 90, 123, 0.22);
+  --sum-shadow-login-btn-hover: 0 6px 16px rgba(135, 90, 123, 0.28);
+
+  /* —— Focus ring —— */
+  --sum-focus-ring: 0 0 0 3px rgba(135, 90, 123, 0.12);
+  --sum-focus-ring-lg: 0 0 0 4px rgba(135, 90, 123, 0.12);
+
+  /* —— Transitions —— */
+  --sum-ease: ease;
+  --sum-dur-fast: 0.12s;
+  --sum-dur: 0.15s;
+  --sum-dur-slow: 0.2s;
+}

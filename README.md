@@ -199,17 +199,21 @@ These apply to **`go run ./cmd/sumeru --`**, **`./sumeru.sh`**, and **`./sumeru`
 
 ## UI and static assets
 
-Styles are **plain CSS** under `core/engine/assets/css/`:
+Styles are **plain CSS** under `core/engine/assets/css/`. **Theme and typography** live in one file; layout and views are split by responsibility. The ordered list is **`DefaultStylesheetURLs()`** in `core/engine/assets/stylesheets.go`.
 
-| File | Use case |
-| ---- | -------- |
-| `legacy-compat.css` | Shared utilities, form/kanban helpers, menu link resets |
-| `tokens.css` | `:root` design tokens and base body |
-| `shell.css` | Header, sidebar, workspace, activity panel |
-| `view-apps.css` | **`/web/apps`** dashboard only |
-| `view-web.css` | **`/web`** workspace (forms, lists, etc.) |
+| File | Responsibility |
+| ---- | ---------------- |
+| `sumeru-theme.css` | **Branding only**: `:root` colors, typography, radii, shadows, layout tokens |
+| `sumeru-base.css` | Document defaults, scrollbars, tabular number fonts |
+| `sumeru-shell.css` | Top bar, sidebar, workspace grid, breadcrumbs, activity dock |
+| `sumeru-views.css` | Form sheets, list tables, notebooks, legacy app grid |
+| `sumeru-compat.css` | `.field` and small utility classes used by templates |
+| `sumeru-login.css` | Standalone login card |
+| `sumeru-pages.css` | Standalone pages (e.g. app logs table) |
+| `sumeru-apps.css` | **`/web/apps`** catalog (linked per-page via `ViewStylesheetURLs`) |
+| `sumeru-workspace.css` | **`/web`** workspace extras (forms; extend as needed) |
 
-Optional **`brand_css`** in config loads after those. **`logo_path`** drives **`/static/app-logo`** in the header.
+Per-addon optional **`static/css/theme-overrides.css`** is served as **`/static/addon-css/<module>.css`** after the core list. Optional **`brand_css`** in config loads after those. **`logo_path`** drives **`/static/app-logo`** in the header.
 
 ---
 

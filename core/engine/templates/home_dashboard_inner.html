@@ -1,0 +1,40 @@
+<div class="sum-home-dash">
+    <header class="sum-home-dash-hero">
+        <p class="sum-home-dash-eyebrow">Installed applications</p>
+        <h1 class="sum-home-dash-title">Dashboard</h1>
+        <p class="sum-home-dash-lead">Open an app or jump to the catalog to install more modules.</p>
+        <form class="sum-home-dash-search" method="get" action="/web/home" role="search">
+            {{if .MenuID}}
+            <input type="hidden" name="menu_id" value="{{.MenuID}}" />
+            {{end}}
+            <label class="visually-hidden" for="sum-home-q">Search apps</label>
+            <input id="sum-home-q" name="q" type="search" class="sum-home-dash-search-input" value="{{.Search}}" placeholder="Search by name…" autocomplete="off" />
+            <button type="submit" class="sum-home-dash-search-btn">Search</button>
+            <a href="/web/home{{if .MenuID}}?menu_id={{.MenuID}}{{end}}" class="sum-home-dash-clear">Clear</a>
+        </form>
+    </header>
+
+    {{if .EmptyMsg}}
+    <p class="sum-home-dash-empty">{{.EmptyMsg}}</p>
+    {{else}}
+    <div class="sum-home-dash-grid">
+        {{range .Tiles}}
+        <article class="sum-home-dash-card">
+            <div class="sum-home-dash-card-top">
+                <div class="sum-home-dash-icon" aria-hidden="true">{{.IconLetter}}</div>
+                <div class="sum-home-dash-meta">
+                    <h2 class="sum-home-dash-name">{{.DisplayName}}</h2>
+                    <p class="sum-home-dash-tech">{{.Name}} · v{{.Version}}</p>
+                </div>
+            </div>
+            <p class="sum-home-dash-desc">{{.Description}}</p>
+            <p class="sum-home-dash-author">{{if .Author}}by {{.Author}}{{end}}</p>
+            <div class="sum-home-dash-actions">
+                <a href="{{.OpenMenuHref}}" class="sum-home-dash-btn sum-home-dash-btn--primary">Open</a>
+                <a href="/web/apps?module={{.Name}}&layout=grid" class="sum-home-dash-btn sum-home-dash-btn--ghost">Details</a>
+            </div>
+        </article>
+        {{end}}
+    </div>
+    {{end}}
+</div>

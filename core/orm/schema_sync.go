@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sort"
@@ -17,8 +18,20 @@ func SyncRegistrySchema() error {
 	if DB == nil {
 		return nil
 	}
+	ctx := ContextWithBypass(context.Background(), true)
+	installed, err := InstalledModuleNames(ctx)
+	if err != nil {
+		return err
+	}
 	names := make([]string, 0, len(Registry))
 	for name := range Registry {
+		if len(installed) == 0 {
+			if owner := DeclaringModule(name); owner != "" && owner != "base" {
+				continue
+			}
+		} else if !ShouldMaterializeModel(name, installed) {
+			continue
+		}
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -110,7 +123,6 @@ func loadTableColumns(tableName string) (map[string]struct{}, error) {
 	}
 	return out, rows.Err()
 }
-
 
 func buildAddColumnDefinition(f FieldDefinition, baseType string) string {
 	if f.Type == Boolean {

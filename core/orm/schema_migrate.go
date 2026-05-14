@@ -14,7 +14,7 @@ func BackfillSysMenuModule() error {
 		return nil
 	}
 	_, err := DB.Exec(`
-		UPDATE sys.menu m
+		UPDATE sys_menu m
 		SET module = d.module
 		FROM sys.model_data d
 		WHERE d.model = 'sys.menu' AND d.core_id = m.id

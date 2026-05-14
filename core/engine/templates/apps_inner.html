@@ -5,7 +5,7 @@
         <div class="sum-apps-hero-prem-inner">
             <p class="sum-apps-eyebrow">Application catalog</p>
             <h1 class="sum-apps-title-prem">Apps</h1>
-            <p class="sum-apps-lead-prem">Discover, activate, and manage modules. Use Grid or List; open an app for a read-only summary, then Edit to change metadata.</p>
+            <p class="sum-apps-lead-prem">Discover, activate, and manage modules. Filter by state, search by name, and switch between application modules and technical dependencies.</p>
         </div>
     </header>
 
@@ -16,7 +16,7 @@
     {{if .ModuleDetail}}
     <section class="sum-apps-section-prem" aria-label="Module details">
         <p class="sum-apps-section-label-prem"><a href="/web/apps?{{.ModuleDetail.BackAppsQuery}}" class="sum-apps-back-link">← All apps</a></p>
-        <div class="sum-apps-module-form o_form_sheet bg-white shadow-sm border border-slate-200 rounded-sm p-8 max-w-3xl">
+        <div class="sum-apps-module-form sum-form-sheet bg-white shadow-sm border border-slate-200 rounded-sm p-8 max-w-3xl">
             <div class="flex flex-wrap items-center justify-end gap-2 mb-6">
                 {{if not .ModuleDetail.Editing}}
                 <a href="{{.ModuleDetail.EditURL}}" class="px-4 py-2 text-sm font-semibold rounded-sm bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 shadow-sm">Edit</a>
@@ -30,7 +30,7 @@
                 <input type="hidden" name="do" value="save_module" />
                 <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
                 <input type="hidden" name="module_row_id" value="{{.ModuleDetail.ID}}" />
-                <input type="hidden" name="apps_layout" value="{{.ModuleDetail.Layout}}" />
+                {{template "apps_post_hiddens" $}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs font-bold text-slate-500 uppercase">Technical name</label>
@@ -64,28 +64,28 @@
             </form>
             <div class="mt-8 flex flex-wrap gap-2 border-t border-slate-100 pt-6">
                 {{if .ModuleDetail.CanInstall}}
-                <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{.ModuleDetail.Layout}}" />
+                <form method="post" action="/web/module/action">{{template "apps_post_hiddens" $}}
                     <input type="hidden" name="do" value="install" />
                     <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
                     <button type="submit" class="sum-btn-prem sum-btn-prem--primary">Activate</button>
                 </form>
                 {{end}}
                 {{if .ModuleDetail.CanUninstall}}
-                <form method="post" action="/web/module/action" onsubmit="return confirm('Uninstall {{.ModuleDetail.DisplayName}}?');"><input type="hidden" name="apps_layout" value="{{.ModuleDetail.Layout}}" />
+                <form method="post" action="/web/module/action" onsubmit="return confirm('Uninstall {{.ModuleDetail.DisplayName}}?');">{{template "apps_post_hiddens" $}}
                     <input type="hidden" name="do" value="uninstall" />
                     <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
                     <button type="submit" class="sum-btn-prem sum-btn-prem--danger">Uninstall</button>
                 </form>
                 {{end}}
                 {{if .ModuleDetail.CanDeactivate}}
-                <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{.ModuleDetail.Layout}}" />
+                <form method="post" action="/web/module/action">{{template "apps_post_hiddens" $}}
                     <input type="hidden" name="do" value="deactivate" />
                     <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
                     <button type="submit" class="sum-btn-prem sum-btn-prem--ghost">Deactivate</button>
                 </form>
                 {{end}}
                 {{if .ModuleDetail.CanActivate}}
-                <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{.ModuleDetail.Layout}}" />
+                <form method="post" action="/web/module/action">{{template "apps_post_hiddens" $}}
                     <input type="hidden" name="do" value="activate" />
                     <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
                     <button type="submit" class="sum-btn-prem sum-btn-prem--success">Activate</button>
@@ -94,168 +94,214 @@
             </div>
         </div>
     </section>
-    {{else if eq .Layout "list"}}
-    <section class="sum-apps-section-prem" aria-labelledby="sum-apps-list-heading">
-        <h2 id="sum-apps-list-heading" class="sum-apps-section-label-prem">Applications</h2>
-        <div class="sum-apps-list-wrap">
-            <table class="sum-apps-list-table">
-                <thead>
-                    <tr>
-                        <th class="sum-apps-list-th-icon"></th>
-                        <th>Application</th>
-                        <th>Technical name</th>
-                        <th>Version</th>
-                        <th>State</th>
-                        <th>Author</th>
-                        <th class="sum-apps-list-th-actions">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{range .Modules}}
-                    {{if .Application}}
-                    <tr class="sum-apps-list-row sum-apps-list-row--open" data-module="{{.Name}}" data-apps-layout="{{$.Layout}}">
-                        <td><span class="sum-apps-list-letter">{{.IconLetter}}</span></td>
-                        <td><span class="sum-apps-list-name">{{.DisplayName}}</span></td>
-                        <td class="sum-apps-list-mono">{{.Name}}</td>
-                        <td>{{.Version}}</td>
-                        <td>
-                            {{if eq .State "installed"}}
-                                {{if .Active}}<span class="sum-badge-prem sum-badge-prem--on">active</span>
-                                {{else}}<span class="sum-badge-prem sum-badge-prem--muted">off</span>{{end}}
-                            {{else}}
-                            <span class="sum-badge-prem sum-badge-prem--off">{{.State}}</span>
+    {{else}}
+    <div class="sum-apps-layout">
+        <aside class="sum-apps-filters" aria-label="Filters">
+            <p class="sum-apps-filters-heading">State</p>
+            <nav class="sum-apps-filter-nav">
+                <a href="{{.Nav.FilterAll}}" class="sum-apps-filter-link {{if eq .Filter "all"}}is-active{{end}}">All</a>
+                <a href="{{.Nav.FilterInstalled}}" class="sum-apps-filter-link {{if eq .Filter "installed"}}is-active{{end}}">Installed</a>
+                <a href="{{.Nav.FilterUninstalled}}" class="sum-apps-filter-link {{if eq .Filter "uninstalled"}}is-active{{end}}">Not installed</a>
+            </nav>
+            <p class="sum-apps-filters-heading">Show</p>
+            <nav class="sum-apps-filter-nav">
+                <a href="{{.Nav.ScopeAll}}" class="sum-apps-filter-link {{if eq .Scope "all"}}is-active{{end}}">Apps &amp; technical</a>
+                <a href="{{.Nav.ScopeApps}}" class="sum-apps-filter-link {{if eq .Scope "apps"}}is-active{{end}}">Apps only</a>
+                <a href="{{.Nav.ScopeTechnical}}" class="sum-apps-filter-link {{if eq .Scope "technical"}}is-active{{end}}">Technical only</a>
+            </nav>
+        </aside>
+        <div class="sum-apps-main">
+            <form class="sum-apps-search" method="get" action="/web/apps" role="search">
+                <input type="hidden" name="layout" value="{{.Layout}}" />
+                {{if ne .Filter "all"}}<input type="hidden" name="filter" value="{{.Filter}}" />{{end}}
+                {{if ne .Scope "all"}}<input type="hidden" name="scope" value="{{.Scope}}" />{{end}}
+                <label class="sum-apps-search-label" for="sum-apps-q">Search</label>
+                <input id="sum-apps-q" class="sum-apps-search-input" type="search" name="q" value="{{.Search}}" placeholder="Module name or title…" autocomplete="off" />
+                <button type="submit" class="sum-apps-search-btn">Search</button>
+            </form>
+
+            {{if ne .Scope "technical"}}
+            {{if eq .Layout "list"}}
+            <section class="sum-apps-section-prem" aria-labelledby="sum-apps-list-heading">
+                <h2 id="sum-apps-list-heading" class="sum-apps-section-label-prem">Applications</h2>
+                {{if .AppModules}}
+                <div class="sum-apps-list-wrap">
+                    <table class="sum-apps-list-table">
+                        <thead>
+                            <tr>
+                                <th class="sum-apps-list-th-icon"></th>
+                                <th>Application</th>
+                                <th>Technical name</th>
+                                <th>Version</th>
+                                <th>State</th>
+                                <th>Author</th>
+                                <th class="sum-apps-list-th-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .AppModules}}
+                            <tr class="sum-apps-list-row sum-apps-list-row--open" data-module="{{.Name}}" data-apps-layout="{{$.Layout}}">
+                                <td><span class="sum-apps-list-letter">{{.IconLetter}}</span></td>
+                                <td><span class="sum-apps-list-name">{{.DisplayName}}</span></td>
+                                <td class="sum-apps-list-mono">{{.Name}}</td>
+                                <td>{{.Version}}</td>
+                                <td>
+                                    {{if eq .State "installed"}}
+                                        {{if .Active}}<span class="sum-badge-prem sum-badge-prem--on">active</span>
+                                        {{else}}<span class="sum-badge-prem sum-badge-prem--muted">off</span>{{end}}
+                                    {{else}}
+                                    <span class="sum-badge-prem sum-badge-prem--off">{{.State}}</span>
+                                    {{end}}
+                                </td>
+                                <td class="sum-apps-list-author">{{.Author}}</td>
+                                <td>
+                                    <div class="sum-apps-list-actions">
+                                        {{if .CanInstall}}
+                                        <form method="post" action="/web/module/action" class="sum-apps-list-form">{{template "apps_post_hiddens" $}}
+                                            <input type="hidden" name="do" value="install" />
+                                            <input type="hidden" name="module" value="{{.Name}}" />
+                                            <button type="submit" class="sum-btn-prem sum-btn-prem--sm sum-btn-prem--primary">Activate</button>
+                                        </form>
+                                        {{end}}
+                                        {{if .CanUninstall}}
+                                        <form method="post" action="/web/module/action" class="sum-apps-list-form" onsubmit="return confirm('Uninstall {{.DisplayName}}?');">{{template "apps_post_hiddens" $}}
+                                            <input type="hidden" name="do" value="uninstall" />
+                                            <input type="hidden" name="module" value="{{.Name}}" />
+                                            <button type="submit" class="sum-btn-prem sum-btn-prem--sm sum-btn-prem--danger">Remove</button>
+                                        </form>
+                                        {{end}}
+                                        {{if .CanDeactivate}}
+                                        <form method="post" action="/web/module/action" class="sum-apps-list-form">{{template "apps_post_hiddens" $}}
+                                            <input type="hidden" name="do" value="deactivate" />
+                                            <input type="hidden" name="module" value="{{.Name}}" />
+                                            <button type="submit" class="sum-btn-prem sum-btn-prem--sm sum-btn-prem--ghost">Off</button>
+                                        </form>
+                                        {{end}}
+                                        {{if .CanActivate}}
+                                        <form method="post" action="/web/module/action" class="sum-apps-list-form">{{template "apps_post_hiddens" $}}
+                                            <input type="hidden" name="do" value="activate" />
+                                            <input type="hidden" name="module" value="{{.Name}}" />
+                                            <button type="submit" class="sum-btn-prem sum-btn-prem--sm sum-btn-prem--success">On</button>
+                                        </form>
+                                        {{end}}
+                                    </div>
+                                </td>
+                            </tr>
                             {{end}}
-                        </td>
-                        <td class="sum-apps-list-author">{{.Author}}</td>
-                        <td>
-                            <div class="sum-apps-list-actions">
-                                {{if .CanInstall}}
-                                <form method="post" action="/web/module/action" class="sum-apps-list-form"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                                    <input type="hidden" name="do" value="install" />
-                                    <input type="hidden" name="module" value="{{.Name}}" />
-                                    <button type="submit" class="sum-btn-prem sum-btn-prem--sm sum-btn-prem--primary">Activate</button>
-                                </form>
-                                {{end}}
-                                {{if .CanUninstall}}
-                                <form method="post" action="/web/module/action" class="sum-apps-list-form" onsubmit="return confirm('Uninstall {{.DisplayName}}?');"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                                    <input type="hidden" name="do" value="uninstall" />
-                                    <input type="hidden" name="module" value="{{.Name}}" />
-                                    <button type="submit" class="sum-btn-prem sum-btn-prem--sm sum-btn-prem--danger">Remove</button>
-                                </form>
-                                {{end}}
-                                {{if .CanDeactivate}}
-                                <form method="post" action="/web/module/action" class="sum-apps-list-form"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                                    <input type="hidden" name="do" value="deactivate" />
-                                    <input type="hidden" name="module" value="{{.Name}}" />
-                                    <button type="submit" class="sum-btn-prem sum-btn-prem--sm sum-btn-prem--ghost">Off</button>
-                                </form>
-                                {{end}}
-                                {{if .CanActivate}}
-                                <form method="post" action="/web/module/action" class="sum-apps-list-form"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                                    <input type="hidden" name="do" value="activate" />
-                                    <input type="hidden" name="module" value="{{.Name}}" />
-                                    <button type="submit" class="sum-btn-prem sum-btn-prem--sm sum-btn-prem--success">On</button>
-                                </form>
+                        </tbody>
+                    </table>
+                </div>
+                {{else}}
+                <p class="sum-apps-empty">No application modules match these filters.</p>
+                {{end}}
+            </section>
+            {{else}}
+            <section class="sum-apps-section-prem" aria-labelledby="sum-apps-grid-heading">
+                <h2 id="sum-apps-grid-heading" class="sum-apps-section-label-prem">Applications</h2>
+                {{if .AppModules}}
+                <div class="sum-apps-card-grid-prem">
+                    {{range .AppModules}}
+                    <article class="sum-app-card-prem sum-app-card-prem--open" data-module="{{.Name}}" data-apps-layout="{{$.Layout}}">
+                        <div class="sum-app-card-prem-shine" aria-hidden="true"></div>
+                        <div class="sum-app-card-prem-top">
+                            <div class="sum-app-card-prem-icon" aria-hidden="true">{{.IconLetter}}</div>
+                            <div class="sum-app-card-prem-headtext">
+                                <h3 class="sum-app-card-prem-name">{{.DisplayName}}</h3>
+                                <p class="sum-app-card-prem-meta">{{.Name}} · v{{.Version}}</p>
+                            </div>
+                            <div class="sum-app-card-prem-badge-wrap">
+                                {{if eq .State "installed"}}
+                                    {{if .Active}}
+                                    <span class="sum-badge-prem sum-badge-prem--on">{{.State}}</span>
+                                    {{else}}
+                                    <span class="sum-badge-prem sum-badge-prem--muted">{{.State}} · off</span>
+                                    {{end}}
+                                {{else}}
+                                <span class="sum-badge-prem sum-badge-prem--off">{{.State}}</span>
                                 {{end}}
                             </div>
-                        </td>
-                    </tr>
-                    {{end}}
-                    {{end}}
-                </tbody>
-            </table>
-        </div>
-    </section>
-    {{else}}
-    <section class="sum-apps-section-prem" aria-labelledby="sum-apps-grid-heading">
-        <h2 id="sum-apps-grid-heading" class="sum-apps-section-label-prem">Applications</h2>
-        <div class="sum-apps-card-grid-prem">
-            {{range .Modules}}
-            {{if .Application}}
-            <article class="sum-app-card-prem sum-app-card-prem--open" data-module="{{.Name}}" data-apps-layout="{{$.Layout}}">
-                <div class="sum-app-card-prem-shine" aria-hidden="true"></div>
-                <div class="sum-app-card-prem-top">
-                    <div class="sum-app-card-prem-icon" aria-hidden="true">{{.IconLetter}}</div>
-                    <div class="sum-app-card-prem-headtext">
-                        <h3 class="sum-app-card-prem-name">{{.DisplayName}}</h3>
-                        <p class="sum-app-card-prem-meta">{{.Name}} · v{{.Version}}</p>
-                    </div>
-                    <div class="sum-app-card-prem-badge-wrap">
-                        {{if eq .State "installed"}}
-                            {{if .Active}}
-                            <span class="sum-badge-prem sum-badge-prem--on">{{.State}}</span>
-                            {{else}}
-                            <span class="sum-badge-prem sum-badge-prem--muted">{{.State}} · off</span>
+                        </div>
+                        <p class="sum-app-card-prem-desc">{{.Description}}</p>
+                        <p class="sum-app-card-prem-author">by {{.Author}}</p>
+                        <div class="sum-app-card-prem-actions">
+                            {{if .CanInstall}}
+                            <form method="post" action="/web/module/action">{{template "apps_post_hiddens" $}}
+                                <input type="hidden" name="do" value="install" />
+                                <input type="hidden" name="module" value="{{.Name}}" />
+                                <button type="submit" class="sum-btn-prem sum-btn-prem--primary">Activate</button>
+                            </form>
                             {{end}}
-                        {{else}}
-                        <span class="sum-badge-prem sum-badge-prem--off">{{.State}}</span>
-                        {{end}}
-                    </div>
-                </div>
-                <p class="sum-app-card-prem-desc">{{.Description}}</p>
-                <p class="sum-app-card-prem-author">by {{.Author}}</p>
-                <div class="sum-app-card-prem-actions">
-                    {{if .CanInstall}}
-                    <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                        <input type="hidden" name="do" value="install" />
-                        <input type="hidden" name="module" value="{{.Name}}" />
-                        <button type="submit" class="sum-btn-prem sum-btn-prem--primary">Activate</button>
-                    </form>
-                    {{end}}
-                    {{if .CanUninstall}}
-                    <form method="post" action="/web/module/action" onsubmit="return confirm('Uninstall {{.DisplayName}}? Menus and views for this app will be removed from the database.');"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                        <input type="hidden" name="do" value="uninstall" />
-                        <input type="hidden" name="module" value="{{.Name}}" />
-                        <button type="submit" class="sum-btn-prem sum-btn-prem--danger">Uninstall</button>
-                    </form>
-                    {{end}}
-                    {{if .CanDeactivate}}
-                    <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                        <input type="hidden" name="do" value="deactivate" />
-                        <input type="hidden" name="module" value="{{.Name}}" />
-                        <button type="submit" class="sum-btn-prem sum-btn-prem--ghost">Deactivate</button>
-                    </form>
-                    {{end}}
-                    {{if .CanActivate}}
-                    <form method="post" action="/web/module/action"><input type="hidden" name="apps_layout" value="{{$.Layout}}" />
-                        <input type="hidden" name="do" value="activate" />
-                        <input type="hidden" name="module" value="{{.Name}}" />
-                        <button type="submit" class="sum-btn-prem sum-btn-prem--success">Activate</button>
-                    </form>
+                            {{if .CanUninstall}}
+                            <form method="post" action="/web/module/action" onsubmit="return confirm('Uninstall {{.DisplayName}}? Menus and views for this app will be removed from the database.');">{{template "apps_post_hiddens" $}}
+                                <input type="hidden" name="do" value="uninstall" />
+                                <input type="hidden" name="module" value="{{.Name}}" />
+                                <button type="submit" class="sum-btn-prem sum-btn-prem--danger">Uninstall</button>
+                            </form>
+                            {{end}}
+                            {{if .CanDeactivate}}
+                            <form method="post" action="/web/module/action">{{template "apps_post_hiddens" $}}
+                                <input type="hidden" name="do" value="deactivate" />
+                                <input type="hidden" name="module" value="{{.Name}}" />
+                                <button type="submit" class="sum-btn-prem sum-btn-prem--ghost">Deactivate</button>
+                            </form>
+                            {{end}}
+                            {{if .CanActivate}}
+                            <form method="post" action="/web/module/action">{{template "apps_post_hiddens" $}}
+                                <input type="hidden" name="do" value="activate" />
+                                <input type="hidden" name="module" value="{{.Name}}" />
+                                <button type="submit" class="sum-btn-prem sum-btn-prem--success">Activate</button>
+                            </form>
+                            {{end}}
+                        </div>
+                    </article>
                     {{end}}
                 </div>
-            </article>
+                {{else}}
+                <p class="sum-apps-empty">No application modules match these filters.</p>
+                {{end}}
+            </section>
             {{end}}
             {{end}}
-        </div>
-    </section>
-    {{end}}
 
-    <section class="sum-apps-section-prem sum-apps-section-prem--system" aria-labelledby="sum-apps-sys-heading">
-        <h2 id="sum-apps-sys-heading" class="sum-apps-section-label-prem">Technical modules</h2>
-        <div class="sum-table-prem-wrap">
-            <table class="sum-table-prem">
-                <thead>
-                    <tr>
-                        <th>Module</th>
-                        <th>State</th>
-                        <th>Active</th>
-                        <th>Notes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{range .Modules}}
-                    {{if not .Application}}
-                    <tr>
-                        <td class="sum-table-prem-mono">{{.Name}}</td>
-                        <td>{{.State}}</td>
-                        <td>{{if .Active}}yes{{else}}no{{end}}</td>
-                        <td class="sum-table-prem-note">Core platform module</td>
-                    </tr>
-                    {{end}}
-                    {{end}}
-                </tbody>
-            </table>
+            {{if ne .Scope "apps"}}
+            <section class="sum-apps-section-prem sum-apps-section-prem--system" aria-labelledby="sum-apps-sys-heading">
+                <h2 id="sum-apps-sys-heading" class="sum-apps-section-label-prem">Technical modules</h2>
+                {{if .TechModules}}
+                <div class="sum-table-prem-wrap">
+                    <table class="sum-table-prem">
+                        <thead>
+                            <tr>
+                                <th>Module</th>
+                                <th>State</th>
+                                <th>Active</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .TechModules}}
+                            <tr>
+                                <td class="sum-table-prem-mono">{{.Name}}</td>
+                                <td>{{.State}}</td>
+                                <td>{{if .Active}}yes{{else}}no{{end}}</td>
+                                <td class="sum-table-prem-note">Dependency / platform module</td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+                {{else}}
+                <p class="sum-apps-empty">No technical modules match these filters.</p>
+                {{end}}
+            </section>
+            {{end}}
         </div>
-    </section>
+    </div>
+    {{end}}
 </div>
+
+{{define "apps_post_hiddens"}}
+<input type="hidden" name="apps_layout" value="{{.Layout}}" />
+<input type="hidden" name="apps_filter" value="{{.Filter}}" />
+<input type="hidden" name="apps_scope" value="{{.Scope}}" />
+<input type="hidden" name="apps_q" value="{{.Search}}" />
+{{end}}

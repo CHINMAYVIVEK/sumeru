@@ -7,21 +7,22 @@ import (
 )
 
 func registerAppRoutes() {
-	http.HandleFunc("/web/login", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
+	http.HandleFunc("/web/login", func(responseWriter http.ResponseWriter, request *http.Request) {
+		switch request.Method {
 		case http.MethodGet:
-			web.LoginGet(w, r)
+			web.LoginGet(responseWriter, request)
 		case http.MethodPost:
-			web.LoginPost(w, r)
+			web.LoginPost(responseWriter, request)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
 	http.HandleFunc("/web/logout", web.LogoutGet)
+	http.HandleFunc("/web/home", web.HomeDashboardHandler)
 	http.HandleFunc("/web", web.WebHandler)
 	http.HandleFunc("/web/apps", web.AppsHandler)
-	http.HandleFunc("/web/apps/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/web/apps", http.StatusFound)
+	http.HandleFunc("/web/apps/", func(responseWriter http.ResponseWriter, request *http.Request) {
+		http.Redirect(responseWriter, request, "/web/apps", http.StatusFound)
 	})
 	http.HandleFunc("/web/module/action", web.ModuleActionHandler)
 	http.HandleFunc("/web/record/save", web.RecordSaveHandler)
@@ -29,11 +30,30 @@ func registerAppRoutes() {
 	http.HandleFunc("/web/action/reset_password", web.ActionResetPassword)
 	http.HandleFunc("/web/chatter/post", web.ChatterPostHandler)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
+	// Settings routes
+	http.HandleFunc("/web/settings", web.SettingsHomeRedirect)
+	http.HandleFunc("/web/settings/app-logs", web.AppLogsHandler)
+
+	http.HandleFunc("/", func(responseWriter http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/" {
+			http.NotFound(responseWriter, request)
 			return
 		}
-		http.Redirect(w, r, "/web/apps", http.StatusFound)
+		http.Redirect(responseWriter, request, "/web/home", http.StatusFound)
+	})
+}
+
+func registerSetupRoutes() {
+	http.HandleFunc("/setup", web.SetupPageHandler)
+	http.HandleFunc("/setup/init", web.SetupInitHandler)
+
+	// Redirect root to setup, but only if it's exactly '/'
+	http.HandleFunc("/", func(responseWriter http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/" {
+			http.Redirect(responseWriter, request, "/setup", http.StatusFound)
+			return
+		}
+		// Fallback for other paths (not handled by static or other setup routes)
+		http.NotFound(responseWriter, request)
 	})
 }

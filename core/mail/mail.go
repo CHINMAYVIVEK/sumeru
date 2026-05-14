@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
+	"sumeru/core/applog"
 	"sumeru/core/orm"
 )
 
@@ -159,12 +161,12 @@ func QueryActivityLog(ctx context.Context, limit int, ctxModel string, ctxID int
 	}
 	if ctxModel != "" && ctxID > 0 {
 		q := `SELECT body, subtype, author, create_date, model, core_id FROM ` + tn +
-			` WHERE model = 'sys.module' OR subtype = 'module' OR (subtype = 'notification' AND model = $1 AND core_id = $2)` +
+			` WHERE subtype = 'notification' AND model = $1 AND core_id = $2` +
 			` ORDER BY create_date DESC, id DESC LIMIT $3`
 		rows, err = orm.DB.QueryContext(ctx, q, ctxModel, ctxID, limit)
 	} else {
 		q := `SELECT body, subtype, author, create_date, model, core_id FROM ` + tn +
-			` WHERE (model = 'sys.module' OR subtype IN ('notification','module'))` +
+			` WHERE subtype = 'notification'` +
 			` ORDER BY create_date DESC, id DESC LIMIT $1`
 		rows, err = orm.DB.QueryContext(ctx, q, limit)
 	}
@@ -189,28 +191,9 @@ func scanMessageRows(rows *sql.Rows) ([]Row, error) {
 	return out, rows.Err()
 }
 
-// LogModuleEvent posts a row on sys.module for the given technical module name.
+// LogModuleEvent records a module lifecycle line in app.log (not mail.message).
 func LogModuleEvent(ctx context.Context, moduleName, verb, detail string) {
-	moduleName = strings.TrimSpace(moduleName)
-	if moduleName == "" || orm.DB == nil {
-		return
+	if err := applog.Log(ctx, moduleName, verb, detail); err != nil {
+		log.Printf("applog: %v", err)
 	}
-	row, err := orm.SearchOne(ctx, "sys.module", map[string]interface{}{"name": moduleName})
-	if err != nil {
-		return
-	}
-	id, ok := orm.CoerceInt64(row["id"])
-	if !ok || id <= 0 {
-		return
-	}
-	verb = strings.TrimSpace(verb)
-	if verb == "" {
-		verb = "event"
-	}
-	detail = strings.TrimSpace(detail)
-	body := fmt.Sprintf("%s: %s", verb, moduleName)
-	if detail != "" {
-		body = body + " — " + detail
-	}
-	_ = PostMessage(ctx, "sys.module", id, body, SubtypeModule, "System")
 }

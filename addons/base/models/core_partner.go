@@ -26,5 +26,5 @@ func (p Partner) Fields() []base.FieldDefinition {
 }
 
 func init() {
-	base.RegisterModel(base.RegisterModelInput{Model: &Partner{}})
+	base.RegisterModel(base.RegisterModelInput{Model: &Partner{}, Module: "base"})
 }

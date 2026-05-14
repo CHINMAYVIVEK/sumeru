@@ -10,6 +10,19 @@ func EnsureSecurityJoinIndexes() error {
 	if DB == nil {
 		return nil
 	}
+	// 1. Ensure Join Tables exist
+	joinTables := []string{
+		`CREATE TABLE IF NOT EXISTS ` + GetTableName("core.group.user.rel") + ` (user_id BIGINT NOT NULL, group_id BIGINT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS ` + GetTableName("core.group.implied") + ` (group_id BIGINT NOT NULL, implied_group_id BIGINT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS ` + GetTableName("sys.rule.group.rel") + ` (rule_id BIGINT NOT NULL, group_id BIGINT NOT NULL)`,
+	}
+	for _, q := range joinTables {
+		if _, err := DB.Exec(q); err != nil {
+			return fmt.Errorf("create join table: %w", err)
+		}
+	}
+
+	// 2. Ensure Composite Unique Indexes
 	stmts := []string{
 		`CREATE UNIQUE INDEX IF NOT EXISTS core_group_users_rel_user_group_uq ON ` + GetTableName("core.group.user.rel") + ` (user_id, group_id)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS core_group_implied_gid_hid_uq ON ` + GetTableName("core.group.implied") + ` (group_id, implied_group_id)`,

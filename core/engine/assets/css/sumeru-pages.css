@@ -1,0 +1,65 @@
+/* Simple standalone pages that reuse tokens but not the full shell (e.g. app logs). */
+
+.sum-app-logs {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.sum-app-logs-header h1 {
+  margin: 0 0 0.35rem;
+  font-size: var(--sum-font-size-title);
+  font-weight: var(--sum-font-weight-bold);
+  color: var(--sum-header);
+  letter-spacing: -0.02em;
+}
+
+.sum-app-logs-header .sum-muted {
+  margin: 0 0 1.5rem;
+  color: var(--sum-muted);
+  font-size: var(--sum-font-size-md);
+  line-height: 1.5;
+}
+
+.sum-app-logs .sum-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--sum-surface);
+  border-radius: var(--sum-radius-sm);
+  box-shadow: var(--sum-shadow-sm);
+  overflow: hidden;
+  border: 1px solid var(--sum-line);
+}
+
+.sum-app-logs .sum-table th,
+.sum-app-logs .sum-table td {
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid var(--sum-line);
+  font-size: var(--sum-font-size-root);
+}
+
+.sum-app-logs .sum-table th {
+  background: var(--sum-surface-alt);
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
+  color: var(--sum-muted);
+}
+
+.sum-app-logs .sum-table tr:last-child td {
+  border-bottom: none;
+}
+
+.sum-app-logs .sum-mono {
+  font-family: var(--sum-font-mono);
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-muted-ink);
+}
+
+.sum-app-logs .sum-empty {
+  text-align: center;
+  color: var(--sum-muted);
+  padding: 2rem 1rem;
+}

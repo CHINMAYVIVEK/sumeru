@@ -5,13 +5,78 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-// EnsureBootstrapSecurity creates default groups, admin user, ACLs, and implied links when missing.
+// SetupAdminParams holds the first company and administrator from the web setup wizard.
+// No default admin/admin account is created; these values define the first user.
+type SetupAdminParams struct {
+	CompanyName string
+	Lang        string
+	FullName    string
+	Email       string // used as login and stored in email
+	Password    string
+}
+
+// Validate normalizes fields and checks constraints for the setup wizard.
+func (p *SetupAdminParams) Validate() error {
+	p.CompanyName = strings.TrimSpace(p.CompanyName)
+	p.FullName = strings.TrimSpace(p.FullName)
+	p.Email = strings.TrimSpace(p.Email)
+	p.Password = strings.TrimSpace(p.Password)
+	p.Lang = strings.TrimSpace(p.Lang)
+	if p.Lang == "" {
+		p.Lang = "en_US"
+	}
+	if len(p.CompanyName) < 1 || len(p.CompanyName) > 200 {
+		return fmt.Errorf("company name must be between 1 and 200 characters")
+	}
+	if len(p.FullName) < 1 || len(p.FullName) > 200 {
+		return fmt.Errorf("full name is required")
+	}
+	if len(p.Email) < 3 || len(p.Email) > 254 || !strings.Contains(p.Email, "@") {
+		return fmt.Errorf("enter a valid email address (used as your login)")
+	}
+	if n := utf8.RuneCountInString(p.Password); n < 8 {
+		return fmt.Errorf("password must be at least 8 characters")
+	}
+	if len(p.Password) > 72 {
+		return fmt.Errorf("password must be at most 72 bytes for storage")
+	}
+	if !allowedSetupLang(p.Lang) {
+		return fmt.Errorf("unsupported language")
+	}
+	return nil
+}
+
+func allowedSetupLang(s string) bool {
+	switch s {
+	case "en_US", "en_GB", "fr_FR", "de_DE", "es_ES", "it_IT", "pt_BR", "nl_NL":
+		return true
+	default:
+		return false
+	}
+}
+
+// EnsureBootstrapSecurityFromSetup creates groups, the first administrator, company, and ACLs.
+// Call only from /setup/init after base module install when the database has no users yet.
+func EnsureBootstrapSecurityFromSetup(p SetupAdminParams) error {
+	if err := p.Validate(); err != nil {
+		return err
+	}
+	return ensureBootstrapSecurity(context.Background(), &p)
+}
+
+// EnsureBootstrapSecurity ensures default groups and ACLs. If the database has no users yet,
+// it returns an error so operators complete /setup instead of relying on a default account.
 func EnsureBootstrapSecurity() error {
-	ctx := ContextWithBypass(context.Background(), true)
+	return ensureBootstrapSecurity(context.Background(), nil)
+}
+
+func ensureBootstrapSecurity(ctx context.Context, first *SetupAdminParams) error {
+	ctx = ContextWithBypass(ctx, true)
 	if DB == nil {
 		return nil
 	}
@@ -19,7 +84,6 @@ func EnsureBootstrapSecurity() error {
 		return err
 	}
 
-	// 1. Resolve Core Models from Registry
 	groupModel, ok := Registry["core.group"]
 	if !ok || groupModel == nil {
 		return fmt.Errorf("core.group not registered")
@@ -33,7 +97,6 @@ func EnsureBootstrapSecurity() error {
 		return fmt.Errorf("core.company not registered")
 	}
 
-	// 2. Default groups
 	adminGID, err := Upsert(ctx, groupModel, map[string]interface{}{
 		"name":     "Administration / Settings",
 		"category": "Administration",
@@ -43,9 +106,9 @@ func EnsureBootstrapSecurity() error {
 		return fmt.Errorf("bootstrap core.group admin: %w", err)
 	}
 	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
-		"module": "base",
-		"name":   "group_system",
-		"model":  "core.group",
+		"module":  "base",
+		"name":    "group_system",
+		"model":   "core.group",
 		"core_id": adminGID,
 	}, "name")
 
@@ -58,72 +121,95 @@ func EnsureBootstrapSecurity() error {
 		return fmt.Errorf("bootstrap core.group user: %w", err)
 	}
 	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
-		"module": "base",
-		"name":   "group_user",
-		"model":  "core.group",
+		"module":  "base",
+		"name":    "group_user",
+		"model":   "core.group",
 		"core_id": userGID,
 	}, "name")
 
-	// Admin implies internal user
 	_, _ = DB.ExecContext(ctx, `INSERT INTO `+GetTableName("core.group.implied")+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`, adminGID, userGID)
 
-	// 3. Admin user
+	userTbl := GetTableName("core.user")
+	var userCount int
+	if err := DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+userTbl).Scan(&userCount); err != nil {
+		return fmt.Errorf("count users: %w", err)
+	}
+
+	if userCount > 0 {
+		ensureBootstrapACLs(ctx, adminGID, userGID)
+		return nil
+	}
+
+	if first == nil {
+		return fmt.Errorf("no users in this database: open /setup in your browser to create the administrator and finish initialization")
+	}
+
+	compID, err := Upsert(ctx, companyModel, map[string]interface{}{
+		"name": first.CompanyName,
+	}, "name")
+	if err != nil {
+		return fmt.Errorf("bootstrap company: %w", err)
+	}
+	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+		"module":  "base",
+		"name":    "main_company",
+		"model":   "core.company",
+		"core_id": compID,
+	}, "name")
+
+	login := strings.ToLower(first.Email)
 	adminUID, err := Upsert(ctx, userModel, map[string]interface{}{
-		"login":    "admin",
-		"name":     "Administrator",
-		"active":   true,
-		"email":    "admin@example.com",
-		"lang":     "en_US",
-		"password": "",
+		"login":     login,
+		"name":      first.FullName,
+		"active":    true,
+		"email":     first.Email,
+		"lang":      first.Lang,
+		"password":  "",
+		"user_type": "internal",
 	}, "login")
 	if err != nil {
-		return fmt.Errorf("bootstrap core.user: %w", err)
+		return fmt.Errorf("bootstrap administrator: %w", err)
 	}
 	if adminUID == 0 {
-		return fmt.Errorf("bootstrap admin user id")
+		return fmt.Errorf("bootstrap administrator user id")
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(first.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
-	row := DB.QueryRowContext(ctx, `SELECT COALESCE(NULLIF(TRIM(password), ''), '') FROM `+GetTableName("core.user")+` WHERE id = $1`, adminUID)
-	var pw string
-	_ = row.Scan(&pw)
-	if pw == "" {
-		if _, err := DB.ExecContext(ctx, `UPDATE `+GetTableName("core.user")+` SET password = $1 WHERE id = $2`, string(hash), adminUID); err != nil {
-			return err
-		}
-		log.Printf("security bootstrap: set default password for login 'admin' (change after first login)")
+	if _, err := DB.ExecContext(ctx, `UPDATE `+userTbl+` SET password = $1 WHERE id = $2`, string(hash), adminUID); err != nil {
+		return fmt.Errorf("set administrator password: %w", err)
 	}
 
 	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
-		"module": "base",
-		"name":   "user_admin",
-		"model":  "core.user",
+		"module":  "base",
+		"name":    "user_admin",
+		"model":   "core.user",
 		"core_id": adminUID,
 	}, "name")
 
 	if _, err := DB.ExecContext(ctx, `INSERT INTO `+GetTableName("core.group.user.rel")+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, adminGID); err != nil {
 		return err
 	}
-
-	// 4. Default Company
-	compID, err := Upsert(ctx, companyModel, map[string]interface{}{
-		"name": "My Company",
-	}, "name")
-	if err == nil {
-		_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
-			"module": "base",
-			"name":   "main_company",
-			"model":  "core.company",
-			"core_id": compID,
-		}, "name")
-		// Link admin to company
-		_, _ = DB.ExecContext(ctx, `UPDATE `+GetTableName("core.user")+` SET company_id = $1 WHERE id = $2`, compID, adminUID)
+	if _, err := DB.ExecContext(ctx, `INSERT INTO `+GetTableName("core.group.user.rel")+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, userGID); err != nil {
+		return err
 	}
+	_, _ = DB.ExecContext(ctx, `UPDATE `+userTbl+` SET company_id = $1 WHERE id = $2`, compID, adminUID)
 
-	// 5. Full CRUD for Administration group on every registered model
+	ensureBootstrapACLs(ctx, adminGID, userGID)
+	return nil
+}
+
+func ensureBootstrapACLs(ctx context.Context, adminGID, userGID int) {
+	installed, err := InstalledModuleNames(ctx)
+	if err != nil {
+		log.Printf("bootstrap ACL: installed modules: %v", err)
+		installed = nil
+	}
 	for modelName := range Registry {
+		if len(installed) > 0 && !ShouldMaterializeModel(modelName, installed) {
+			continue
+		}
 		accName := fmt.Sprintf("access_%s_admin", strings.ReplaceAll(modelName, ".", "_"))
 		if _, err := Upsert(ctx, SysAccess{}, map[string]interface{}{
 			"name":        accName,
@@ -138,7 +224,6 @@ func EnsureBootstrapSecurity() error {
 		}
 	}
 
-	// 6. Global Read Access for Metadata
 	globalReads := []string{"sys.model_data", "sys.menu", "sys.action.window", "sys.view", "sys.module"}
 	for _, m := range globalReads {
 		accName := fmt.Sprintf("access_%s_global_read", strings.ReplaceAll(m, ".", "_"))
@@ -153,7 +238,6 @@ func EnsureBootstrapSecurity() error {
 		}, "name")
 	}
 
-	// 7. Core User Permissions
 	for _, pair := range []struct{ model, name string }{
 		{"core.company", "access_core_company_user"},
 		{"core.user", "access_core_user_user"},
@@ -171,6 +255,4 @@ func EnsureBootstrapSecurity() error {
 			"perm_unlink": false,
 		}, "name")
 	}
-
-	return nil
 }

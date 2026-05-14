@@ -38,5 +38,5 @@ func (CoreUser) Fields() []base.FieldDefinition {
 }
 
 func init() {
-	base.RegisterModel(base.RegisterModelInput{Model: &CoreUser{}})
+	base.RegisterModel(base.RegisterModelInput{Model: &CoreUser{}, Module: "base"})
 }

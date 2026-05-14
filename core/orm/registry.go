@@ -1,14 +1,30 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 	"strings"
 )
 
 var Registry = map[string]Model{}
 
+// modelDeclaringModule maps each technical model name to the declaring addon (sys.module.name).
+// Kernel / platform models use "base" so metadata and DDL follow one module graph.
+var modelDeclaringModule = make(map[string]string)
+
+// RegisterModelWithModule registers a model and records which addon owns its table (Odoo-style ir.model module).
+func RegisterModelWithModule(model Model, declaringModule string) {
+	if model == nil {
+		return
+	}
+	name := model.ModelName()
+	Registry[name] = model
+	modelDeclaringModule[name] = strings.TrimSpace(declaringModule)
+}
+
+// RegisterModel registers with no explicit module (legacy); DeclaringModule falls back to a name heuristic until all call sites pass a module.
 func RegisterModel(model Model) {
-	Registry[model.ModelName()] = model
+	RegisterModelWithModule(model, "")
 }
 
 func GetTableName(modelName string) string {
@@ -16,7 +32,24 @@ func GetTableName(modelName string) string {
 }
 
 func SyncModels() error {
+	if DB == nil {
+		return nil
+	}
+	ctx := ContextWithBypass(context.Background(), true)
+	installed, err := InstalledModuleNames(ctx)
+	if err != nil {
+		return err
+	}
 	for _, model := range Registry {
+		name := model.ModelName()
+		if len(installed) == 0 {
+			owner := DeclaringModule(name)
+			if owner != "" && owner != "base" {
+				continue
+			}
+		} else if !ShouldMaterializeModel(name, installed) {
+			continue
+		}
 		if err := createTable(model); err != nil {
 			return err
 		}
@@ -26,7 +59,7 @@ func SyncModels() error {
 
 // ColumnTypeSQL returns the PostgreSQL column type fragment for f (without NOT NULL / UNIQUE / DEFAULT).
 // Many2One is stored as BIGINT. Unknown types return ok == false.
-func ColumnTypeSQL(f FieldDefinition) (sql string, ok bool) {
+func ColumnTypeSQL(f FieldDefinition) (string, bool) {
 	switch f.Type {
 	case Char:
 		return "VARCHAR(255)", true

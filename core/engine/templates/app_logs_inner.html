@@ -1,0 +1,28 @@
+<div class="sum-app-logs">
+    <div class="sum-app-logs-header">
+        <h1>App Logs</h1>
+        <p class="sum-muted">Module and application lifecycle events (stored in <code>app.log</code>). User chatter uses <code>mail.message</code> only.</p>
+    </div>
+    <table class="sum-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Module</th>
+                <th>Action</th>
+                <th>Detail</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .}}
+            <tr>
+                <td class="sum-mono">{{.CreatedAt}}</td>
+                <td><strong>{{.Module}}</strong></td>
+                <td>{{.Action}}</td>
+                <td class="sum-muted">{{.Detail}}</td>
+            </tr>
+            {{else}}
+            <tr><td colspan="4" class="sum-empty">No application events recorded yet.</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>

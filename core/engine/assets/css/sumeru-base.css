@@ -1,0 +1,39 @@
+/* Global base: document surface, typography, scrollbars, numeric glyphs. */
+
+body.sum-body {
+  margin: 0;
+  background-color: var(--sum-bg) !important;
+  color: var(--sum-ink);
+  font-family: var(--sum-font-sans);
+  font-size: var(--sum-font-size-root);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input[type="number"],
+.sum-number,
+.sum-list-number,
+.sum-price,
+.sum-badge-count {
+  font-family: var(--sum-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}

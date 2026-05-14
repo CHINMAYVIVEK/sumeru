@@ -42,9 +42,13 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if actionID == 0 {
+		if menuIDPointsToAppLogs(r.Context(), menuIDStr) {
+			http.Redirect(w, r, "/web/settings/app-logs", http.StatusFound)
+			return
+		}
 		// Avoid picking an arbitrary act_window (often the lowest id); that misroutes e.g. Sales/CRM roots.
 		log.Printf("web: no action for query action=%q menu_id=%q; redirecting to apps", actionIDStr, menuIDStr)
-		http.Redirect(w, r, "/web/apps", http.StatusFound)
+		http.Redirect(w, r, "/web/home", http.StatusFound)
 		return
 	}
 
@@ -54,10 +58,10 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resModel := strings.TrimSpace(orm.AsString(actionData["res_model"]))
+	targetModel := actionWindowTargetModel(actionData)
 	viewMode := strings.TrimSpace(orm.AsString(actionData["view_mode"]))
-	if resModel == "" {
-		http.Error(w, "Action has empty res_model", http.StatusInternalServerError)
+	if targetModel == "" {
+		http.Error(w, "Action has no target model", http.StatusInternalServerError)
 		return
 	}
 
@@ -86,7 +90,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		if nm == "" {
 			continue
 		}
-		vd, err := orm.FindUIDefaultView(r.Context(), resModel, nm)
+		vd, err := orm.FindUIDefaultView(r.Context(), targetModel, nm)
 		if err == nil {
 			viewData = vd
 			selectedMode = nm
@@ -95,7 +99,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		lastErr = err
 	}
 	if viewData == nil {
-		msg := fmt.Sprintf("No view for model %s (tried modes: %s)", resModel, strings.Join(modes, ", "))
+		msg := fmt.Sprintf("No view for model %s (tried modes: %s)", targetModel, strings.Join(modes, ", "))
 		if lastErr != nil && lastErr != sql.ErrNoRows {
 			msg = fmt.Sprintf("%s: %v", msg, lastErr)
 		}
@@ -121,7 +125,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 
 	vr := &render.ViewRecordData{ActionID: actionID}
 	// ResModel + RecordID drive readonly vs edit (?edit=1) for workspace forms; keep both in sync whenever loading a record.
-	vr.ResModel = resModel
+	vr.ResModel = targetModel
 	vr.FormEditing = editing
 	vr.FormBaseQuery = formBaseQueryValues(actionID, menuID, "form", idQ)
 	if idQ != "" {
@@ -129,7 +133,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 			vr.RecordID = rid
 		}
 	}
-	vr.ViewTabs = render.WorkspaceViewTabs(r.Context(), resModel, actionID, menuID, selectedMode, idQ)
+	vr.ViewTabs = render.WorkspaceViewTabs(r.Context(), targetModel, actionID, menuID, selectedMode, idQ)
 
 	switch selectedMode {
 	case "form":
@@ -140,30 +144,30 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Invalid id", http.StatusBadRequest)
 				return
 			}
-			rec, err := orm.SearchOne(r.Context(), resModel, map[string]interface{}{"id": id})
+			rec, err := orm.SearchOne(r.Context(), targetModel, map[string]interface{}{"id": id})
 			if err != nil {
 				if err == sql.ErrNoRows {
 					http.Error(w, fmt.Sprintf("Record %d not found", id), http.StatusNotFound)
 					return
 				}
-				log.Printf("web: load record %s id=%d: %v", resModel, id, err)
+				log.Printf("web: load record %s id=%d: %v", targetModel, id, err)
 				http.Error(w, "Failed to load record", http.StatusInternalServerError)
 				return
 			}
 			vr.Record = rec
 		}
 	case "tree", "list":
-		rows, err := orm.SearchLimit(r.Context(), resModel, nil, 500)
+		rows, err := orm.SearchLimit(r.Context(), targetModel, nil, 500)
 		if err != nil {
-			log.Printf("web: list %s: %v", resModel, err)
+			log.Printf("web: list %s: %v", targetModel, err)
 			http.Error(w, "Failed to load records", http.StatusInternalServerError)
 			return
 		}
 		vr.ListRows = rows
 	case "kanban":
-		rows, err := orm.SearchLimit(r.Context(), resModel, nil, 200)
+		rows, err := orm.SearchLimit(r.Context(), targetModel, nil, 200)
 		if err != nil {
-			log.Printf("web: kanban %s: %v", resModel, err)
+			log.Printf("web: kanban %s: %v", targetModel, err)
 			http.Error(w, "Failed to load records", http.StatusInternalServerError)
 			return
 		}
@@ -214,4 +218,31 @@ func firstDescendantActionID(ctx context.Context, parentID int) int {
 		}
 	}
 	return 0
+}
+
+// menuIDPointsToAppLogs is true when menu_id is the Event Log item (no window action; served by AppLogsHandler).
+func menuIDPointsToAppLogs(ctx context.Context, menuIDStr string) bool {
+	menuIDStr = strings.TrimSpace(menuIDStr)
+	if menuIDStr == "" {
+		return false
+	}
+	want, _, err := orm.ResolveXmlId(ctx, "base.menu_app_logs")
+	if err != nil || want == 0 {
+		return false
+	}
+	got, err := strconv.Atoi(menuIDStr)
+	if err != nil {
+		return false
+	}
+	return got == want
+}
+
+// actionWindowTargetModel returns the ORM technical model for a sys.action.window row.
+// Prefer core_model (current schema); fall back to res_model for legacy rows/XML.
+func actionWindowTargetModel(actionData map[string]interface{}) string {
+	s := strings.TrimSpace(orm.AsString(actionData["core_model"]))
+	if s != "" {
+		return s
+	}
+	return strings.TrimSpace(orm.AsString(actionData["res_model"]))
 }

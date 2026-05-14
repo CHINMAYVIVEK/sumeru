@@ -4,9 +4,9 @@
         <!-- sys.view : core.company (form) -->
         <view id="view_core.company_form" model="core.company" type="form">
             <sheet>
-                <div class="oe_button_box" name="button_box">
+                <div class="sum_button_box" name="button_box">
                 </div>
-                <div class="oe_title">
+                <div class="sum_title">
                     <h1>
                         <field name="name" placeholder="Company legal name…"/>
                     </h1>

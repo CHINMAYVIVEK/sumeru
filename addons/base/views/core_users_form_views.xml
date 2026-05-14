@@ -5,12 +5,12 @@
         <view id="view_core.user_form" model="core.user" type="form">
             <header>
                 <button name="action_archive" string="Archive" type="object" class=""/>
-                <button name="action_reset_password" string="Send reset instructions" type="object" class="oe_highlight"/>
+                <button name="action_reset_password" string="Send reset instructions" type="object" class="sum_highlight"/>
             </header>
             <sheet>
-                <div class="oe_button_box" name="button_box">
+                <div class="sum_button_box" name="button_box">
                 </div>
-                <div class="oe_title">
+                <div class="sum_title">
                     <h1>
                         <field name="name" placeholder="e.g. Mitchell Admin"/>
                     </h1>

@@ -3,8 +3,9 @@ package orm
 // SysModel stores information about models
 type SysModel struct {
 	ID          int    `orm:"id"`
-	Name        string `orm:"name"`  // Technical name: core.user
-	Model       string `orm:"model"` // Human name: Users
+	Name        string `orm:"name"`   // Technical name: core.user
+	Model       string `orm:"model"`  // Human name: Users
+	Module      string `orm:"module"` // sys.module technical name of declaring addon (kernel → base)
 	Description string `orm:"description"`
 	Transient   bool   `orm:"transient"`
 }
@@ -14,6 +15,7 @@ func (m SysModel) Fields() []FieldDefinition {
 	return []FieldDefinition{
 		{Name: "name", Type: Char, Required: true, Unique: true},
 		{Name: "model", Type: Char, Required: true},
+		{Name: "module", Type: Char, String: "Declaring module", Index: true},
 		{Name: "description", Type: Text},
 		{Name: "transient", Type: Boolean},
 	}
@@ -22,8 +24,8 @@ func (m SysModel) Fields() []FieldDefinition {
 // SysField represents sys.field (metadata about model fields)
 type SysField struct {
 	ID        int    `orm:"id"`
-	Name      string `orm:"name"`      // field name e.g. login
-	ModelID   int    `orm:"model_id"`  // reference to sys.model
+	Name      string `orm:"name"`       // field name e.g. login
+	ModelID   int    `orm:"model_id"`   // reference to sys.model
 	CoreModel string `orm:"core_model"` // technical name of parent model (denormalized)
 	FieldType string `orm:"field_type"` // Char, Integer, etc.
 	Relation  string `orm:"relation"`   // For Many2One, etc.
@@ -80,7 +82,7 @@ type SysMenu struct {
 	Action       string `orm:"action"` // String ref for XML loading: model,id
 	Sequence     int    `orm:"sequence"`
 	WebIcon      string `orm:"web_icon"`
-	Module       string `orm:"module"`         // technical addon that owns this menu
+	Module       string `orm:"module"`        // technical addon that owns this menu
 	AccessGroups string `orm:"access_groups"` // comma-separated XML ids
 }
 
@@ -165,6 +167,28 @@ func (s SysSession) Fields() []FieldDefinition {
 	}
 }
 
+// AppLog stores application and module lifecycle audit lines (install, update, etc.).
+// Internal user-to-user chatter uses mail.message only.
+type AppLog struct {
+	ID         int    `orm:"id"`
+	ModuleName string `orm:"module_name"`
+	Action     string `orm:"action"`
+	Detail     string `orm:"detail"`
+	Author     string `orm:"author"`
+	CreateDate string `orm:"create_date"`
+}
+
+func (AppLog) ModelName() string { return "app.log" }
+func (AppLog) Fields() []FieldDefinition {
+	return []FieldDefinition{
+		{Name: "module_name", Type: Char, Required: true, Index: true},
+		{Name: "action", Type: Char, Required: true},
+		{Name: "detail", Type: Text},
+		{Name: "author", Type: Char},
+		{Name: "create_date", Type: DateTime, Required: true},
+	}
+}
+
 // MailMessage stores chatter and activity log lines
 type MailMessage struct {
 	ID         int    `orm:"id"`
@@ -210,13 +234,15 @@ func (d SysModelData) Fields() []FieldDefinition {
 }
 
 func init() {
-	RegisterModel(SysModel{})
-	RegisterModel(SysField{})
-	RegisterModel(SysView{})
-	RegisterModel(SysMenu{})
-	RegisterModel(SysActionWindow{})
-	RegisterModel(SysModelData{})
-	RegisterModel(SysModule{})
-	RegisterModel(MailMessage{})
-	RegisterModel(SysSession{})
+	const kernel = "base"
+	RegisterModelWithModule(SysModel{}, kernel)
+	RegisterModelWithModule(SysField{}, kernel)
+	RegisterModelWithModule(SysView{}, kernel)
+	RegisterModelWithModule(SysMenu{}, kernel)
+	RegisterModelWithModule(SysActionWindow{}, kernel)
+	RegisterModelWithModule(SysModelData{}, kernel)
+	RegisterModelWithModule(SysModule{}, kernel)
+	RegisterModelWithModule(AppLog{}, kernel)
+	RegisterModelWithModule(MailMessage{}, kernel)
+	RegisterModelWithModule(SysSession{}, kernel)
 }

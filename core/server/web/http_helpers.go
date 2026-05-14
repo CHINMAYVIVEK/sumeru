@@ -17,6 +17,9 @@ func intFromDB(v interface{}) (int, bool) {
 		return t, true
 	case float64:
 		return int(t), true
+	case string:
+		n, err := strconv.Atoi(strings.TrimSpace(t))
+		return n, err == nil
 	case []byte:
 		var n int
 		_, err := fmt.Sscanf(string(t), "%d", &n)

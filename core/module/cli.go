@@ -34,7 +34,7 @@ func UpdateModuleData(ctx context.Context, name string) error {
 		// e.g. -u all while a leaf is marked installed without its deps — skip reload (no DB churn).
 		return nil
 	}
-	if err := orm.SyncRegistrySchema(); err != nil {
+	if err := orm.SyncRegistrySchemaForModule(name); err != nil {
 		return fmt.Errorf("schema sync: %w", err)
 	}
 	if err := deleteModuleMetadata(ctx, name); err != nil {
@@ -53,7 +53,15 @@ func UpdateModuleData(ctx context.Context, name string) error {
 func RunModuleCLI(installCSV, updateCSV string) error {
 	ctx := orm.ContextWithBypass(context.Background(), true)
 
-	for _, name := range splitCSV(installCSV) {
+	installNames := splitCSV(installCSV)
+	// "-i all" is explicitly blocked. Module installs require exact names.
+	for _, name := range installNames {
+		if strings.EqualFold(name, "all") {
+			return fmt.Errorf("-i all is not supported; specify module names explicitly (e.g. -i sales,crm)")
+		}
+	}
+
+	for _, name := range installNames {
 		if err := InstallModuleByName(ctx, name); err != nil {
 			return fmt.Errorf("install %q: %w", name, err)
 		}
@@ -130,9 +138,27 @@ func expandUpdateModuleNames(ctx context.Context, parts []string) ([]string, err
 			}
 			continue
 		}
+		// Explicitly named module in -u
 		if _, ok := seen[p]; ok {
 			continue
 		}
+		// Check if it's actually installed
+		installed, err := fetchInstalled()
+		if err != nil {
+			return nil, err
+		}
+		isInstalled := false
+		for _, inst := range installed {
+			if inst == p {
+				isInstalled = true
+				break
+			}
+		}
+		if !isInstalled {
+			// User requested: if module is not installed then no need to install (and no error)
+			continue
+		}
+
 		seen[p] = struct{}{}
 		raw = append(raw, p)
 	}

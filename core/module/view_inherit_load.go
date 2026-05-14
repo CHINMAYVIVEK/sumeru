@@ -10,42 +10,42 @@ import (
 )
 
 // applySysUIViewInherit merges an sys.view inherit <record> into the parent view row (same DB id).
-func applySysUIViewInherit(ctx context.Context, modName string, rec parser.Record) error {
-	fm := parser.RecordFieldMap(rec)
-	ref := strings.TrimSpace(fm["inherit_id"])
-	frag := fm["arch"]
-	if ref == "" {
-		return fmt.Errorf("inherit_id missing on record %q", rec.ID)
+func applySysUIViewInherit(context context.Context, moduleName string, xmlRecord parser.Record) error {
+	fieldMap := parser.RecordFieldMap(xmlRecord)
+	inheritReference := strings.TrimSpace(fieldMap["inherit_id"])
+	architectureFragment := fieldMap["arch"]
+	if inheritReference == "" {
+		return fmt.Errorf("inherit_id missing on record %q", xmlRecord.ID)
 	}
-	if strings.TrimSpace(frag) == "" {
-		return fmt.Errorf("arch missing on inherit record %q", rec.ID)
+	if strings.TrimSpace(architectureFragment) == "" {
+		return fmt.Errorf("arch missing on inherit record %q", xmlRecord.ID)
 	}
-	parentID, _, err := orm.ResolveXmlId(ctx, ref)
+	parentID, _, err := orm.ResolveXmlId(context, inheritReference)
 	if err != nil || parentID == 0 {
-		return fmt.Errorf("resolve inherit_id %q: %w", ref, err)
+		return fmt.Errorf("resolve inherit_id %q: %w", inheritReference, err)
 	}
-	parent, err := orm.SearchOne(ctx, "sys.view", map[string]interface{}{"id": parentID})
+	parentView, err := orm.SearchOne(context, "sys.view", map[string]interface{}{"id": parentID})
 	if err != nil {
 		return fmt.Errorf("load parent view id %d: %w", parentID, err)
 	}
-	parentArch := orm.AsString(parent["arch"])
-	if strings.TrimSpace(parentArch) == "" {
+	parentArchitecture := orm.AsString(parentView["arch"])
+	if strings.TrimSpace(parentArchitecture) == "" {
 		return fmt.Errorf("parent view %d has empty arch", parentID)
 	}
-	merged, err := viewinherit.ApplyInheritArch(parentArch, frag)
+	mergedArchitecture, err := viewinherit.ApplyInheritArch(parentArchitecture, architectureFragment)
 	if err != nil {
-		return fmt.Errorf("merge inherit %q: %w", rec.ID, err)
+		return fmt.Errorf("merge inherit %q: %w", xmlRecord.ID, err)
 	}
-	tbl := orm.GetTableName("sys.view")
-	if _, err := orm.DB.ExecContext(ctx, `UPDATE `+tbl+` SET arch = $1 WHERE id = $2`, merged, parentID); err != nil {
+	viewTableName := orm.GetTableName("sys.view")
+	if _, err := orm.DB.ExecContext(context, `UPDATE `+viewTableName+` SET arch = $1 WHERE id = $2`, mergedArchitecture, parentID); err != nil {
 		return err
 	}
 	// Optional: map extension xml id to parent row for external id lookups
-	if rec.ID != "" {
-		if _, err := orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-			"module": modName,
-			"name":   rec.ID,
-			"model":  "sys.view",
+	if xmlRecord.ID != "" {
+		if _, err := orm.Upsert(context, orm.SysModelData{}, map[string]interface{}{
+			"module":  moduleName,
+			"name":    xmlRecord.ID,
+			"model":   "sys.view",
 			"core_id": parentID,
 		}, "name"); err != nil {
 			return err

@@ -74,7 +74,8 @@ func (r SysApprovalRule) Fields() []FieldDefinition {
 }
 
 func init() {
-	RegisterModel(SysAccess{})
-	RegisterModel(SysRule{})
-	RegisterModel(SysApprovalRule{})
+	const kernel = "base"
+	RegisterModelWithModule(SysAccess{}, kernel)
+	RegisterModelWithModule(SysRule{}, kernel)
+	RegisterModelWithModule(SysApprovalRule{}, kernel)
 }

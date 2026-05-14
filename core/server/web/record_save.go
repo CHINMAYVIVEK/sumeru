@@ -34,7 +34,7 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if next == "" || !strings.HasPrefix(next, "/web") || strings.HasPrefix(next, "//") {
-		next = "/web"
+		next = "/web/home"
 	}
 
 	inst, ok := orm.Registry[modelName]

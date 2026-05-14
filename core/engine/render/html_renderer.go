@@ -51,6 +51,7 @@ type PageData struct {
 	ActiveMenuID           string
 	ViewStylesheetURLs     []string
 	AppsNavActive          bool
+	SettingsNavActive      bool
 	ExtraStylesheetURLs    []string
 	LogoURL                string
 	ShellCompany           string
@@ -59,6 +60,12 @@ type PageData struct {
 	ShellExtraHTML         template.HTML   // AI Assistant or other shell widgets
 	ViewTabs               []ViewSwitchTab // workspace view switcher; empty hides toolbar
 	HideBreadcrumbViewTabs bool            // true on tree/list (tabs appear in list control panel)
+
+	// BreadcrumbTrail: when non-empty, base.html renders linked crumbs; otherwise legacy ModuleName/ViewBreadcrumb.
+	BreadcrumbItems []BreadcrumbItem
+
+	// SuppressActivityDock forces the right activity dock off (e.g. Home dashboard) regardless of mail settings.
+	SuppressActivityDock bool
 
 	// Right activity panel: Log tab (audit); Messages tab HTML set in RenderView when chatter applies.
 	ActivityEnabled         bool
@@ -231,8 +238,7 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 		content = RenderForm(ctx, view, recData)
 	}
 
-	topMenus, sidebarMenus, activeModuleID := LoadShellMenus(ctx, activeMenuID)
-	moduleName := ModuleNameForTopMenu(topMenus, activeModuleID)
+	topMenus, sidebarMenus, activeModuleID, moduleName := LoadShellMenus(ctx, activeMenuID)
 	viewBC := HumanViewBreadcrumb(view.Model, view.Type)
 
 	actCtxModel := ""
@@ -251,12 +257,14 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 		SidebarMenus:            sidebarMenus,
 		ActiveModuleID:          activeModuleID,
 		ActiveMenuID:            activeMenuID,
-		ViewStylesheetURLs:      []string{"/static/css/view-web.css"},
+		ViewStylesheetURLs:      []string{"/static/css/sumeru-workspace.css"},
 		ExtraStylesheetURLs:     ExtraStylesheetURLs,
 		ViewTabs:                recData.ViewTabs,
 		ActivityContextModel:    actCtxModel,
 		ActivityContextRecordID: actCtxID,
 		HideBreadcrumbViewTabs:  strings.EqualFold(view.Type, "tree") || strings.EqualFold(view.Type, "list"),
+		SettingsNavActive:       IsMenuUnderSettingsRoot(ctx, activeMenuID),
+		BreadcrumbItems:         BuildWorkspaceBreadcrumbs(ctx, activeMenuID, view.Type, viewBC, recData.FormBaseQuery, recData.Record, recData.RecordID),
 	}
 	if strings.EqualFold(view.Type, "form") && view.Chatter != nil && recData.RecordID > 0 &&
 		mail.CompanyChatterEnabled(ctx) && mail.CompanyActivityPanelEnabled(ctx) {
@@ -289,13 +297,13 @@ func RenderForm(ctx context.Context, view *parser.View, vr *ViewRecordData) stri
 
 	var sb strings.Builder
 
-	formViewClass := "o_form_view sum-form-view flex h-full min-h-0 overflow-hidden"
+	formViewClass := "sum-form-view flex h-full min-h-0 overflow-hidden"
 	if ro && vr.RecordID > 0 {
 		formViewClass += " sum-form-view--readonly"
 	}
 	sb.WriteString(`<div class="` + formViewClass + `">`)
 
-	sb.WriteString(`<div class="o_form_sheet_bg sum-form-sheet-bg flex-1 overflow-y-auto p-4 md:p-8">`)
+	sb.WriteString(`<div class="sum-form-sheet-bg flex-1 overflow-y-auto p-4 md:p-8">`)
 
 	if chrome {
 		renderWorkspaceFormChrome(&sb, vr)
@@ -308,7 +316,7 @@ func RenderForm(ctx context.Context, view *parser.View, vr *ViewRecordData) stri
 	if view.Sheet != nil {
 		renderSheet(ctx, &sb, view.Sheet, record, ro, vr)
 	} else {
-		sb.WriteString(`<div class="o_form_sheet sum-form-sheet sum-form-sheet--solo">`)
+		sb.WriteString(`<div class="sum-form-sheet sum-form-sheet--solo">`)
 		for _, f := range view.Field {
 			renderField(ctx, &sb, f, record, ro)
 		}
@@ -334,13 +342,13 @@ func RenderForm(ctx context.Context, view *parser.View, vr *ViewRecordData) stri
 }
 
 func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, record map[string]interface{}) {
-	sb.WriteString(`<div class="o_form_statusbar sum-form-statusbar flex items-center justify-between p-2 mb-0 border-b-0">`)
+	sb.WriteString(`<div class="sum-form-statusbar flex items-center justify-between p-2 mb-0 border-b-0">`)
 
 	// Buttons
-	sb.WriteString(`<div class="o_statusbar_buttons flex space-x-2">`)
+	sb.WriteString(`<div class="sum-statusbar-buttons flex space-x-2">`)
 	for _, b := range h.Button {
 		class := "px-3 py-1.5 rounded text-sm font-bold shadow-sm transition-all "
-		if b.Class == "oe_highlight" {
+		if b.Class == "sum_highlight" {
 			class += "bg-indigo-600 text-white hover:bg-indigo-700"
 		} else {
 			class += "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
@@ -350,7 +358,7 @@ func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, re
 	sb.WriteString(`</div>`)
 
 	// Statusbar fields: show stored values only (no mock workflow states).
-	sb.WriteString(`<div class="o_statusbar_status flex flex-wrap justify-end gap-2 items-center">`)
+	sb.WriteString(`<div class="sum-statusbar-status flex flex-wrap justify-end gap-2 items-center">`)
 	for _, hf := range h.Field {
 		val := recStr(record, hf.Name)
 		if val == "" {
@@ -366,18 +374,18 @@ func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, re
 }
 
 func renderSheet(ctx context.Context, sb *strings.Builder, s *parser.Sheet, record map[string]interface{}, ro bool, vr *ViewRecordData) {
-	sb.WriteString(`<div class="o_form_sheet sum-form-sheet">`)
+	sb.WriteString(`<div class="sum-form-sheet">`)
 
-	// Render Stat Buttons if any (Usually inside a div with class oe_button_box)
+	// Render Stat Buttons if any (Usually inside a div with class sum_button_box)
 	for _, d := range s.Div {
-		if strings.Contains(d.Class, "oe_button_box") {
+		if strings.Contains(d.Class, "sum_button_box") {
 			renderButtonBox(sb, d)
 		}
 	}
 
 	// Render Title/Avatar area
 	for _, d := range s.Div {
-		if strings.Contains(d.Class, "oe_title") {
+		if strings.Contains(d.Class, "sum_title") {
 			renderTitle(ctx, sb, d, record, ro)
 		}
 	}
@@ -486,7 +494,7 @@ func renderTitle(ctx context.Context, sb *strings.Builder, d parser.Div, record 
 }
 
 func renderNotebook(ctx context.Context, sb *strings.Builder, nb parser.Notebook, record map[string]interface{}, ro bool, vr *ViewRecordData) {
-	sb.WriteString(`<div class="o_notebook sum-notebook mt-10">`)
+	sb.WriteString(`<div class="sum-notebook mt-10">`)
 
 	sb.WriteString(`<div class="sum-notebook-tabs flex border-b border-slate-200 mb-6 gap-1" role="tablist">`)
 	for i, p := range nb.Page {
@@ -499,13 +507,13 @@ func renderNotebook(ctx context.Context, sb *strings.Builder, nb parser.Notebook
 	sb.WriteString(`</div>`)
 
 	// Tabs Content
-	sb.WriteString(`<div class="o_notebook_content">`)
+	sb.WriteString(`<div class="sum-notebook-content">`)
 	for i, p := range nb.Page {
 		display := "none"
 		if i == 0 {
 			display = "block"
 		}
-		sb.WriteString(fmt.Sprintf(`<div class="o_notebook_page" style="display: %s">`, display))
+		sb.WriteString(fmt.Sprintf(`<div class="sum-notebook-page" style="display: %s">`, display))
 
 		// 1. Check for specific model+tab hooks in the registry
 		pageTitle := strings.ToLower(strings.TrimSpace(p.Title))
@@ -546,7 +554,7 @@ func renderNotebook(ctx context.Context, sb *strings.Builder, nb parser.Notebook
 func renderSeparator(sb *strings.Builder, sep parser.Separator) {
 	t := strings.TrimSpace(sep.String)
 	if t != "" {
-		sb.WriteString(`<div class="o_horizontal_separator col-span-2 text-sm font-semibold text-slate-500 border-b border-slate-200 pb-2 mb-4 mt-2">` + template.HTMLEscapeString(t) + `</div>`)
+		sb.WriteString(`<div class="sum-horizontal-separator col-span-2 text-sm font-semibold text-slate-500 border-b border-slate-200 pb-2 mb-4 mt-2">` + template.HTMLEscapeString(t) + `</div>`)
 	} else {
 		sb.WriteString(`<hr class="col-span-2 border-slate-200 my-4"/>`)
 	}
@@ -557,7 +565,7 @@ func renderLabel(sb *strings.Builder, lab parser.Label) {
 	if s == "" {
 		return
 	}
-	sb.WriteString(`<div class="o_label col-span-2 mb-2">`)
+	sb.WriteString(`<div class="sum-label col-span-2 mb-2">`)
 	sb.WriteString(`<span class="text-xs font-bold text-slate-500 uppercase tracking-wide"`)
 	if id := strings.TrimSpace(lab.For); id != "" {
 		sb.WriteString(` for="` + template.HTMLEscapeString(id) + `"`)
@@ -569,10 +577,10 @@ func renderFormFooter(sb *strings.Builder, ft *parser.Footer) {
 	if ft == nil || len(ft.Button) == 0 {
 		return
 	}
-	sb.WriteString(`<div class="o_form_footer flex flex-wrap justify-end gap-2 px-8 py-4 bg-slate-50 border-t border-slate-200 rounded-b-sm">`)
+	sb.WriteString(`<div class="sum-form-footer flex flex-wrap justify-end gap-2 px-8 py-4 bg-slate-50 border-t border-slate-200 rounded-b-sm">`)
 	for _, b := range ft.Button {
 		cls := "px-4 py-2 text-sm font-semibold rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-		if strings.Contains(b.Class, "oe_highlight") || strings.Contains(b.Class, "btn-primary") {
+		if strings.Contains(b.Class, "sum_highlight") || strings.Contains(b.Class, "btn-primary") {
 			cls = "px-4 py-2 text-sm font-semibold rounded-sm bg-indigo-600 text-white hover:bg-indigo-700"
 		}
 		label := template.HTMLEscapeString(b.String)
@@ -896,7 +904,7 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 			sb.WriteString(`</div>`)
 			return
 		}
-		sb.WriteString(`<div class="o_field_widget flex flex-col space-y-1">`)
+		sb.WriteString(`<div class="sum-field-widget flex flex-col space-y-1">`)
 		sb.WriteString(`<label class="text-xs font-bold text-slate-500 uppercase tracking-wide" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
 		sb.WriteString(fmt.Sprintf(`<input class="h-4 w-4 rounded border-slate-300 text-indigo-600" id="%s" name="%s" type="checkbox"%s%s />`,
 			template.HTMLEscapeString(f.Name), template.HTMLEscapeString(f.Name), checked, dis))
@@ -918,7 +926,7 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 			sb.WriteString(`</div></div>`)
 			return
 		}
-		sb.WriteString(`<div class="o_field_widget flex flex-col space-y-1">`)
+		sb.WriteString(`<div class="sum-field-widget flex flex-col space-y-1">`)
 		if src != "" && (strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "data:")) {
 			sb.WriteString(`<div class="w-24 h-24 border border-slate-200 rounded-sm overflow-hidden">`)
 			sb.WriteString(fmt.Sprintf(`<img src="%s" alt="" class="w-full h-full object-cover" />`, template.HTMLEscapeString(src)))
@@ -938,7 +946,7 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 			sb.WriteString(`</div>`)
 			return
 		}
-		sb.WriteString(`<div class="o_field_widget flex flex-col space-y-1">`)
+		sb.WriteString(`<div class="sum-field-widget flex flex-col space-y-1">`)
 		sb.WriteString(`<label class="text-xs font-bold text-slate-500 uppercase tracking-wide" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
 		sb.WriteString(`<div class="flex flex-wrap gap-1 p-2 border border-slate-200 rounded-sm bg-slate-50 min-h-[38px] text-sm text-slate-700">`)
 		sb.WriteString(template.HTMLEscapeString(txt))
@@ -960,7 +968,7 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 			sb.WriteString(`</div>`)
 			return
 		}
-		sb.WriteString(`<div class="o_field_widget flex flex-col space-y-1">`)
+		sb.WriteString(`<div class="sum-field-widget flex flex-col space-y-1">`)
 		sb.WriteString(`<label class="text-xs font-bold text-slate-500 uppercase tracking-wide" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
 		sb.WriteString(fmt.Sprintf(`<input class="px-3 py-2 border border-slate-200 rounded-sm text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" id="%s" name="%s" type="text" placeholder="%s" value="%s" />`,
 			template.HTMLEscapeString(f.Name), template.HTMLEscapeString(f.Name),
@@ -981,7 +989,7 @@ func writeResUsersSecuritySection(ctx context.Context, sb *strings.Builder, vr *
 	sb.WriteString(`<h3 class="text-sm font-semibold text-slate-800 mb-3">Access rights</h3>`)
 	if !ro {
 		sb.WriteString(`<input type="hidden" name="security_groups_touched" value="1"/>`)
-		sb.WriteString(`<div class="o_field_widget flex flex-col space-y-1 mb-4">`)
+		sb.WriteString(`<div class="sum-field-widget flex flex-col space-y-1 mb-4">`)
 		sb.WriteString(`<label class="text-xs font-bold text-slate-500 uppercase tracking-wide" for="password_plain">New password</label>`)
 		sb.WriteString(`<input class="px-3 py-2 border border-slate-200 rounded-sm text-sm" id="password_plain" name="password_plain" type="password" autocomplete="new-password" placeholder="Leave blank to keep current" />`)
 		sb.WriteString(`</div>`)

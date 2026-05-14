@@ -1,0 +1,17 @@
+/*
+ * sumeru_ai — optional theme overrides (loaded after core sumeru-theme.css).
+ * Override :root custom properties only; keep structural CSS unchanged.
+ */
+:root {
+  --sum-header: #714b67;
+  --sum-header-dark: #5c3d56;
+  --sum-sidebar-width: 17.5rem;
+
+  /* Keep hover tints aligned with the new primary */
+  --sum-row-hover-bg: rgba(124, 58, 237, 0.06);
+  --sum-header-tint-12: rgba(124, 58, 237, 0.14);
+  --sum-focus-ring: 0 0 0 3px rgba(124, 58, 237, 0.12);
+  --sum-focus-ring-lg: 0 0 0 4px rgba(124, 58, 237, 0.12);
+  --sum-shadow-login-btn: 0 4px 12px rgba(124, 58, 237, 0.22);
+  --sum-shadow-login-btn-hover: 0 6px 16px rgba(124, 58, 237, 0.28);
+}
