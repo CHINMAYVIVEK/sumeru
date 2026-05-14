@@ -15,7 +15,7 @@ import (
 	"sumeru/core/server/config"
 )
 
-// WebHandler renders ir.actions.act_window targets using ir.ui.view definitions.
+// WebHandler renders sys.action.window targets using sys.view definitions.
 func WebHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
@@ -48,7 +48,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actionData, err := orm.SearchOne(r.Context(), "ir.actions.act_window", map[string]interface{}{"id": actionID})
+	actionData, err := orm.SearchOne(r.Context(), "sys.action.window", map[string]interface{}{"id": actionID})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Action %d not found", actionID), http.StatusNotFound)
 		return
@@ -177,7 +177,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func actionIDFromMenu(ctx context.Context, menuID int) int {
-	menuData, err := orm.SearchOne(ctx, "ir.ui.menu", map[string]interface{}{"id": menuID})
+	menuData, err := orm.SearchOne(ctx, "sys.menu", map[string]interface{}{"id": menuID})
 	if err != nil {
 		return 0
 	}
@@ -192,7 +192,7 @@ func actionIDFromMenu(ctx context.Context, menuID int) int {
 // of children ordered by sequence, then id (matches typical “first submenu” behavior).
 func firstDescendantActionID(ctx context.Context, parentID int) int {
 	rows, err := orm.DB.QueryContext(ctx,
-		`SELECT id, action_id FROM `+orm.GetTableName("ir.ui.menu")+
+		`SELECT id, action_id FROM `+orm.GetTableName("sys.menu")+
 			` WHERE parent_id = $1 ORDER BY sequence ASC, id ASC`,
 		parentID,
 	)

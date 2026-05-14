@@ -34,7 +34,7 @@ type appsModule struct {
 	IconLetter    string // first letter for app tile
 }
 
-// appsModuleDetailVM is the readonly / edit form for one ir.module row on the Apps screen.
+// appsModuleDetailVM is the readonly / edit form for one sys.module row on the Apps screen.
 type appsModuleDetailVM struct {
 	Layout                                    string
 	Editing                                   bool
@@ -122,7 +122,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	var detail *appsModuleDetailVM
 	breadcrumb := "Applications"
 	if moduleParam != "" {
-		row, err := orm.SearchOne(r.Context(), "ir.module", map[string]interface{}{"name": moduleParam})
+		row, err := orm.SearchOne(r.Context(), "sys.module", map[string]interface{}{"name": moduleParam})
 		if err != nil {
 			http.Error(w, "Module not found", http.StatusNotFound)
 			return
@@ -211,7 +211,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		ViewTabs:            render.AppsViewTabs(layout, msg, moduleParam),
 	}
 	if detail != nil {
-		page.ActivityContextModel = "ir.module"
+		page.ActivityContextModel = "sys.module"
 		page.ActivityContextRecordID = int64(detail.ID)
 	}
 	html, err := render.RenderPage(r.Context(), config.AppConfig.TemplatesPath, page)

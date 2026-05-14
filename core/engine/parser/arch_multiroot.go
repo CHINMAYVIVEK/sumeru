@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// archFormRoot matches ir.ui.view arch rooted at <form>.
+// archFormRoot matches sys.view arch rooted at <form>.
 type archFormRoot struct {
 	XMLName xml.Name `xml:"form"`
 	String  string   `xml:"string,attr"`

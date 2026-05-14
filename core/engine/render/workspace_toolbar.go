@@ -17,7 +17,7 @@ type ViewSwitchTab struct {
 	Active bool
 }
 
-// WorkspaceViewTabs builds URLs for each view mode that has a default ir.ui.view for resModel.
+// WorkspaceViewTabs builds URLs for each view mode that has a default sys.view for resModel.
 // selectedMode is the normalized mode in use (e.g. tree, kanban, form; "list" maps to tree).
 // recordID is optional; when set, the Form tab includes id= so the same record opens in form.
 func WorkspaceViewTabs(ctx context.Context, resModel string, actionID int, menuID, selectedMode, recordID string) []ViewSwitchTab {

@@ -68,8 +68,8 @@ INI format: `key = value` under **`[options]`**. Lines starting with `#` or `;` 
 | `assets_path` | Static files root (default **`core/engine/assets`**; resolved from INI dir unless absolute; see **`sumeru_home`**) |
 | `templates_path` | HTML templates (default **`core/engine/templates`**; same resolution rules) |
 | `logo_path` | Optional image file; served at **`/static/app-logo`** (`.svg`, `.png`, `.jpg`/`.jpeg`, `.webp`) |
-| `company_display_name` | Optional header chip; if empty and **`company`** module is installed, first **`res.company`** name is used |
-| `user_display_name` | Optional header label; if empty and **`user`** module is installed, first **`res.users`** display is used |
+| `company_display_name` | Optional header chip; if empty and **`company`** module is installed, first **`core.company`** name is used |
+| `user_display_name` | Optional header label; if empty and **`user`** module is installed, first **`core.user`** display is used |
 | `brand_css` | Optional extra CSS file; linked as **`/static/brand.css`** after view stylesheets |
 | `log_file` | Optional; if set, **`log`** output is **appended** to this file and still written to **stderr**; parent directories are created; path is absolutized like other paths |
 
@@ -84,7 +84,7 @@ INI format: `key = value` under **`[options]`**. Lines starting with `#` or `;` 
 | **`-c path`** | INI config file |
 | **`-d db`** / **`--database db`** | Overrides **`db_name`** in the INI for this process only |
 | **`-i mod`** or **`-i mod1,mod2`** | Install one or many modules |
-| **`-u mod`**, **`-u mod1,mod2`**, or **`-u all`** | Update / reload metadata; **`all`** = every **`ir.module`** row with **`state = installed`** (dependency order on disk) |
+| **`-u mod`**, **`-u mod1,mod2`**, or **`-u all`** | Update / reload metadata; **`all`** = every **`sys.module`** row with **`state = installed`** (dependency order on disk) |
 | **`--http-port N`** / **`-p N`** | Overrides **`http_port`** in the INI |
 | **`--stop-after-init`** | After **`-i`** / **`-u`**, exit without starting HTTP |
 
@@ -143,7 +143,7 @@ Then open **`http://localhost:<port>`** — `/` redirects to **`/web/apps`**.
 | `./sumeru.sh -u sales,sale_demo_inherit --stop-after-init` | Batch update then exit |
 | `make run EXTRA_RUN_FLAGS='-u sales -p 9090'` | Update via **`make`** then serve (same invocation runs **`-u`** then server) |
 
-Use **`-u`** after changing **`views/*.xml`**, **`menus.xml`**, or **`manifest.json`** `data` lists for an already-installed module. **`all`** expands to every module with **`state = installed`** in **`ir.module`** (combined with **`sales,all`** dedupes **sales**).
+Use **`-u`** after changing **`views/*.xml`**, **`menus.xml`**, or **`manifest.json`** `data` lists for an already-installed module. **`all`** expands to every module with **`state = installed`** in **`sys.module`** (combined with **`sales,all`** dedupes **sales**).
 
 ---
 

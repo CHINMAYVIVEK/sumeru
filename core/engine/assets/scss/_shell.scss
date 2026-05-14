@@ -1,0 +1,181 @@
+@import "variables";
+
+.sum-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+
+    &--sidebar-collapsed {
+        .sum-sidebar {
+            width: 0;
+            border-right-width: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .sum-sidebar-reveal {
+            opacity: 1;
+        }
+    }
+
+    &--activity-hidden {
+        .sum-activity-resizer,
+        .sum-activity-panel {
+            display: none !important;
+        }
+        .sum-activity-reveal {
+            opacity: 1;
+        }
+    }
+}
+
+.sum-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: $header-height;
+    padding: 0 0.75rem 0 0.5rem;
+    flex-shrink: 0;
+    z-index: 50;
+    background: linear-gradient(180deg, $sum-header-dark 0%, $sum-header 100%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: $shadow-sm;
+
+    &-left {
+        display: flex;
+        align-items: stretch;
+        gap: 0.35rem;
+        min-width: 0;
+        flex: 1;
+    }
+
+    &-right {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        flex-shrink: 0;
+    }
+}
+
+.sum-brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none !important;
+    padding: 0 0.5rem;
+    border-radius: 10px;
+    margin-right: 0.25rem;
+    &:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+}
+
+.sum-logo {
+    display: block;
+    border-radius: 8px;
+    object-fit: contain;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.sum-brand {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: -0.03em;
+    color: #f1f5f9 !important;
+    white-space: nowrap;
+    
+    &-text { opacity: 0.92; }
+    &-mark {
+        color: $sum-gold !important;
+        margin-left: 1px;
+    }
+}
+
+.sum-top-nav {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    margin-left: 0.25rem;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+
+    .top-menu-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0 0.85rem;
+        height: 100%;
+        min-height: $header-height;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: rgba(226, 232, 240, 0.78);
+        text-decoration: none !important;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
+        transition: all 0.15s ease;
+
+        &:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        &.active {
+            color: #fff !important;
+            background: rgba(255, 255, 255, 0.07);
+            border-bottom-color: $sum-gold;
+        }
+    }
+}
+
+.sum-sidebar {
+    width: $sidebar-width;
+    flex-shrink: 0;
+    background: linear-gradient(180deg, #f8f6f2 0%, #f0ebe4 100%);
+    border-right: 1px solid $sum-line-strong;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.22s ease, opacity 0.2s ease;
+
+    &-inner {
+        padding: 1rem 0.75rem;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .sidebar-link {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.55rem;
+        border-radius: 10px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: #475569;
+        text-decoration: none !important;
+        transition: all 0.12s ease;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.75);
+            color: $sum-ink;
+        }
+
+        &.active {
+            background: #fff;
+            color: $sum-header;
+            box-shadow: $shadow-sm;
+            font-weight: 600;
+        }
+    }
+}
+
+.sum-breadcrumb-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 48px;
+    padding: 0.35rem 0.75rem;
+    background: $sum-surface;
+    border-bottom: 1px solid $sum-line;
+}

@@ -16,7 +16,7 @@ func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
 	}
-	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), "ir.module", "write"); err != nil {
+	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), "sys.module", "write"); err != nil {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -102,7 +102,7 @@ func saveModuleFromForm(r *http.Request) error {
 	if err != nil || id <= 0 {
 		return fmt.Errorf("invalid_module_row")
 	}
-	row, err := orm.SearchOne(r.Context(), "ir.module", map[string]interface{}{"id": id})
+	row, err := orm.SearchOne(r.Context(), "sys.module", map[string]interface{}{"id": id})
 	if err != nil {
 		return fmt.Errorf("module_not_found")
 	}
@@ -114,5 +114,5 @@ func saveModuleFromForm(r *http.Request) error {
 		"author":       strings.TrimSpace(r.FormValue("author")),
 		"description":  strings.TrimSpace(r.FormValue("description")),
 	}
-	return orm.UpdateRecordByID(r.Context(), "ir.module", id, vals)
+	return orm.UpdateRecordByID(r.Context(), "sys.module", id, vals)
 }

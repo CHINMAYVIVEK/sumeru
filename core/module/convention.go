@@ -52,7 +52,7 @@ func isBuiltinAddonPath(addonPath string) bool {
 	if strings.Contains(s, "module"+string(filepath.Separator)+"builtin") {
 		return true
 	}
-	// .../core/base/base — minimal "base" ir.module (manifest only; no init.go requirement)
+	// .../core/base/base — minimal "base" sys.module (manifest only; no init.go requirement)
 	return strings.Contains(filepath.ToSlash(s), "/core/base/base") &&
 		filepath.Base(s) == "base" && filepath.Base(filepath.Dir(s)) == "base"
 }

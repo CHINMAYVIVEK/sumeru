@@ -3,8 +3,6 @@
 package main
 
 import (
-	_ "sumeru/addons/crm"
-	_ "sumeru/addons/inventory"
-	_ "sumeru/addons/sales"
-	_ "sumeru/core/base/settings"
+	_ "sumeru/addons/base"
+	_ "sumeru/addons/sumeru_ai"
 )

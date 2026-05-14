@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <record id="view_{{.Name}}_tree" model="sys.view">
+            <field name="name">{{.Name}}.tree</field>
+            <field name="model">{{.ModelDotted}}</field>
+            <field name="arch" type="xml">
+                <tree string="{{.HumanTitle}}">
+                    <field name="sequence" widget="handle"/>
+                    <field name="name"/>
+                    <field name="active" widget="boolean_toggle"/>
+                </tree>
+            </field>
+        </record>
+    </data>
+</sumeru>

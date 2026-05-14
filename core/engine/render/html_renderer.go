@@ -15,6 +15,30 @@ import (
 	"sumeru/core/orm"
 )
 
+// UIHook allows addons to inject custom HTML into specific parts of the UI.
+type UIHook func(ctx context.Context, vr *ViewRecordData, ro bool) template.HTML
+
+var (
+	// NotebookHooks: model -> page_title -> hook
+	NotebookHooks = map[string]map[string]UIHook{}
+
+	// ShellHooks: Global hooks called for every page render to inject shell-level HTML
+	ShellHooks []UIHook
+)
+
+// RegisterShellHook adds a global hook to the shell rendering pipeline.
+func RegisterShellHook(hook UIHook) {
+	ShellHooks = append(ShellHooks, hook)
+}
+
+// RegisterNotebookHook adds a hook to be called when a specific notebook page is rendered for a model.
+func RegisterNotebookHook(model, pageTitle string, hook UIHook) {
+	if NotebookHooks[model] == nil {
+		NotebookHooks[model] = map[string]UIHook{}
+	}
+	NotebookHooks[model][strings.ToLower(pageTitle)] = hook
+}
+
 type PageData struct {
 	Title                  string // legacy / diagnostics; prefer ViewBreadcrumb for UI
 	ViewBreadcrumb         string // human label for breadcrumb (not the technical model id)
@@ -32,6 +56,7 @@ type PageData struct {
 	ShellCompany           string
 	ShellUser              string
 	UserInitial            string          // first letter for avatar
+	ShellExtraHTML         template.HTML   // AI Assistant or other shell widgets
 	ViewTabs               []ViewSwitchTab // workspace view switcher; empty hides toolbar
 	HideBreadcrumbViewTabs bool            // true on tree/list (tabs appear in list control panel)
 
@@ -65,7 +90,7 @@ type ViewRecordData struct {
 	ViewTabs []ViewSwitchTab // optional; copied onto PageData for base layout
 
 	// Workspace form chrome (/web): Edit / Save / Cancel and POST save target.
-	ResModel       string // e.g. res.company
+	ResModel       string // e.g. core.company
 	RecordID       int    // 0 = create form
 	FormEditing    bool   // true when URL contains edit=1
 	FormBaseQuery  string // query string for /web without leading "?" and without edit= (action, menu_id, view_type, id)
@@ -482,8 +507,18 @@ func renderNotebook(ctx context.Context, sb *strings.Builder, nb parser.Notebook
 		}
 		sb.WriteString(fmt.Sprintf(`<div class="o_notebook_page" style="display: %s">`, display))
 
-		// Inject Access Rights security section for res.users inside the matching tab.
-		if vr != nil && strings.TrimSpace(vr.ResModel) == "res.users" && strings.EqualFold(strings.TrimSpace(p.Title), "access rights") {
+		// 1. Check for specific model+tab hooks in the registry
+		pageTitle := strings.ToLower(strings.TrimSpace(p.Title))
+		if hooks, ok := NotebookHooks[vr.ResModel]; ok {
+			if hook, ok := hooks[pageTitle]; ok {
+				sb.WriteString(string(hook(ctx, vr, ro)))
+				sb.WriteString(`</div>`)
+				continue
+			}
+		}
+
+		// 2. Legacy / Hardcoded hooks (to be migrated to RegisterNotebookHook eventually)
+		if vr != nil && strings.TrimSpace(vr.ResModel) == "core.user" && pageTitle == "access rights" {
 			writeResUsersSecuritySection(ctx, sb, vr, ro)
 		} else {
 			sb.WriteString(`<div class="grid grid-cols-1 md:grid-cols-2 gap-8">`)
@@ -939,7 +974,7 @@ func writeResUsersSecuritySection(ctx context.Context, sb *strings.Builder, vr *
 	if uid <= 0 {
 		return
 	}
-	if err := orm.CheckModelAccess(ctx, uid, "res.groups", "read"); err != nil {
+	if err := orm.CheckModelAccess(ctx, uid, "core.group", "read"); err != nil {
 		return
 	}
 	sb.WriteString(`<div class="border border-slate-200 rounded-lg p-6 mb-6 bg-slate-50/80">`)
@@ -953,7 +988,7 @@ func writeResUsersSecuritySection(ctx context.Context, sb *strings.Builder, vr *
 	}
 	selected := map[int]struct{}{}
 	if vr.RecordID > 0 {
-		rel := orm.GetTableName("res.groups.user.rel")
+		rel := orm.GetTableName("core.group.user.rel")
 		rows, err := orm.DB.Query(`SELECT group_id FROM `+rel+` WHERE user_id = $1`, vr.RecordID)
 		if err == nil {
 			for rows.Next() {

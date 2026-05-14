@@ -12,7 +12,7 @@ Directory (technical name = folder name, should match manifest "name"):
     views/            — XML under <sumeru> root (see below)
 
 Core ships:
-  core/base/base/           — minimal `base` ir.module (manifest only); shared log/HTTP
+  core/base/base/           — minimal `base` sys.module (manifest only); shared log/HTTP
                               strings live in core/base/platformmsg/ (import as sumeru/core/base/platformmsg).
   core/base/user/, core/base/company/ — default apps (same layout as addons)
   core/base/addon_template/ — manifest template + this reference (MODULE_STANDARD.txt)
@@ -40,18 +40,18 @@ Module XML (standard)
 
   **File header (recommended):** `<?xml version="1.0" encoding="utf-8"?>` on the first line.
 
-  **`<data>` (recommended):** Wrap module content in `<data>...</data>` (Odoo-style). Optional **`noupdate="1"`** (or `true` / `yes`) on `<data>` for records that should not be overwritten on module update; parsed into ViewList/MenuList.NoUpdate (reserved for future skip-on-upgrade behavior).
+  **`<data>` (recommended):** Wrap module content in `<data>...</data>` (Sumeru-style). Optional **`noupdate="1"`** (or `true` / `yes`) on `<data>` for records that should not be overwritten on module update; parsed into ViewList/MenuList.NoUpdate (reserved for future skip-on-upgrade behavior).
 
   **`<record>`** — `id`, `model`; children `<field name="..."`:
     - Body text → field value
     - `ref="module.xml_id"` → Many2one / reference (highest precedence)
     - `eval="True"` | `eval="[(6,0,[])]"` etc. → stored as literal string (no code execution)
 
-  **`<menuitem>`** — `id`, `name`, `parent`, `action`, `sequence`, `web_icon`. The `name` value is stored in **`ir.ui.menu.name`** (globally unique): use distinct labels across all modules (e.g. "All Companies" vs root "Companies").
+  **`<menuitem>`** — `id`, `name`, `parent`, `action`, `sequence`, `web_icon`. The `name` value is stored in **`sys.menu.name`** (globally unique): use distinct labels across all modules (e.g. "All Companies" vs root "Companies").
 
   **`<view>`** (inline in data files) — `id`, `model`, `type` (`form` | `tree` | `list` | `kanban` | `pivot`); inner tags match arch below.
 
-  **View arch in `ir.ui.view` (stored `arch` column)** — root may be:
+  **View arch in `sys.view` (stored `arch` column)** — root may be:
     - **`<view type="form">...</view>`** (native), or
     - **`<form>...</form>`**, **`<tree>...</tree>`**, **`<kanban>...</kanban>`** (alternate roots; mapped to form/tree/kanban).
 
@@ -73,10 +73,10 @@ Module XML (standard)
 
 View inheritance
 ----------------
-  Use <record model="ir.ui.view"> with:
+  Use <record model="sys.view"> with:
     <field name="inherit_id" ref="module.xml_id_of_parent_view"/>
     <field name="arch" type="xml"> ... </field>
-  Parent must be an ir.ui.view already loaded (e.g. from a dependency module listed before this file in manifest "data").
+  Parent must be an sys.view already loaded (e.g. from a dependency module listed before this file in manifest "data").
 
   If inherit_id cannot be resolved (parent module not installed, wrong ref, or stale DB), the
   platform logs a line using the format in core/base/platformmsg/messages.go (FmtViewInheritWarning).
@@ -127,7 +127,7 @@ After adding a new addon, restart the server and install the module from /web/ap
 
 Activity and mail logging (Go)
 ------------------------------
-XML data files cannot run Go code, so there is no Odoo-style automatic `message_post` from static `<record>` rows alone. After a successful mutation in your own Go code (services, HTTP handlers, cron, and so on), import **`sumeru/core/mail`** and call **`mail.PostMessage(model, resID, body, subtype, author)`** (use **`mail.SubtypeComment`**, **`mail.SubtypeNotification`**, or **`mail.SubtypeModule`**) or **`mail.LogModuleEvent(moduleName, verb, detail)`** for **`ir.module`** audit lines. The stock server already posts from module install / uninstall / activate / update, workspace record save, and user chatter posts. Addons should follow the same pattern from their Go hooks rather than expecting XML to intercept ORM writes.
+XML data files cannot run Go code, so there is no Sumeru-style automatic `message_post` from static `<record>` rows alone. After a successful mutation in your own Go code (services, HTTP handlers, cron, and so on), import **`sumeru/core/mail`** and call **`mail.PostMessage(model, resID, body, subtype, author)`** (use **`mail.SubtypeComment`**, **`mail.SubtypeNotification`**, or **`mail.SubtypeModule`**) or **`mail.LogModuleEvent(moduleName, verb, detail)`** for **`sys.module`** audit lines. The stock server already posts from module install / uninstall / activate / update, workspace record save, and user chatter posts. Addons should follow the same pattern from their Go hooks rather than expecting XML to intercept ORM writes.
 
 Server CLI
 ----------

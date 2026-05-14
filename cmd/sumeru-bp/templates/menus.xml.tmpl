@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <!-- Root Menu -->
+        <menuitem id="menu_{{.Name}}_root" name="{{.HumanTitle}}" sequence="10" web_icon="static/src/img/icon.png"/>
+
+        <!-- Category Menu -->
+        <menuitem id="menu_{{.Name}}_category" name="Configuration" parent="menu_{{.Name}}_root" sequence="100"/>
+
+        <!-- Action Menu -->
+        <menuitem id="menu_{{.Name}}_action" name="{{.HumanTitle}}" parent="menu_{{.Name}}_root" action="action_{{.Name}}" sequence="10"/>
+    </data>
+</sumeru>

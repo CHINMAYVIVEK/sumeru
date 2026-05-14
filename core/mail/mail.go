@@ -24,7 +24,7 @@ type Row struct {
 	Author      string
 	CreateDate  time.Time
 	Model       string
-	ResID       int64
+	CoreID     int64
 }
 
 // firstCompanyID returns the primary company row id, or 0 if none.
@@ -32,7 +32,7 @@ func firstCompanyID(ctx context.Context) int64 {
 	if orm.DB == nil {
 		return 0
 	}
-	tn := orm.GetTableName("res.company")
+	tn := orm.GetTableName("core.company")
 	var id sql.NullInt64
 	if err := orm.DB.QueryRowContext(ctx, `SELECT id FROM `+tn+` ORDER BY id ASC LIMIT 1`).Scan(&id); err != nil || !id.Valid {
 		return 0
@@ -40,12 +40,12 @@ func firstCompanyID(ctx context.Context) int64 {
 	return id.Int64
 }
 
-// CompanyChatterEnabled reads mail_chatter_enabled from the first res.company row (default true).
+// CompanyChatterEnabled reads mail_chatter_enabled from the first core.company row (default true).
 func CompanyChatterEnabled(ctx context.Context) bool {
 	if orm.DB == nil {
 		return true
 	}
-	tn := orm.GetTableName("res.company")
+	tn := orm.GetTableName("core.company")
 	var b sql.NullBool
 	err := orm.DB.QueryRowContext(ctx, `SELECT mail_chatter_enabled FROM `+tn+` ORDER BY id ASC LIMIT 1`).Scan(&b)
 	if err != nil || !b.Valid {
@@ -54,12 +54,12 @@ func CompanyChatterEnabled(ctx context.Context) bool {
 	return b.Bool
 }
 
-// CompanyActivityPanelEnabled reads mail_activity_panel_enabled from the first res.company row (default true).
+// CompanyActivityPanelEnabled reads mail_activity_panel_enabled from the first core.company row (default true).
 func CompanyActivityPanelEnabled(ctx context.Context) bool {
 	if orm.DB == nil {
 		return true
 	}
-	tn := orm.GetTableName("res.company")
+	tn := orm.GetTableName("core.company")
 	var b sql.NullBool
 	err := orm.DB.QueryRowContext(ctx, `SELECT mail_activity_panel_enabled FROM `+tn+` ORDER BY id ASC LIMIT 1`).Scan(&b)
 	if err != nil || !b.Valid {
@@ -69,7 +69,7 @@ func CompanyActivityPanelEnabled(ctx context.Context) bool {
 }
 
 // PostMessage inserts a mail.message row. author may be empty (stored as "System").
-func PostMessage(ctx context.Context, model string, resID int64, body, subtype, author string) error {
+func PostMessage(ctx context.Context, model string, coreID int64, body, subtype, author string) error {
 	if orm.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -88,7 +88,7 @@ func PostMessage(ctx context.Context, model string, resID int64, body, subtype, 
 	}
 	vals := map[string]interface{}{
 		"model":        model,
-		"res_id":       int(resID),
+		"core_id":       int(coreID),
 		"body":         body,
 		"subtype":      subtype,
 		"author":       author,
@@ -102,7 +102,7 @@ func PostMessage(ctx context.Context, model string, resID int64, body, subtype, 
 }
 
 // ListCommentsForRecord returns user chatter lines (subtype comment) for a record, oldest first.
-func ListCommentsForRecord(ctx context.Context, model string, resID int64, limit int) ([]Row, error) {
+func ListCommentsForRecord(ctx context.Context, model string, coreID int64, limit int) ([]Row, error) {
 	if orm.DB == nil {
 		return nil, nil
 	}
@@ -110,9 +110,9 @@ func ListCommentsForRecord(ctx context.Context, model string, resID int64, limit
 		limit = 120
 	}
 	tn := orm.GetTableName("mail.message")
-	q := `SELECT body, subtype, author, create_date, model, res_id FROM ` + tn +
-		` WHERE model = $1 AND res_id = $2 AND subtype = $3 ORDER BY create_date ASC, id ASC LIMIT $4`
-	rows, err := orm.DB.QueryContext(ctx, q, model, resID, SubtypeComment, limit)
+	q := `SELECT body, subtype, author, create_date, model, core_id FROM ` + tn +
+		` WHERE model = $1 AND core_id = $2 AND subtype = $3 ORDER BY create_date ASC, id ASC LIMIT $4`
+	rows, err := orm.DB.QueryContext(ctx, q, model, coreID, SubtypeComment, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func ListCommentsForRecord(ctx context.Context, model string, resID int64, limit
 }
 
 // ListForRecord returns messages for a model/res_id pair, newest first.
-func ListForRecord(ctx context.Context, model string, resID int64, limit int) ([]Row, error) {
+func ListForRecord(ctx context.Context, model string, coreID int64, limit int) ([]Row, error) {
 	if orm.DB == nil {
 		return nil, nil
 	}
@@ -129,9 +129,9 @@ func ListForRecord(ctx context.Context, model string, resID int64, limit int) ([
 		limit = 80
 	}
 	tn := orm.GetTableName("mail.message")
-	q := `SELECT body, subtype, author, create_date, model, res_id FROM ` + tn +
-		` WHERE model = $1 AND res_id = $2 ORDER BY create_date DESC, id DESC LIMIT $3`
-	rows, err := orm.DB.QueryContext(ctx, q, model, resID, limit)
+	q := `SELECT body, subtype, author, create_date, model, core_id FROM ` + tn +
+		` WHERE model = $1 AND core_id = $2 ORDER BY create_date DESC, id DESC LIMIT $3`
+	rows, err := orm.DB.QueryContext(ctx, q, model, coreID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -158,13 +158,13 @@ func QueryActivityLog(ctx context.Context, limit int, ctxModel string, ctxID int
 		}
 	}
 	if ctxModel != "" && ctxID > 0 {
-		q := `SELECT body, subtype, author, create_date, model, res_id FROM ` + tn +
-			` WHERE model = 'ir.module' OR subtype = 'module' OR (subtype = 'notification' AND model = $1 AND res_id = $2)` +
+		q := `SELECT body, subtype, author, create_date, model, core_id FROM ` + tn +
+			` WHERE model = 'sys.module' OR subtype = 'module' OR (subtype = 'notification' AND model = $1 AND core_id = $2)` +
 			` ORDER BY create_date DESC, id DESC LIMIT $3`
 		rows, err = orm.DB.QueryContext(ctx, q, ctxModel, ctxID, limit)
 	} else {
-		q := `SELECT body, subtype, author, create_date, model, res_id FROM ` + tn +
-			` WHERE (model = 'ir.module' OR subtype IN ('notification','module'))` +
+		q := `SELECT body, subtype, author, create_date, model, core_id FROM ` + tn +
+			` WHERE (model = 'sys.module' OR subtype IN ('notification','module'))` +
 			` ORDER BY create_date DESC, id DESC LIMIT $1`
 		rows, err = orm.DB.QueryContext(ctx, q, limit)
 	}
@@ -180,7 +180,7 @@ func scanMessageRows(rows *sql.Rows) ([]Row, error) {
 	for rows.Next() {
 		var r Row
 		var ts time.Time
-		if err := rows.Scan(&r.Body, &r.Subtype, &r.Author, &ts, &r.Model, &r.ResID); err != nil {
+		if err := rows.Scan(&r.Body, &r.Subtype, &r.Author, &ts, &r.Model, &r.CoreID); err != nil {
 			return out, err
 		}
 		r.CreateDate = ts.UTC()
@@ -189,13 +189,13 @@ func scanMessageRows(rows *sql.Rows) ([]Row, error) {
 	return out, rows.Err()
 }
 
-// LogModuleEvent posts a row on ir.module for the given technical module name.
+// LogModuleEvent posts a row on sys.module for the given technical module name.
 func LogModuleEvent(ctx context.Context, moduleName, verb, detail string) {
 	moduleName = strings.TrimSpace(moduleName)
 	if moduleName == "" || orm.DB == nil {
 		return
 	}
-	row, err := orm.SearchOne(ctx, "ir.module", map[string]interface{}{"name": moduleName})
+	row, err := orm.SearchOne(ctx, "sys.module", map[string]interface{}{"name": moduleName})
 	if err != nil {
 		return
 	}
@@ -212,5 +212,5 @@ func LogModuleEvent(ctx context.Context, moduleName, verb, detail string) {
 	if detail != "" {
 		body = body + " — " + detail
 	}
-	_ = PostMessage(ctx, "ir.module", id, body, SubtypeModule, "System")
+	_ = PostMessage(ctx, "sys.module", id, body, SubtypeModule, "System")
 }

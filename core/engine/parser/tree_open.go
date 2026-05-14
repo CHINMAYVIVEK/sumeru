@@ -3,7 +3,7 @@ package parser
 import "strings"
 
 // treeOpenAttrDisablesRowNavigation is true when the arch attribute open="..." disables
-// opening the form from a list row (same convention as Odoo: open="false", "0", "off", "no").
+// opening the form from a list row (same convention as Sumeru: open="false", "0", "off", "no").
 func treeOpenAttrDisablesRowNavigation(open string) bool {
 	s := strings.TrimSpace(strings.ToLower(open))
 	switch s {

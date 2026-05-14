@@ -23,8 +23,8 @@ type Config struct {
 	TemplatesPath      string   // HTML templates; default core/engine/templates
 	BrandCSS           string   // optional path to extra CSS (served as /static/brand.css)
 	LogoPath           string   // optional image path (served as /static/app-logo)
-	CompanyDisplayName string   // optional header label; else first res.company when module installed
-	UserDisplayName    string   // optional header label; else first res.users when module installed
+	CompanyDisplayName string   // optional header label; else first core.company when module installed
+	UserDisplayName    string   // optional header label; else first core.user when module installed
 	LogFile            string   // optional; append logs here (multi-writer with stderr); parent dirs created
 	DevMode            bool     // dev_mode = true → enables dev-only features (e.g. unauthenticated branding fallback)
 }

@@ -11,9 +11,9 @@ func EnsureSecurityJoinIndexes() error {
 		return nil
 	}
 	stmts := []string{
-		`CREATE UNIQUE INDEX IF NOT EXISTS res_groups_users_rel_user_group_uq ON ` + GetTableName("res.groups.user.rel") + ` (user_id, group_id)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS res_groups_implied_gid_hid_uq ON ` + GetTableName("res.groups.implied") + ` (group_id, implied_group_id)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS ir_rule_group_rel_rule_group_uq ON ` + GetTableName("ir.rule.group.rel") + ` (rule_id, group_id)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS core_group_users_rel_user_group_uq ON ` + GetTableName("core.group.user.rel") + ` (user_id, group_id)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS core_group_implied_gid_hid_uq ON ` + GetTableName("core.group.implied") + ` (group_id, implied_group_id)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS sys_rule_group_rel_rule_group_uq ON ` + GetTableName("sys.rule.group.rel") + ` (rule_id, group_id)`,
 	}
 	for _, q := range stmts {
 		if _, err := DB.Exec(q); err != nil {
@@ -23,7 +23,7 @@ func EnsureSecurityJoinIndexes() error {
 	return nil
 }
 
-// NullableGroupIDForAccess returns SQL argument for ir.model.access.group_id (NULL if 0).
+// NullableGroupIDForAccess returns SQL argument for sys.access.group_id (NULL if 0).
 func NullableGroupIDForAccess(groupID int) interface{} {
 	if groupID <= 0 {
 		return nil

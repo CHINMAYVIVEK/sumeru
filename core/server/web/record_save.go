@@ -149,10 +149,10 @@ func postFormToModelValues(inst orm.Model, form url.Values) (map[string]interfac
 }
 
 func applyResUsersSecurityPost(r *http.Request, modelName string, userID int) {
-	if modelName != "res.users" || userID <= 0 {
+	if modelName != "core.user" || userID <= 0 {
 		return
 	}
-	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), "res.users", "write"); err != nil {
+	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), "core.user", "write"); err != nil {
 		return
 	}
 	if r.PostFormValue("security_groups_touched") == "1" {
@@ -174,7 +174,7 @@ func applyResUsersSecurityPost(r *http.Request, modelName string, userID int) {
 				log.Printf("web: bcrypt: %v", err)
 				return
 			}
-			tbl := orm.GetTableName("res.users")
+			tbl := orm.GetTableName("core.user")
 			if _, err := orm.DB.ExecContext(r.Context(), `UPDATE `+tbl+` SET password = $1 WHERE id = $2`, string(hash), userID); err != nil {
 				log.Printf("web: password update user %d: %v", userID, err)
 			}

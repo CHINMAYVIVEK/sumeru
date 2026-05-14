@@ -7,6 +7,18 @@ import (
 	"strings"
 )
 
+// SearchInterceptor allows addons to intercept and modify search domains.
+type SearchInterceptor func(ctx context.Context, model string, domain [][]interface{}) ([][]interface{}, error)
+
+var (
+	SearchInterceptors []SearchInterceptor
+)
+
+// RegisterSearchInterceptor adds an interceptor to the global ORM search pipeline.
+func RegisterSearchInterceptor(fn SearchInterceptor) {
+	SearchInterceptors = append(SearchInterceptors, fn)
+}
+
 // Create inserts a new record into the database
 func Create(ctx context.Context, model Model, values map[string]interface{}) (int, error) {
 	uid := SecurityUID(ctx)
@@ -43,7 +55,7 @@ func Upsert(ctx context.Context, model Model, values map[string]interface{}, con
 	if err := CheckModelAccess(ctx, uid, model.ModelName(), "create"); err != nil {
 		return 0, err
 	}
-	// Note: Odoo often skips record rules for upsert in bootstrap, but we should check them if possible.
+	// Note: Sumeru often skips record rules for upsert in bootstrap, but we should check them if possible.
 	// For simplicity, we check model access. Full record rule check on upsert is complex because we don't know if it's create or update yet.
 
 	var cols []string
@@ -169,13 +181,13 @@ func ResolveXmlId(ctx context.Context, xmlID string) (int, string, error) {
 		criteria["module"] = module
 	}
 
-	data, err := SearchOne(ctx, "ir.model.data", criteria)
+	data, err := SearchOne(ctx, "sys.model_data", criteria)
 	if err != nil {
 		return 0, "", err
 	}
-	rid, ok := CoerceInt64(data["res_id"])
+	rid, ok := CoerceInt64(data["core_id"])
 	if !ok {
-		return 0, "", fmt.Errorf("invalid res_id in ir.model.data")
+		return 0, "", fmt.Errorf("invalid core_id in sys.model_data")
 	}
 	return int(rid), AsString(data["model"]), nil
 }
@@ -189,6 +201,16 @@ func Search(ctx context.Context, modelName string, domain [][]interface{}) ([]ma
 	if err := CheckModelAccess(ctx, uid, modelName, "read"); err != nil {
 		return nil, err
 	}
+
+	// Call registered interceptors (e.g. sumeru_ai)
+	for _, interceptor := range SearchInterceptors {
+		var err error
+		domain, err = interceptor(ctx, modelName, domain)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var err error
 	domain, err = MergeRuleDomainsIntoSearch(ctx, uid, modelName, "read", domain)
 	if err != nil {
@@ -244,6 +266,16 @@ func SearchLimit(ctx context.Context, modelName string, domain [][]interface{}, 
 	if err := CheckModelAccess(ctx, uid, modelName, "read"); err != nil {
 		return nil, err
 	}
+
+	// Call registered interceptors
+	for _, interceptor := range SearchInterceptors {
+		var err error
+		domain, err = interceptor(ctx, modelName, domain)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var err error
 	domain, err = MergeRuleDomainsIntoSearch(ctx, uid, modelName, "read", domain)
 	if err != nil {
@@ -332,15 +364,15 @@ func AsString(v interface{}) string {
 	}
 }
 
-// FindUIDefaultView returns the highest-priority ir.ui.view for a model and type.
+// FindUIDefaultView returns the highest-priority sys.view for a model and type.
 // view_mode "list" maps to type "tree".
 func FindUIDefaultView(ctx context.Context, modelName, viewType string) (map[string]interface{}, error) {
-	if _, ok := Registry["ir.ui.view"]; !ok {
-		return nil, fmt.Errorf("model ir.ui.view not registered")
+	if _, ok := Registry["sys.view"]; !ok {
+		return nil, fmt.Errorf("model sys.view not registered")
 	}
 	uid := SecurityUID(ctx)
 	if !SecurityBypass(ctx) {
-		if err := CheckModelAccess(ctx, uid, "ir.ui.view", "read"); err != nil {
+		if err := CheckModelAccess(ctx, uid, "sys.view", "read"); err != nil {
 			return nil, err
 		}
 	}
@@ -348,7 +380,7 @@ func FindUIDefaultView(ctx context.Context, modelName, viewType string) (map[str
 	if vt == "list" {
 		vt = "tree"
 	}
-	tbl := GetTableName("ir.ui.view")
+	tbl := GetTableName("sys.view")
 	q := fmt.Sprintf(
 		`SELECT * FROM %s WHERE model = $1 AND type = $2 ORDER BY priority DESC NULLS LAST, id DESC LIMIT 1`,
 		tbl,

@@ -1,0 +1,122 @@
+@import "variables";
+
+// Enterprise Apps View (Kanban / Grid)
+.sum-app-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 1.5rem;
+    padding: 2rem;
+
+    .sum-app-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+
+        &:hover {
+            transform: translateY(-4px);
+            .sum-app-icon {
+                box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            }
+        }
+
+        .sum-app-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: $border-radius;
+            background: $sum-surface;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: all 0.2s ease;
+        }
+
+        .sum-app-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: $sum-ink;
+            text-align: center;
+        }
+    }
+}
+
+// Web/Form/List View Styling
+.o_form_view {
+    background-color: $sum-bg;
+    
+    .o_form_sheet {
+        max-width: 1200px;
+        margin: 1.5rem auto;
+        padding: 2.5rem;
+        background: white;
+        border-radius: $border-radius-sm;
+        box-shadow: $shadow-md;
+        border: 1px solid $sum-line;
+    }
+}
+
+.o_list_view {
+    background: white;
+    border-radius: $border-radius-sm;
+    box-shadow: $shadow-sm;
+    overflow: hidden;
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        
+        th {
+            background: $sum-surface-alt;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: $sum-muted;
+            border-bottom: 1px solid $sum-line;
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid $sum-line;
+            font-size: 0.8125rem;
+        }
+
+        tr:hover td {
+            background-color: rgba($sum-header, 0.03);
+        }
+    }
+}
+
+// Sumeru Notebooks
+.o_notebook {
+    margin-top: 2rem;
+
+    .nav-tabs {
+        display: flex;
+        border-bottom: 1px solid $sum-line;
+        gap: 1.5rem;
+
+        .nav-link {
+            padding: 0.75rem 0.25rem;
+            font-weight: 600;
+            color: $sum-muted;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+
+            &:hover {
+                color: $sum-header;
+            }
+
+            &.active {
+                color: $sum-header;
+                border-bottom-color: $sum-header;
+            }
+        }
+    }
+}

@@ -8,15 +8,15 @@ import (
 // UIModelName maps technical model names to end-user labels for the UI.
 func UIModelName(technicalModel string) string {
 	switch strings.TrimSpace(technicalModel) {
-	case "res.company":
+	case "core.company":
 		return "Companies"
-	case "res.users":
+	case "core.user":
 		return "Users"
-	case "res.partner":
+	case "core.partner":
 		return "Contacts"
-	case "res.currency":
+	case "core.currency":
 		return "Currencies"
-	case "ir.module":
+	case "sys.module":
 		return "Apps"
 	default:
 		return humanizeModelTechnical(technicalModel)
@@ -26,14 +26,14 @@ func UIModelName(technicalModel string) string {
 // HumanViewBreadcrumb returns the workspace breadcrumb segment for a view (no technical model id).
 func HumanViewBreadcrumb(technicalModel, viewType string) string {
 	switch strings.TrimSpace(technicalModel) {
-	case "res.company":
+	case "core.company":
 		switch strings.TrimSpace(viewType) {
 		case "tree", "list":
 			return "Companies"
 		default:
 			return "Company"
 		}
-	case "res.users":
+	case "core.user":
 		switch strings.TrimSpace(viewType) {
 		case "tree", "list":
 			return "Users"

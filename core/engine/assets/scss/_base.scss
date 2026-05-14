@@ -1,0 +1,47 @@
+@import "variables";
+
+:root {
+    // Export variables to CSS custom properties for JS access if needed
+    --sum-bg: #{$sum-bg};
+    --sum-surface: #{$sum-surface};
+    --sum-ink: #{$sum-ink};
+    --sum-header: #{$sum-header};
+}
+
+body.sum-body {
+    margin: 0;
+    background-color: $sum-bg !important;
+    color: $sum-ink;
+    font-family: $font-sans;
+    font-size: $font-size-base;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+// Global Number Formatting
+// Automatically apply mono font to all numeric data
+input[type="number"],
+.sum-number,
+.o_list_number,
+.o_price,
+.sum-badge-count {
+    @include font-numbers;
+}
+
+// Global Scrollbar (Sumeru Style)
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    &:hover {
+        background: rgba(0, 0, 0, 0.2);
+    }
+}

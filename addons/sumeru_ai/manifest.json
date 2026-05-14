@@ -1,0 +1,10 @@
+{
+  "name": "sumeru_ai",
+  "display_name": "Sumeru AI",
+  "version": "1.0.0",
+  "author": "Sumeru",
+  "description": "AI assistance and schema discovery for Sumeru ERP.",
+  "depends": ["base"],
+  "application": true,
+  "data": []
+}

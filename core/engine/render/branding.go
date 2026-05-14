@@ -3,6 +3,7 @@ package render
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"strings"
 	"time"
 
@@ -38,8 +39,8 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 		return
 	}
 	if d.ShellCompany == "" {
-		if _, ok := orm.Registry["res.company"]; ok {
-			tn := orm.GetTableName("res.company")
+		if _, ok := orm.Registry["core.company"]; ok {
+			tn := orm.GetTableName("core.company")
 			var name string
 			if err := orm.DB.QueryRowContext(ctx, `SELECT name FROM `+tn+` ORDER BY id ASC LIMIT 1`).Scan(&name); err == nil && strings.TrimSpace(name) != "" {
 				d.ShellCompany = strings.TrimSpace(name)
@@ -48,7 +49,7 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 	}
 	if d.ShellUser == "" {
 		if uid := orm.UIDFromContext(ctx); uid > 0 {
-			if u, err := orm.SearchOne(ctx, "res.users", map[string]interface{}{"id": uid}); err == nil {
+			if u, err := orm.SearchOne(ctx, "core.user", map[string]interface{}{"id": uid}); err == nil {
 				d.ShellUser = strings.TrimSpace(orm.AsString(u["name"]))
 				if d.ShellUser == "" {
 					d.ShellUser = strings.TrimSpace(orm.AsString(u["login"]))
@@ -58,8 +59,8 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 	}
 	// Fallback: only in dev mode — avoids leaking the admin name to unauthenticated users.
 	if d.ShellUser == "" && config.AppConfig.DevMode {
-		if _, ok := orm.Registry["res.users"]; ok {
-			tn := orm.GetTableName("res.users")
+		if _, ok := orm.Registry["core.user"]; ok {
+			tn := orm.GetTableName("core.user")
 			var nm string
 			q := `SELECT COALESCE(NULLIF(TRIM(name), ''), TRIM(login), '') FROM ` + tn + ` ORDER BY id ASC LIMIT 1`
 			if err := orm.DB.QueryRowContext(ctx, q).Scan(&nm); err == nil && strings.TrimSpace(nm) != "" {
@@ -95,6 +96,13 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 		}
 		d.ActivityLogItems = append(d.ActivityLogItems, ActivityItem{Meta: meta, Body: strings.TrimSpace(r.Body)})
 	}
+
+	// EXECUTE SHELL HOOKS (e.g. AI Assistant)
+	var shellExtra strings.Builder
+	for _, hook := range ShellHooks {
+		shellExtra.WriteString(string(hook(ctx, nil, false)))
+	}
+	d.ShellExtraHTML = template.HTML(shellExtra.String())
 }
 
 func shortRelTime(t time.Time) string {

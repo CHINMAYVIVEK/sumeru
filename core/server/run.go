@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"sumeru/core/orm"
+	"sumeru/core/engine/assets"
+	"sumeru/core/module"
 	"sumeru/core/server/config"
 	"sumeru/core/server/web"
 )
@@ -73,11 +75,11 @@ func Run() {
 		log.Fatalf("Schema sync (model-driven): %v", err)
 	}
 
-	if err := orm.BackfillIrUiMenuModule(); err != nil {
-		log.Printf("Warning: backfill ir_ui_menu.module: %v", err)
+	if err := orm.BackfillSysMenuModule(); err != nil {
+		log.Printf("Warning: backfill sys.menu.module: %v", err)
 	}
-	if err := orm.EnsureIrUiViewArchText(); err != nil {
-		log.Printf("Note: ir_ui_view.arch column: %v", err)
+	if err := orm.EnsureSysViewArchText(); err != nil {
+		log.Printf("Note: sys.view.arch column: %v", err)
 	}
 	if err := orm.EnsureMailMessageModelResIndex(); err != nil {
 		log.Fatalf("Schema migrate (mail.message index): %v", err)
@@ -85,6 +87,15 @@ func Run() {
 
 	if err := LoadAddonPaths(config.AppConfig.AddonPaths); err != nil {
 		log.Fatalf("Addon load / convention: %v", err)
+	}
+
+	// Dynamic SCSS Rebuild
+	addonPaths := map[string]string{}
+	for name, addon := range module.LoadedAddons {
+		addonPaths[name] = addon.Path
+	}
+	if err := assets.RebuildSCSSManifest(config.AppConfig.SumeruHome, addonPaths); err != nil {
+		log.Printf("Warning: SCSS Manifest rebuild failed: %v", err)
 	}
 
 	if err := RunModuleCLI(*installMods, *updateMods); err != nil {

@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// applyIrUIViewInherit merges an ir.ui.view inherit <record> into the parent view row (same DB id).
-func applyIrUIViewInherit(ctx context.Context, modName string, rec parser.Record) error {
+// applySysUIViewInherit merges an sys.view inherit <record> into the parent view row (same DB id).
+func applySysUIViewInherit(ctx context.Context, modName string, rec parser.Record) error {
 	fm := parser.RecordFieldMap(rec)
 	ref := strings.TrimSpace(fm["inherit_id"])
 	frag := fm["arch"]
@@ -24,7 +24,7 @@ func applyIrUIViewInherit(ctx context.Context, modName string, rec parser.Record
 	if err != nil || parentID == 0 {
 		return fmt.Errorf("resolve inherit_id %q: %w", ref, err)
 	}
-	parent, err := orm.SearchOne(ctx, "ir.ui.view", map[string]interface{}{"id": parentID})
+	parent, err := orm.SearchOne(ctx, "sys.view", map[string]interface{}{"id": parentID})
 	if err != nil {
 		return fmt.Errorf("load parent view id %d: %w", parentID, err)
 	}
@@ -36,17 +36,17 @@ func applyIrUIViewInherit(ctx context.Context, modName string, rec parser.Record
 	if err != nil {
 		return fmt.Errorf("merge inherit %q: %w", rec.ID, err)
 	}
-	tbl := orm.GetTableName("ir.ui.view")
+	tbl := orm.GetTableName("sys.view")
 	if _, err := orm.DB.ExecContext(ctx, `UPDATE `+tbl+` SET arch = $1 WHERE id = $2`, merged, parentID); err != nil {
 		return err
 	}
 	// Optional: map extension xml id to parent row for external id lookups
 	if rec.ID != "" {
-		if _, err := orm.Upsert(ctx, orm.IrModelData{}, map[string]interface{}{
+		if _, err := orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
 			"module": modName,
 			"name":   rec.ID,
-			"model":  "ir.ui.view",
-			"res_id": parentID,
+			"model":  "sys.view",
+			"core_id": parentID,
 		}, "name"); err != nil {
 			return err
 		}

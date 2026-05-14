@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <!-- sys.view : core.user (kanban) -->
+        <view id="view_core.user_kanban" model="core.user" type="kanban">
+            <field name="name" string="Name"/>
+            <field name="login" string="Login"/>
+            <field name="email" string="Email"/>
+        </view>
+    </data>
+</sumeru>

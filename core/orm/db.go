@@ -7,14 +7,15 @@ import (
 	"log"
 )
 
-var DB *sql.DB
+var DB DBWrapper
 
 func InitDB(connStr string) {
-	var err error
-	DB, err = sql.Open("postgres", connStr)
+	rawDB, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}
+
+	DB = NewDBWrapper(rawDB)
 
 	err = DB.Ping()
 	if err != nil {

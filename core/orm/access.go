@@ -15,7 +15,7 @@ func EffectiveGroupIDs(ctx context.Context, uid int) ([]int, error) {
 		return nil, nil
 	}
 	if uid == superuserUID {
-		rows, err := DB.QueryContext(ctx, `SELECT id FROM `+GetTableName("res.groups")+` ORDER BY id`)
+		rows, err := DB.QueryContext(ctx, `SELECT id FROM `+GetTableName("core.group")+` ORDER BY id`)
 		if err != nil {
 			return nil, err
 		}
@@ -31,7 +31,7 @@ func EffectiveGroupIDs(ctx context.Context, uid int) ([]int, error) {
 		return all, rows.Err()
 	}
 	rows, err := DB.QueryContext(ctx,
-		`SELECT group_id FROM `+GetTableName("res.groups.user.rel")+` WHERE user_id = $1`,
+		`SELECT group_id FROM `+GetTableName("core.group.user.rel")+` WHERE user_id = $1`,
 		uid,
 	)
 	if err != nil {
@@ -56,7 +56,7 @@ func EffectiveGroupIDs(ctx context.Context, uid int) ([]int, error) {
 		out[g] = struct{}{}
 		queue = append(queue, g)
 	}
-	implTbl := GetTableName("res.groups.implied")
+	implTbl := GetTableName("core.group.implied")
 	for len(queue) > 0 {
 		gid := queue[0]
 		queue = queue[1:]
@@ -119,7 +119,7 @@ func CheckModelAccess(ctx context.Context, uid int, model string, op string) err
 	if want == "" {
 		return fmt.Errorf("unknown operation %q", op)
 	}
-	accTbl := GetTableName("ir.model.access")
+	accTbl := GetTableName("sys.access")
 	q := `SELECT group_id, ` + want + ` FROM ` + accTbl + ` WHERE model = $1 AND ` + want + ` = true`
 	rows, err := DB.QueryContext(ctx, q, model)
 	if err != nil {
@@ -161,7 +161,7 @@ func permColumnForOp(op string) string {
 }
 
 // ApplicableRuleDomains returns parsed domains for rules that apply to uid on model for op.
-// Implements Odoo-style logic: (Global rules ANDed) AND (Group rules ORed together).
+// Implements Sumeru-style logic: (Global rules ANDed) AND (Group rules ORed together).
 func ApplicableRuleDomains(ctx context.Context, uid int, model string, op string) ([][][]interface{}, error) {
 	if SecurityBypass(ctx) || uid == superuserUID {
 		return nil, nil
@@ -177,8 +177,8 @@ func ApplicableRuleDomains(ctx context.Context, uid int, model string, op string
 	if err != nil {
 		return nil, err
 	}
-	ruleTbl := GetTableName("ir.rule")
-	relTbl := GetTableName("ir.rule.group.rel")
+	ruleTbl := GetTableName("sys.rule")
+	relTbl := GetTableName("sys.rule.group.rel")
 	q := `SELECT r.id, r.domain_force, r.active, r.` + col + ` FROM ` + ruleTbl + ` r WHERE r.model = $1 AND r.active = true AND r.` + col + ` = true`
 	rows, err := DB.QueryContext(ctx, q, model)
 	if err != nil {
@@ -244,7 +244,7 @@ func ApplicableRuleDomains(ctx context.Context, uid int, model string, op string
 		return nil, err
 	}
 
-	// Odoo logic: (Global1 AND Global2 ...) AND (GroupRule1 OR GroupRule2 ...)
+	// Sumeru logic: (Global1 AND Global2 ...) AND (GroupRule1 OR GroupRule2 ...)
 	// Global domains are returned individually so callers AND all of them.
 	// Group domains are OR-merged into a single domain using the "|" prefix operator.
 	out := append([][][]interface{}(nil), globalDomains...)
@@ -257,7 +257,7 @@ func ApplicableRuleDomains(ctx context.Context, uid int, model string, op string
 		out = append(out, groupDomains[0])
 	default:
 		// Multiple group rules — OR-merge them.
-		// Odoo prefix-Polish OR: prepend (N-1) "|" operators then all N leaf conditions.
+		// Sumeru prefix-Polish OR: prepend (N-1) "|" operators then all N leaf conditions.
 		merged := [][]interface{}{}
 		for i := 0; i < len(groupDomains)-1; i++ {
 			merged = append(merged, []interface{}{"|"})
@@ -351,7 +351,7 @@ func CheckStageApproval(ctx context.Context, model string, id int, targetState s
 	}
 	currentState := AsString(before["state"])
 
-	appTbl := GetTableName("ir.approval.rule")
+	appTbl := GetTableName("sys.approval_rule")
 	// Find rules for this model and target state
 	q := `SELECT group_id, COALESCE(from_state, '') FROM ` + appTbl + ` WHERE model = $1 AND to_state = $2 AND require_approval = true`
 	rows, err := DB.QueryContext(ctx, q, model, targetState)
@@ -393,7 +393,7 @@ func SetUserGroupLinks(ctx context.Context, userID int, groupIDs []int) error {
 	if DB == nil {
 		return fmt.Errorf("no database")
 	}
-	tbl := GetTableName("res.groups.user.rel")
+	tbl := GetTableName("core.group.user.rel")
 	if _, err := DB.ExecContext(ctx, `DELETE FROM `+tbl+` WHERE user_id = $1`, userID); err != nil {
 		return err
 	}
@@ -410,5 +410,5 @@ func SetUserGroupLinks(ctx context.Context, userID int, groupIDs []int) error {
 
 // ListAllGroupRows returns id,name for UI pickers.
 func ListAllGroupRows(ctx context.Context) ([]map[string]interface{}, error) {
-	return Search(ctx, "res.groups", nil)
+	return Search(ctx, "core.group", nil)
 }

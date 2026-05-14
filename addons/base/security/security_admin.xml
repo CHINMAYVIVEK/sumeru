@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <!-- ============================================================
+             core.group — tree + form
+        ============================================================ -->
+        <view id="view_core.group_tree" model="core.group" type="tree">
+            <field name="name" string="Name"/>
+            <field name="category" string="Category"/>
+            <field name="sequence" string="Sequence"/>
+        </view>
+
+        <view id="view_core.group_form" model="core.group" type="form">
+            <sheet>
+                <div class="oe_title">
+                    <h1>
+                        <field name="name" placeholder="e.g. Sales / User"/>
+                    </h1>
+                </div>
+                <group>
+                    <group string="Identification">
+                        <field name="category" string="Category"/>
+                        <field name="sequence" string="Display Order"/>
+                    </group>
+                </group>
+            </sheet>
+        </view>
+
+        <!-- ============================================================
+             sys.access — tree + form
+        ============================================================ -->
+        <view id="view_sys.access_tree" model="sys.access" type="tree">
+            <field name="name" string="Name"/>
+            <field name="model" string="Model"/>
+            <field name="perm_read" string="Read"/>
+            <field name="perm_write" string="Write"/>
+            <field name="perm_create" string="Create"/>
+            <field name="perm_unlink" string="Delete"/>
+        </view>
+
+        <view id="view_sys.access_form" model="sys.access" type="form">
+            <sheet>
+                <div class="oe_title">
+                    <h1>
+                        <field name="name" placeholder="e.g. access_sale_order_manager"/>
+                    </h1>
+                </div>
+                <group>
+                    <group string="Scope">
+                        <field name="model" string="Model (technical name)"/>
+                        <field name="group_id" string="Group (leave empty for global)"/>
+                    </group>
+                    <group string="Permissions">
+                        <field name="perm_read" string="Read"/>
+                        <field name="perm_write" string="Write"/>
+                        <field name="perm_create" string="Create"/>
+                        <field name="perm_unlink" string="Delete"/>
+                    </group>
+                </group>
+            </sheet>
+        </view>
+
+        <!-- ============================================================
+             sys.rule — tree + form
+        ============================================================ -->
+        <view id="view_sys.rule_tree" model="sys.rule" type="tree">
+            <field name="name" string="Name"/>
+            <field name="model" string="Model"/>
+            <field name="active" string="Active"/>
+        </view>
+
+        <view id="view_sys.rule_form" model="sys.rule" type="form">
+            <sheet>
+                <div class="oe_title">
+                    <h1>
+                        <field name="name" placeholder="e.g. Sales: own records only"/>
+                    </h1>
+                </div>
+                <group>
+                    <group string="Scope">
+                        <field name="model" string="Model (technical name)"/>
+                        <field name="active" string="Active"/>
+                    </group>
+                    <group string="Applicable Operations">
+                        <field name="perm_read" string="Read"/>
+                        <field name="perm_write" string="Write"/>
+                        <field name="perm_create" string="Create"/>
+                        <field name="perm_unlink" string="Delete"/>
+                    </group>
+                </group>
+                <group>
+                    <group string="Domain Filter" colspan="2">
+                        <field name="domain_force" string="Domain (JSON, e.g. [[&quot;user_id&quot;,&quot;=&quot;,&quot;uid&quot;]])"/>
+                    </group>
+                </group>
+            </sheet>
+        </view>
+
+        <!-- ============================================================
+             Actions — point to both tree and form so "New" works
+        ============================================================ -->
+        <record id="access_action_core.group" model="sys.action.window">
+            <field name="name">access_action_core.group</field>
+            <field name="core_model">core.group</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <record id="access_action_sys.access" model="sys.action.window">
+            <field name="name">access_action_sys.access</field>
+            <field name="core_model">sys.access</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <record id="access_action_sys.rule" model="sys.action.window">
+            <field name="name">access_action_sys.rule</field>
+            <field name="core_model">sys.rule</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <!-- ============================================================
+             Menus (Settings > Configuration) — admin only
+        ============================================================ -->
+        <menuitem id="menu_security_groups"  name="Groups"        parent="settings.menu_company_configuration" sequence="15" action="settings.access_action_core.group"       groups="settings.group_system" web_icon="users"/>
+        <menuitem id="menu_security_access"  name="Access Rights" parent="settings.menu_company_configuration" sequence="16" action="settings.access_action_sys.access"  groups="settings.group_system" web_icon="settings"/>
+        <menuitem id="menu_security_rules"   name="Record Rules"  parent="settings.menu_company_configuration" sequence="17" action="settings.access_action_sys.rule"           groups="settings.group_system" web_icon="settings"/>
+    </data>
+</sumeru>

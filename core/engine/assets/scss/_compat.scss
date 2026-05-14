@@ -1,0 +1,49 @@
+@import "variables";
+
+// Legacy Compatibility Layer
+// Supports utility classes and older naming conventions
+
+.field {
+    margin-bottom: 1.25rem;
+    
+    label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: $sum-muted;
+        margin-bottom: 0.35rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    input, textarea, select {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+        border: 1px solid $gray-200;
+        border-radius: $border-radius-sm;
+        transition: border-color 0.15s ease;
+
+        &:focus {
+            outline: none;
+            border-color: $sum-header;
+            box-shadow: 0 0 0 3px rgba($sum-header, 0.1);
+        }
+    }
+}
+
+// Mini Tailwind Compat
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 0.5rem; }
+.p-4 { padding: 1rem; }
+.m-0 { margin: 0; }
+
+.text-success { color: $success; }
+.text-danger { color: $danger; }
+.text-warning { color: $warning; }
+
+.rounded-lg { border-radius: $border-radius; }
+.shadow-sm { box-shadow: $shadow-sm; }

@@ -48,7 +48,7 @@ func UpdateModuleData(ctx context.Context, name string) error {
 }
 
 // RunModuleCLI runs -i (install) and -u (update) lists. Install runs before update.
-// For -u, the token "all" (case-insensitive) means every module with ir.module.state = installed,
+// For -u, the token "all" (case-insensitive) means every module with sys.module.state = installed,
 // in dependency order when manifests are on disk.
 func RunModuleCLI(installCSV, updateCSV string) error {
 	ctx := orm.ContextWithBypass(context.Background(), true)
@@ -71,7 +71,7 @@ func RunModuleCLI(installCSV, updateCSV string) error {
 }
 
 func listInstalledModuleNames(ctx context.Context) ([]string, error) {
-	q := `SELECT name FROM ` + orm.GetTableName("ir.module") + ` WHERE state = $1 ORDER BY name`
+	q := `SELECT name FROM ` + orm.GetTableName("sys.module") + ` WHERE state = $1 ORDER BY name`
 	rows, err := orm.DB.QueryContext(ctx, q, "installed")
 	if err != nil {
 		return nil, fmt.Errorf("list installed modules: %w", err)
@@ -89,7 +89,7 @@ func listInstalledModuleNames(ctx context.Context) ([]string, error) {
 }
 
 // expandUpdateModuleNames resolves -u all into installed module names, dedupes, and orders by addon dependency topo.
-// Installed rows not present on disk (stale ir.module) are skipped for "all" only.
+// Installed rows not present on disk (stale sys.module) are skipped for "all" only.
 func expandUpdateModuleNames(ctx context.Context, parts []string) ([]string, error) {
 	if len(parts) == 0 {
 		return nil, nil

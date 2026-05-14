@@ -83,7 +83,7 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 	if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
 		next = "/web/apps"
 	}
-	tbl := orm.GetTableName("res.users")
+	tbl := orm.GetTableName("core.user")
 	var id int
 	var hash string
 	var active bool
