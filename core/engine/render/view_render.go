@@ -21,7 +21,7 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 	case "form":
 		content = RenderForm(ctx, view, recData)
 	case "tree", "list":
-		content = RenderTree(ctx, view, recData.ListRows, recData.ActionID, activeMenuID, recData.ViewTabs)
+		content = RenderTree(ctx, view, recData.ListRows, recData.ActionID, activeMenuID)
 	case "kanban":
 		content = RenderKanban(ctx, view, recData.ListRows, recData.ActionID, activeMenuID)
 	case "pivot":
@@ -54,7 +54,6 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 		ViewTabs:                recData.ViewTabs,
 		ActivityContextModel:    actCtxModel,
 		ActivityContextRecordID: actCtxID,
-		HideBreadcrumbViewTabs:  strings.EqualFold(view.Type, "tree") || strings.EqualFold(view.Type, "list"),
 		SettingsNavActive:       IsMenuUnderSettingsRoot(ctx, activeMenuID),
 		BreadcrumbItems:         BuildWorkspaceBreadcrumbs(ctx, activeMenuID, view.Type, viewBC, recData.FormBaseQuery, recData.Record, recData.RecordID),
 	}

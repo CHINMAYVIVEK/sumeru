@@ -12,7 +12,7 @@ import (
 )
 
 // RenderTree renders list/tree HTML for workspace views.
-func RenderTree(_ context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string, viewTabs []ViewSwitchTab) string {
+func RenderTree(_ context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string) string {
 	if rows == nil {
 		rows = []map[string]interface{}{}
 	}
@@ -40,22 +40,6 @@ func RenderTree(_ context.Context, view *parser.View, rows []map[string]interfac
 		sb.WriteString(fmt.Sprintf(`<span class="sum-tree-pager" aria-live="polite">1-%d / %d</span>`, n, n))
 	} else {
 		sb.WriteString(`<span class="sum-tree-pager">0 / 0</span>`)
-	}
-	sb.WriteString(`<div class="sum-tree-view-tabs" role="toolbar" aria-label="Switch view">`)
-	for _, t := range viewTabs {
-		active := ""
-		if t.Active {
-			active = " is-active"
-		}
-		sb.WriteString(`<a href="` + template.HTMLEscapeString(t.Href) + `" class="sum-tree-view-tab` + active + `" data-view="` + template.HTMLEscapeString(t.Mode) + `" title="` + template.HTMLEscapeString(t.Label) + `">`)
-		if t.Mode == "kanban" {
-			sb.WriteString(`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>`)
-		} else if t.Mode == "tree" {
-			sb.WriteString(`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>`)
-		} else {
-			sb.WriteString(`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>`)
-		}
-		sb.WriteString(`</a>`)
 	}
 	sb.WriteString(`</div></div>`)
 	sb.WriteString(`</div>`)

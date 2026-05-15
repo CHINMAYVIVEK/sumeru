@@ -111,12 +111,7 @@
                     </nav>
                 </div>
                 <div class="sum-breadcrumb-right">
-                    {{if .ActivityEnabled}}
-                    <button type="button" id="sum-activity-toggle" class="sum-icon-btn sum-icon-btn--subtle sum-activity-toggle-btn" aria-label="Toggle messages and log panel" title="Messages / Log" aria-pressed="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                    </button>
-                    {{end}}
-                    {{if and .ViewTabs (not .HideBreadcrumbViewTabs)}}
+                    {{if .ViewTabs}}
                     <div class="sum-view-toolbar sum-view-toolbar--inline" role="toolbar" aria-label="Switch view">
                         {{range .ViewTabs}}
                         <a href="{{.Href}}" class="sum-view-tab {{if .Active}}is-active{{end}}" data-view="{{.Mode}}" title="{{.Label}}">
@@ -145,6 +140,11 @@
                         </a>
                         {{end}}
                     </div>
+                    {{end}}
+                    {{if .ActivityEnabled}}
+                    <button type="button" id="sum-activity-toggle" class="sum-icon-btn sum-icon-btn--subtle sum-activity-toggle-btn" aria-label="Toggle messages and log panel" title="Messages / Log" aria-pressed="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                    </button>
                     {{end}}
                 </div>
             </div>

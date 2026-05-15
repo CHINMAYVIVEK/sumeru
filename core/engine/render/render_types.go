@@ -49,13 +49,12 @@ type PageData struct {
 	ExtraStylesheetURLs []string
 	LogoURL             string
 	// BrandLockupHref is the shell logo/name link target (default: home dashboard via EnrichShellPageData).
-	BrandLockupHref        string
-	ShellCompany           string
-	ShellUser              string
-	UserInitial            string          // first letter for avatar
-	ShellExtraHTML         template.HTML   // AI Assistant or other shell widgets
-	ViewTabs               []ViewSwitchTab // workspace view switcher; empty hides toolbar
-	HideBreadcrumbViewTabs bool            // true on tree/list (tabs appear in list control panel)
+	BrandLockupHref string
+	ShellCompany    string
+	ShellUser       string
+	UserInitial     string          // first letter for avatar
+	ShellExtraHTML  template.HTML   // AI Assistant or other shell widgets
+	ViewTabs        []ViewSwitchTab // workspace view switcher in breadcrumb bar; empty hides toolbar
 
 	// BreadcrumbTrail: when non-empty, base.html renders linked crumbs; otherwise legacy ModuleName/ViewBreadcrumb.
 	BreadcrumbItems []BreadcrumbItem

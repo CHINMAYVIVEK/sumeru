@@ -163,49 +163,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sum-tree-view-tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15rem;
-  padding: 0.15rem;
-  border-radius: var(--sum-radius-sm);
-  background: var(--sum-surface-alt);
-  border: 1px solid var(--sum-line);
-}
-
-.sum-tree-view-tab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.45rem;
-  color: var(--sum-muted);
-  border: 1px solid transparent;
-  background: transparent;
-  text-decoration: none !important;
-  transition:
-    background var(--sum-dur) var(--sum-ease),
-    color var(--sum-dur) var(--sum-ease),
-    border-color var(--sum-dur) var(--sum-ease);
-}
-
-.sum-tree-view-tab svg {
-  display: block;
-}
-
-.sum-tree-view-tab:hover {
-  color: var(--sum-header);
-  background: var(--sum-row-hover-bg);
-}
-
-.sum-tree-view-tab.is-active {
-  color: var(--sum-header);
-  background: var(--sum-surface);
-  border-color: var(--sum-line);
-  box-shadow: var(--sum-shadow-sm);
-}
-
 /* —— Premium data table —— */
 .sum-web-table-wrap.sum-tree-table-wrap,
 .sum-tree-table-wrap {
