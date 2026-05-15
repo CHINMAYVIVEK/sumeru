@@ -3,6 +3,7 @@
  * Each imported module owns one concern.
  */
 import { initSidebar } from "./shell/sidebar.js";
+import { initTopbarDropdowns } from "./shell/topbar-dropdowns.js";
 import { initActivityPanel } from "./shell/activity-panel.js";
 import { initNotebookTabs } from "./ui/notebook-tabs.js";
 import { initAjaxFormCapture } from "./ui/ajax-form.js";
@@ -15,6 +16,7 @@ import { initMessagesComposer } from "./ui/messages-composer.js";
   if (!shell) return;
 
   initSidebar(shell);
+  initTopbarDropdowns(shell);
   initActivityPanel(shell);
   initNotebookTabs();
   initAjaxFormCapture();

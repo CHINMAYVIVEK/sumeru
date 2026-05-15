@@ -5,9 +5,11 @@ import (
 	"html/template"
 	"net/url"
 	"strings"
+
+	"sumeru/core/engine/parser"
 )
 
-func renderWorkspaceFormChrome(sb *strings.Builder, vr *ViewRecordData) {
+func renderWorkspaceFormToolbar(sb *strings.Builder, vr *ViewRecordData, header *parser.Header, record map[string]interface{}) {
 	if vr == nil || strings.TrimSpace(vr.ResModel) == "" {
 		return
 	}
@@ -38,18 +40,41 @@ func renderWorkspaceFormChrome(sb *strings.Builder, vr *ViewRecordData) {
 	}
 	nextEsc := template.HTMLEscapeString(cancelURL)
 
-	sb.WriteString(`<div class="sum-ws-form-chrome">`)
+	sb.WriteString(`<div class="sum-tree-control sum-ws-record-toolbar">`)
+	sb.WriteString(`<div class="sum-tree-control-left">`)
+
 	if hasID && !vr.FormEditing {
-		sb.WriteString(`<a href="` + template.HTMLEscapeString(editURL) + `" class="sum-ws-btn sum-ws-btn--ghost">Edit</a>`)
+		sb.WriteString(`<a href="` + template.HTMLEscapeString(editURL) + `" class="sum-tree-btn-ghost">Edit</a>`)
 	}
 	if hasID && vr.FormEditing {
-		sb.WriteString(`<button type="submit" form="sum-workspace-record-form" class="sum-ws-btn sum-ws-btn--primary">Save</button>`)
-		sb.WriteString(`<a href="` + template.HTMLEscapeString(cancelURL) + `" class="sum-ws-btn sum-ws-btn--ghost">Cancel</a>`)
+		sb.WriteString(`<button type="submit" form="sum-workspace-record-form" class="sum-tree-btn-new">Save</button>`)
+		sb.WriteString(`<a href="` + template.HTMLEscapeString(cancelURL) + `" class="sum-tree-btn-ghost">Cancel</a>`)
 	}
 	if !hasID {
-		sb.WriteString(`<button type="submit" form="sum-workspace-record-form" class="sum-ws-btn sum-ws-btn--primary">Save</button>`)
-		sb.WriteString(`<a href="` + template.HTMLEscapeString(cancelURL) + `" class="sum-ws-btn sum-ws-btn--ghost">Cancel</a>`)
+		sb.WriteString(`<button type="submit" form="sum-workspace-record-form" class="sum-tree-btn-new">Save</button>`)
+		sb.WriteString(`<a href="` + template.HTMLEscapeString(cancelURL) + `" class="sum-tree-btn-ghost">Cancel</a>`)
 	}
+
+	if header != nil {
+		for _, b := range header.Button {
+			class := "sum-header-btn "
+			if b.Class == "sum_highlight" {
+				class += "sum-header-btn--primary"
+			} else {
+				class += "sum-header-btn--secondary"
+			}
+			sb.WriteString(fmt.Sprintf(`<button type="button" disabled class="%s sum-header-btn--disabled">%s</button>`, class, template.HTMLEscapeString(b.String)))
+		}
+	}
+
+	sb.WriteString(`</div>`)
+
+	sb.WriteString(`<div class="sum-ws-toolbar-right">`)
+	if header != nil {
+		writeStatusbarChips(sb, header, record)
+	}
+	sb.WriteString(`</div>`)
+
 	sb.WriteString(`</div>`)
 
 	sb.WriteString(`<form id="sum-workspace-record-form" method="post" action="` + template.HTMLEscapeString(saveAct) + `" class="sum-workspace-record-form">`)

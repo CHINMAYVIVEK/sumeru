@@ -32,6 +32,12 @@ func RegisterNotebookHook(model, pageTitle string, hook UIHook) {
 	NotebookHooks[model][strings.ToLower(pageTitle)] = hook
 }
 
+// ShellCompanyOption is one row in the shell company switcher.
+type ShellCompanyOption struct {
+	ID   int
+	Name string
+}
+
 // PageData is the top-level template payload for base.html.
 type PageData struct {
 	Title               string // legacy / diagnostics; prefer ViewBreadcrumb for UI
@@ -49,12 +55,21 @@ type PageData struct {
 	ExtraStylesheetURLs []string
 	LogoURL             string
 	// BrandLockupHref is the shell logo/name link target (default: home dashboard via EnrichShellPageData).
-	BrandLockupHref string
-	ShellCompany    string
-	ShellUser       string
-	UserInitial     string          // first letter for avatar
-	ShellExtraHTML  template.HTML   // AI Assistant or other shell widgets
-	ViewTabs        []ViewSwitchTab // workspace view switcher in breadcrumb bar; empty hides toolbar
+	BrandLockupHref   string
+	ShellCompany      string
+	ShellUser         string
+	UserInitial       string          // legacy single-letter hint; prefer ShellUserInitials in shell chrome
+	ShellUserInitials string          // two-letter avatar label in top bar
+	ShellExtraHTML    template.HTML   // AI Assistant or other shell widgets
+	ViewTabs          []ViewSwitchTab // workspace view switcher in breadcrumb bar; empty hides toolbar
+
+	// ShellCompanyOptions lists companies for the top bar switcher (empty when core.company missing).
+	ShellCompanyOptions  []ShellCompanyOption
+	ShellActiveCompanyID int // current user's company_id when logged in
+	ShowCompanySwitcher  bool
+	// UserProfileHref and UserDocsHref are targets for the user dropdown (shell chrome).
+	UserProfileHref string
+	UserDocsHref    string
 
 	// BreadcrumbTrail: when non-empty, base.html renders linked crumbs; otherwise legacy ModuleName/ViewBreadcrumb.
 	BreadcrumbItems []BreadcrumbItem

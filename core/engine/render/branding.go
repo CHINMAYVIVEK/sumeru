@@ -44,31 +44,42 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 	if strings.TrimSpace(d.BrandLockupHref) == "" {
 		d.BrandLockupHref = "/web/home"
 	}
+	if strings.TrimSpace(d.UserProfileHref) == "" {
+		d.UserProfileHref = "/web/settings"
+	}
+	if strings.TrimSpace(d.UserDocsHref) == "" {
+		d.UserDocsHref = "https://github.com"
+	}
 	d.ShellCompany = strings.TrimSpace(shell.Company)
 	d.ShellUser = strings.TrimSpace(shell.User)
 	if orm.DB == nil {
+		d.applyShellUserInitials()
 		return
 	}
-	if d.ShellCompany == "" {
-		if _, ok := orm.Registry["core.company"]; ok {
-			tn := orm.GetTableName("core.company")
-			var name string
-			if err := orm.DB.QueryRowContext(ctx, `SELECT name FROM `+tn+` ORDER BY id ASC LIMIT 1`).Scan(&name); err == nil && strings.TrimSpace(name) != "" {
-				d.ShellCompany = strings.TrimSpace(name)
-			}
-		}
-	}
-	if d.ShellUser == "" {
-		if uid := orm.UIDFromContext(ctx); uid > 0 {
-			if u, err := orm.SearchOne(ctx, "core.user", map[string]interface{}{"id": uid}); err == nil {
+
+	d.ShellCompanyOptions = loadShellCompanies(ctx)
+	d.ShowCompanySwitcher = len(d.ShellCompanyOptions) > 1
+
+	uid := orm.UIDFromContext(ctx)
+	activeCID := 0
+	if uid > 0 {
+		if u, err := orm.SearchOne(ctx, "core.user", map[string]interface{}{"id": uid}); err == nil {
+			if d.ShellUser == "" {
 				d.ShellUser = strings.TrimSpace(orm.AsString(u["name"]))
 				if d.ShellUser == "" {
 					d.ShellUser = strings.TrimSpace(orm.AsString(u["login"]))
 				}
 			}
+			if id, ok := orm.CoerceInt64(u["company_id"]); ok && id > 0 {
+				activeCID = int(id)
+			}
 		}
 	}
-	// Fallback: only in dev mode — avoids leaking the admin name to unauthenticated users.
+	d.ShellActiveCompanyID = activeCID
+
+	if d.ShellCompany == "" {
+		d.ShellCompany = shellCompanyNameFromOptions(d.ShellCompanyOptions, activeCID)
+	}
 	if d.ShellUser == "" && config.AppConfig.DevMode {
 		if _, ok := orm.Registry["core.user"]; ok {
 			tn := orm.GetTableName("core.user")
@@ -79,12 +90,7 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 			}
 		}
 	}
-	if d.UserInitial == "" && d.ShellUser != "" {
-		r := []rune(d.ShellUser)
-		if len(r) > 0 {
-			d.UserInitial = strings.ToUpper(string(r[0]))
-		}
-	}
+	d.applyShellUserInitials()
 
 	d.ActivityEnabled = mail.CompanyChatterEnabled(ctx) && mail.CompanyActivityPanelEnabled(ctx)
 	if d.SuppressActivityDock {
@@ -92,11 +98,13 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 	}
 	if !d.ActivityEnabled {
 		d.ActivityLogItems = nil
+		d.appendShellHooks(ctx)
 		return
 	}
 	rows, err := mail.QueryActivityLog(ctx, 40, d.ActivityContextModel, d.ActivityContextRecordID)
 	if err != nil {
 		d.ActivityLogItems = nil
+		d.appendShellHooks(ctx)
 		return
 	}
 	for _, r := range rows {
@@ -111,12 +119,67 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 		d.ActivityLogItems = append(d.ActivityLogItems, ActivityItem{Meta: meta, Body: strings.TrimSpace(r.Body)})
 	}
 
-	// EXECUTE SHELL HOOKS (e.g. AI Assistant)
+	d.appendShellHooks(ctx)
+}
+
+func (d *PageData) applyShellUserInitials() {
+	d.ShellUserInitials = UserInitialsFromName(d.ShellUser)
+	if d.UserInitial == "" && d.ShellUser != "" {
+		r := []rune(d.ShellUser)
+		if len(r) > 0 {
+			d.UserInitial = strings.ToUpper(string(r[0]))
+		}
+	}
+}
+
+func (d *PageData) appendShellHooks(ctx context.Context) {
 	var shellExtra strings.Builder
 	for _, hook := range ShellHooks {
 		shellExtra.WriteString(string(hook(ctx, nil, false)))
 	}
 	d.ShellExtraHTML = template.HTML(shellExtra.String())
+}
+
+func loadShellCompanies(ctx context.Context) []ShellCompanyOption {
+	if orm.DB == nil {
+		return nil
+	}
+	if _, ok := orm.Registry["core.company"]; !ok {
+		return nil
+	}
+	tn := orm.GetTableName("core.company")
+	rows, err := orm.DB.QueryContext(ctx, `SELECT id, name FROM `+tn+` ORDER BY id ASC`)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []ShellCompanyOption
+	for rows.Next() {
+		var id int
+		var name string
+		if err := rows.Scan(&id, &name); err != nil {
+			continue
+		}
+		name = strings.TrimSpace(name)
+		if id > 0 && name != "" {
+			out = append(out, ShellCompanyOption{ID: id, Name: name})
+		}
+	}
+	return out
+}
+
+func shellCompanyNameFromOptions(opts []ShellCompanyOption, preferID int) string {
+	if preferID > 0 {
+		for _, o := range opts {
+			if o.ID == preferID {
+				return o.Name
+			}
+		}
+	}
+	if len(opts) > 0 {
+		return opts[0].Name
+	}
+	return ""
 }
 
 func shortRelTime(t time.Time) string {

@@ -56,6 +56,44 @@
                     </a>
                 </nav>
             </div>
+            <div class="sum-topbar-right" aria-label="Company and account">
+                {{if .ShowCompanySwitcher}}
+                <details class="sum-dropdown sum-dropdown--company">
+                    <summary class="sum-dropdown-trigger sum-dropdown-trigger--company">
+                        <span class="sum-dropdown-label">{{.ShellCompany}}</span>
+                        <svg class="sum-dropdown-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                    </summary>
+                    <div class="sum-dropdown-panel" role="menu">
+                        {{range .ShellCompanyOptions}}
+                        <form method="post" action="/web/company/switch" class="sum-dropdown-form">
+                            <input type="hidden" name="company_id" value="{{.ID}}" />
+                            <input type="hidden" name="next" value="/web/home" />
+                            <button type="submit" class="sum-dropdown-item sum-dropdown-item--submit" role="menuitem">
+                                {{if eq $.ShellActiveCompanyID .ID}}<span class="sum-dropdown-check" aria-hidden="true">✓</span>{{else}}<span class="sum-dropdown-check" aria-hidden="true"></span>{{end}}
+                                <span>{{.Name}}</span>
+                            </button>
+                        </form>
+                        {{end}}
+                    </div>
+                </details>
+                {{else if .ShellCompany}}
+                <span class="sum-topbar-company-plain" title="{{.ShellCompany}}">{{.ShellCompany}}</span>
+                {{end}}
+                {{if .ShellUser}}
+                <details class="sum-dropdown sum-dropdown--user">
+                    <summary class="sum-dropdown-trigger sum-dropdown-trigger--user">
+                        <span class="sum-topbar-avatar" aria-hidden="true">{{.ShellUserInitials}}</span>
+                        <span class="sum-dropdown-user-name">{{.ShellUser}}</span>
+                        <svg class="sum-dropdown-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                    </summary>
+                    <div class="sum-dropdown-panel sum-dropdown-panel--align-end" role="menu">
+                        <a href="{{.UserProfileHref}}" class="sum-dropdown-item" role="menuitem">Profile</a>
+                        <a href="{{.UserDocsHref}}" class="sum-dropdown-item" role="menuitem" target="_blank" rel="noopener noreferrer">Documentation</a>
+                        <a href="/web/logout" class="sum-dropdown-item sum-dropdown-item--danger" role="menuitem">Log out</a>
+                    </div>
+                </details>
+                {{end}}
+            </div>
         </header>
 
         <div class="sum-main-row">
@@ -75,26 +113,6 @@
                     </div>
                     {{else}}
                     <div class="sum-sidebar-empty">No menus for this app</div>
-                    {{end}}
-                </div>
-                <div class="sum-sidebar-settings" aria-label="User and company">
-                    <div class="sum-sidebar-settings-label">Account</div>
-                    <div class="sum-sidebar-settings-row"><a href="/web/logout" class="sidebar-link">Log out</a></div>
-                    {{if .ShellCompany}}
-                    <div class="sum-sidebar-settings-row">
-                        <span class="sum-sidebar-settings-key">Company</span>
-                        <span class="sum-sidebar-settings-val" title="{{.ShellCompany}}">{{.ShellCompany}}</span>
-                    </div>
-                    {{end}}
-                    {{if .ShellUser}}
-                    <div class="sum-sidebar-settings-row sum-sidebar-settings-row--user">
-                        <div class="sum-sidebar-avatar" aria-hidden="true">{{if
-                            .UserInitial}}{{.UserInitial}}{{else}}?{{end}}</div>
-                        <div class="sum-sidebar-settings-user">
-                            <span class="sum-sidebar-settings-key">User</span>
-                            <span class="sum-sidebar-settings-val" title="{{.ShellUser}}">{{.ShellUser}}</span>
-                        </div>
-                    </div>
                     {{end}}
                 </div>
             </aside>

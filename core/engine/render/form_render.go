@@ -28,15 +28,16 @@ func RenderForm(ctx context.Context, view *parser.View, vr *ViewRecordData) stri
 	if ro && vr.RecordID > 0 {
 		formViewClass += " sum-form-view--readonly"
 	}
+	if chrome {
+		formViewClass += " sum-form-view--workspace-chrome"
+	}
 	sb.WriteString(`<div class="` + formViewClass + `">`)
 
 	sb.WriteString(`<div class="sum-form-sheet-bg">`)
 
 	if chrome {
-		renderWorkspaceFormChrome(&sb, vr)
-	}
-
-	if view.Header != nil {
+		renderWorkspaceFormToolbar(&sb, vr, view.Header, record)
+	} else if view.Header != nil {
 		renderHeader(ctx, &sb, view.Header, record)
 	}
 
@@ -85,6 +86,16 @@ func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, re
 	sb.WriteString(`</div>`)
 
 	sb.WriteString(`<div class="sum-statusbar-status">`)
+	writeStatusbarChips(sb, h, record)
+	sb.WriteString(`</div>`)
+
+	sb.WriteString(`</div>`)
+}
+
+func writeStatusbarChips(sb *strings.Builder, h *parser.Header, record map[string]interface{}) {
+	if h == nil {
+		return
+	}
 	for _, hf := range h.Field {
 		val := recStr(record, hf.Name)
 		if val == "" {
@@ -94,9 +105,6 @@ func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, re
 		sb.WriteString(template.HTMLEscapeString(val))
 		sb.WriteString(`</span>`)
 	}
-	sb.WriteString(`</div>`)
-
-	sb.WriteString(`</div>`)
 }
 
 func renderSheet(ctx context.Context, sb *strings.Builder, s *parser.Sheet, record map[string]interface{}, ro bool, vr *ViewRecordData) {

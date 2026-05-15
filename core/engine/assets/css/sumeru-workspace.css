@@ -92,6 +92,48 @@
   box-shadow: 0 2px 8px rgba(135, 90, 123, 0.25);
 }
 
+.sum-tree-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--sum-radius-sm);
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  text-decoration: none !important;
+  color: var(--sum-ink);
+  background: var(--sum-surface-alt);
+  border: 1px solid var(--sum-line);
+  transition: background var(--sum-dur) var(--sum-ease), box-shadow var(--sum-dur) var(--sum-ease);
+}
+
+.sum-tree-btn-ghost:hover {
+  background: var(--sum-row-hover-bg);
+  box-shadow: var(--sum-shadow-sm);
+}
+
+.sum-ws-record-toolbar {
+  margin-bottom: 0;
+}
+
+.sum-ws-record-toolbar .sum-header-btn {
+  margin-left: 0.15rem;
+}
+
+.sum-ws-toolbar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sum-ws-toolbar-right .sum-statusbar-chip {
+  font-size: var(--sum-font-size-sm);
+}
+
 .sum-tree-title {
   margin: 0;
   font-size: var(--sum-font-size-lg);

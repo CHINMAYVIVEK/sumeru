@@ -221,6 +221,15 @@
   }
 }
 
+.sum-form-view--workspace-chrome .sum-ws-record-toolbar {
+  margin-bottom: 0.85rem;
+  border-radius: var(--sum-radius-sm);
+}
+
+.sum-form-view--workspace-chrome .sum-form-sheet {
+  margin-top: 0.35rem;
+}
+
 /* Two-pane sheet: summary | main (classic enterprise record layout) */
 .sum-form-split-layout {
   --sum-form-chrome-width: 280px;

@@ -19,6 +19,7 @@ func RegisterAppRoutes(mux *http.ServeMux) {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+	reg.HandleFunc("/web/company/switch", SwitchCompanyPost)
 	reg.HandleFunc("/web/logout", LogoutGet)
 	reg.HandleFunc("/web/home", HomeDashboardHandler)
 	reg.HandleFunc("/web", WebHandler)
