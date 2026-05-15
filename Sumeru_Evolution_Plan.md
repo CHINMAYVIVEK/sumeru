@@ -9,7 +9,7 @@ This definitive plan outlines the steps to simplify the `sumeru` core, adopt Go-
 
 | Priority | Phase | Goal |
 | :--- | :--- | :--- |
-| **1. CRITICAL** | **Core Cleanup & Naming** | [DONE] Strip `core/` of logic. Migrate `ir. -> sys.` and `res. -> core.`. |
+| **1. CRITICAL** | **Core Cleanup & Naming** | [DONE] Strip `core/` of logic. Framework metadata uses **`sys.*`**; shared business entities use **`core.*`**. |
 | **2. HIGH** | **Branding & Pure Go** | ✅ **Complete** | Standardize namespaces (sys.*, core.*) and fields (core_id, core_model). |
 | **3. HIGH** | **Base Consolidation** | [DONE] Create a unified `addons/base` module using the new naming schema. |
 | **4. MEDIUM** | **Framework Hooks** | [DONE] Implement UI and ORM extensibility for AI and 3rd party plugins. |
@@ -29,8 +29,8 @@ The framework (`core/`) should only contain the engine. We will also adopt Go-ce
 
 ### Naming Migration
 Adopt a clean, explicit namespace for all models:
-- **`sys.*`** (System): Replaces `ir.*`. Represents framework metadata (views, rules, models).
-- **`core.*`** (Core): Replaces `res.*`. Represents foundational business entities (users, partners, companies).
+- **`sys.*`** (System): Framework metadata (views, rules, models).
+- **`core.*`** (Core): Shared business entities (users, partners, companies).
 
 ---
 
@@ -48,7 +48,7 @@ Create `addons/base` as the definitive foundation for all Sumeru installations.
 
 Enable the core to be extended without modification.
 
-- **UI Hooks**: A registry in `html_renderer.go` for injecting Sidebar/Header content.
+- **UI Hooks**: Registries in `core/engine/render/render_types.go` (`ShellHooks`, `NotebookHooks`) with **`RegisterShellHook`** / **`RegisterNotebookHook`** for injecting shell and notebook HTML without editing core templates.
 - **ORM Interceptors**: Hooks in `orm.Search` to allow the AI module to translate natural language into ORM domains.
 
 ---

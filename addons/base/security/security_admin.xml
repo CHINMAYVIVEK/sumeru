@@ -6,7 +6,7 @@
         ============================================================ -->
         <view id="view_core.group_tree" model="core.group" type="tree">
             <field name="name" string="Name"/>
-            <field name="category" string="Category"/>
+            <field name="category_id" string="Application"/>
             <field name="sequence" string="Sequence"/>
         </view>
 
@@ -19,7 +19,7 @@
                 </div>
                 <group>
                     <group string="Identification">
-                        <field name="category" string="Category"/>
+                        <field name="category_id" string="Application"/>
                         <field name="sequence" string="Display Order"/>
                     </group>
                 </group>

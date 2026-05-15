@@ -115,6 +115,10 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 		if strings.EqualFold(strings.TrimSpace(m.Name), "Settings") {
 			continue
 		}
+		// Home hub opens from the brand lockup (see base.html); do not duplicate in the top bar.
+		if strings.EqualFold(strings.TrimSpace(m.Name), "Home") {
+			continue
+		}
 		topMenus = append(topMenus, m)
 	}
 	topMenus = sortTopBarRootMenus(topMenus)

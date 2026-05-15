@@ -7,16 +7,16 @@
             <field name="sequence">100</field>
         </record>
 
-        <!-- User Group -->
+        <!-- User group: scoped names per module; implies base.group_user (kernel groups exist before module install). -->
         <record id="group_{{.Name}}_user" model="core.group">
-            <field name="name">User</field>
+            <field name="name">{{.HumanTitle}} / User</field>
             <field name="category_id" ref="module_category_{{.Name}}"/>
             <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
         </record>
 
         <!-- Manager Group -->
         <record id="group_{{.Name}}_manager" model="core.group">
-            <field name="name">Manager</field>
+            <field name="name">{{.HumanTitle}} / Manager</field>
             <field name="category_id" ref="module_category_{{.Name}}"/>
             <field name="implied_ids" eval="[(4, ref('group_{{.Name}}_user'))]"/>
         </record>

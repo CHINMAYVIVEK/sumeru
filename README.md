@@ -5,6 +5,8 @@
 - **Entry binary:** `cmd/sumeru/main.go` → **`sumeru/core/server`** (`server.Run`). Library code under **`core/`** has no `main`; addon code uses **`sumeru/core/base`** as the stable API.
 - **Addon Go code:** import **`sumeru/core/base`** for models (stable API); avoid importing **`sumeru/core/orm`** directly in new code.
 
+**Documentation:** **[`docs/developer/index.md`](docs/developer/index.md)** (concepts and reference layout) · **[`docs/howtos/index.md`](docs/howtos/index.md)** (step-by-step recipes) · user intro in **`docs/user/`** · RST stubs in **`docs/refrence/`**.
+
 **Convention:** path-related INI values resolve from the **INI file’s directory** (and optional **`sumeru_home`** for the **`core/base`** tree). When running only from the **`sumeru`** repo root with **`sumeru.conf`** there, that matches the old “cwd = repo root” habit; prefer absolute paths in production.
 
 ---
@@ -103,7 +105,7 @@ INI format: `key = value` under **`[options]`**. Lines starting with `#` or `;` 
 | `go run ./cmd/sumeru -- -c sumeru.conf --http-port 9090 -d sumeru_dev` | Config + port + database override |
 | `./sumeru -c sumeru.conf -p 9090` | After **`make build`** |
 
-Then open **`http://localhost:<port>`** — `/` redirects to **`/web/apps`**.
+Then open **`http://localhost:<port>`** — `/` redirects to **`/web/apps`**. After sign-in, the shell includes **Home** (`/web/home`), **Settings** (`/web/settings` — configuration sections and installed apps), **Apps**, and top-level module menus; data views open as **`/web?…`** (tree, form, kanban).
 
 ---
 
@@ -199,21 +201,42 @@ These apply to **`go run ./cmd/sumeru --`**, **`./sumeru.sh`**, and **`./sumeru`
 
 ## UI and static assets
 
-Styles are **plain CSS** under `core/engine/assets/css/`. **Theme and typography** live in one file; layout and views are split by responsibility. The ordered list is **`DefaultStylesheetURLs()`** in `core/engine/assets/stylesheets.go`.
+Styles are **plain CSS** under `core/engine/assets/css/` (no Tailwind in markup; layout uses **`sum-*`** classes and design tokens). The global stack is **`DefaultStylesheetURLs()`** in `core/engine/assets/stylesheets.go`.
 
 | File | Responsibility |
 | ---- | ---------------- |
 | `sumeru-theme.css` | **Branding only**: `:root` colors, typography, radii, shadows, layout tokens |
-| `sumeru-base.css` | Document defaults, scrollbars, tabular number fonts |
-| `sumeru-shell.css` | Top bar, sidebar, workspace grid, breadcrumbs, activity dock |
-| `sumeru-views.css` | Form sheets, list tables, notebooks, legacy app grid |
-| `sumeru-compat.css` | `.field` and small utility classes used by templates |
+| `sumeru-base.css` | Document defaults, scrollbars, tabular number fonts, screen-reader helpers (e.g. `.sr-only`) |
+| `sumeru-shell.css` | Top bar, sidebar, workspace grid, breadcrumbs, activity dock chrome |
+| `sumeru-messages.css` | Activity panel **Messages** tab: thread, composer, empty state |
+| `sumeru-views.css` | Form sheets, list tables, notebooks, read/write field chrome |
+| `sumeru-compat.css` | Legacy **`.field`** blocks for login/setup templates |
+| `sumeru-ai.css` | Optional AI shell widget styles (used when **`sumeru_ai`** is loaded) |
 | `sumeru-login.css` | Standalone login card |
 | `sumeru-pages.css` | Standalone pages (e.g. app logs table) |
 | `sumeru-apps.css` | **`/web/apps`** catalog (linked per-page via `ViewStylesheetURLs`) |
-| `sumeru-workspace.css` | **`/web`** workspace extras (forms; extend as needed) |
+| `sumeru-home.css` | **`/web/home`** app hub (per-page stylesheet) |
+| `sumeru-settings-hub.css` | **`/web/settings`** overview (per-page stylesheet) |
+| `sumeru-workspace.css` | **`/web`** workspace extras (tree, forms, toolbars) |
 
 Per-addon optional **`static/css/theme-overrides.css`** is served as **`/static/addon-css/<module>.css`** after the core list. Optional **`brand_css`** in config loads after those. **`logo_path`** drives **`/static/app-logo`** in the header.
+
+### HTML render package (`core/engine/render/`)
+
+Workspace HTML is built from XML views in small, single-purpose Go files (same **`package render`**, unchanged public API):
+
+| File | Role |
+| ---- | ---- |
+| `render_types.go` | `PageData`, `ViewRecordData`, hook registries (`RegisterShellHook`, `RegisterNotebookHook`) |
+| `render_helpers.go` | Shared helpers (`recStr`, `rowOpenURL`, `formFieldReadonly`, …) |
+| `workspace_chrome.go` | Edit / Save / Cancel bar and record `<form>` wrapper |
+| `view_render.go` | **`RenderView`** — dispatches by view type, builds shell `PageData`, chatter |
+| `form_render.go` | **`RenderForm`** and form sheet/header/notebook/field markup |
+| `activity_chatter_render.go` | Activity panel message thread + composer |
+| `user_security_render.go` | User form **Access rights** notebook tab |
+| `tree_render.go`, `kanban_render.go`, `pivot_render.go` | List / kanban / pivot HTML |
+
+Templates live under `core/engine/templates/` (`base.html`, inner pages). Client script entry is `core/engine/assets/js/core.js` (sidebar, activity panel, forms, messages composer, etc.).
 
 ---
 

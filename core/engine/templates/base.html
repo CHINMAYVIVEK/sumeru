@@ -18,10 +18,10 @@
 <div id="sum-shell" class="sum-shell">
     <header class="sum-topbar">
         <div class="sum-topbar-left">
-            <button type="button" id="sum-sidebar-toggle" class="sum-icon-btn" aria-label="Toggle sidebar" title="Sidebar">
+            <button type="button" id="sum-sidebar-toggle" class="sum-icon-btn sum-topbar-sidebar-toggle" aria-label="Toggle sidebar" title="Sidebar">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
             </button>
-            <a href="/web/apps" class="sum-brand-lockup">
+            <a href="{{.BrandLockupHref}}" class="sum-brand-lockup">
                 {{if .LogoURL}}
                 <img src="{{.LogoURL}}" alt="" class="sum-logo" width="32" height="32"/>
                 {{end}}

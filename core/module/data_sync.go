@@ -77,12 +77,10 @@ func (addon *Addon) SyncToDB(context context.Context) error {
 					for key, val := range fieldMap {
 						recordValues[key] = val
 					}
-					if core := strings.TrimSpace(orm.AsString(recordValues["core_model"])); core == "" {
-						if legacy := strings.TrimSpace(orm.AsString(recordValues["res_model"])); legacy != "" {
-							recordValues["core_model"] = legacy
-						}
+					if cm := strings.TrimSpace(orm.AsString(recordValues["core_model"])); cm == "" {
+						fmt.Printf("Warning: sys.action.window record %s (module %s): core_model is required\n", xmlRecord.ID, moduleName)
+						continue
 					}
-					delete(recordValues, "res_model")
 					if _, ok := recordValues["name"]; !ok || recordValues["name"] == "" {
 						recordValues["name"] = xmlRecord.ID
 					}
@@ -200,8 +198,12 @@ func syncRegistryRecordByModel(context context.Context, moduleName string, xmlRe
 	if len(fieldMapStrings) == 0 {
 		return
 	}
+	impliedEval := strings.TrimSpace(fieldMapStrings["implied_ids"])
 	fieldValues := map[string]interface{}{}
 	for key, val := range fieldMapStrings {
+		if key == "implied_ids" {
+			continue
+		}
 		fieldValues[key] = convertRecordScalar(context, moduleName, xmlRecord.Model, key, val)
 	}
 	conflictColumn := "name"
@@ -215,6 +217,11 @@ func syncRegistryRecordByModel(context context.Context, moduleName string, xmlRe
 	if err != nil {
 		fmt.Printf(platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
 		return
+	}
+	if xmlRecord.Model == "core.group" && impliedEval != "" {
+		if err := syncCoreGroupImpliedFromEval(context, moduleName, id, impliedEval); err != nil {
+			fmt.Printf("Warning: core.group implied_ids %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+		}
 	}
 	_, _ = orm.Upsert(context, orm.SysModelData{}, map[string]interface{}{
 		"module":  moduleName,
@@ -337,7 +344,7 @@ func convertRecordScalar(context context.Context, moduleName, model, column, raw
 		}
 		return strings.EqualFold(trimmedValue, "true") || trimmedValue == "1"
 	}
-	if column == "group_id" || column == "user_id" || column == "rule_id" || column == "implied_group_id" || column == "parent_id" {
+	if column == "group_id" || column == "user_id" || column == "rule_id" || column == "implied_group_id" || column == "parent_id" || column == "category_id" {
 		if trimmedValue == "" || strings.EqualFold(trimmedValue, "false") || trimmedValue == "0" {
 			return nil
 		}

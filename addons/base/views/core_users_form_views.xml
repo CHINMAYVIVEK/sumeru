@@ -46,7 +46,7 @@
                     </page>
                     <page string="Access Rights">
                         <!-- Groups checkboxes and password change are injected here by the renderer
-                             via writeResUsersSecuritySection (html_renderer.go). This page acts as
+                             via writeResUsersSecuritySection (user_security_render.go). This page acts as
                              the visual tab anchor. -->
                     </page>
                     <page string="Account Security">

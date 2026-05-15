@@ -72,10 +72,10 @@ func Run() {
 	if !orm.IsInitialized() {
 		log.Println("Database is not initialized. Starting in SETUP MODE.")
 		log.Println("Visit http://localhost:" + config.AppConfig.HttpPort + "/setup to initialize the system.")
-		
+
 		registerBrandingAndStatic()
 		registerSetupRoutes()
-		
+
 		log.Printf("Server starting on :%s (SETUP MODE)...", config.AppConfig.HttpPort)
 		// Use default mux for setup
 		if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, nil); err != nil {
@@ -101,6 +101,10 @@ func Run() {
 	}
 	if err := orm.EnsureMailMessageModelResIndex(); err != nil {
 		log.Fatalf("Schema migrate (mail.message index): %v", err)
+	}
+
+	if err := orm.EnsureDefaultGroupsAndImplied(); err != nil {
+		log.Fatalf("Default security groups: %v", err)
 	}
 
 	if err := RunModuleCLI(*installMods, *updateMods); err != nil {

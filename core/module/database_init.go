@@ -17,6 +17,9 @@ func RunFirstTimeInstallSync(ctx context.Context) error {
 	if err := orm.SyncRegistrySchemaInitialSetup(); err != nil {
 		return fmt.Errorf("registry schema initial: %w", err)
 	}
+	if err := orm.EnsureDefaultGroupsAndImplied(); err != nil {
+		return fmt.Errorf("default security groups: %w", err)
+	}
 	if err := SyncSysModuleRegistry(ctx); err != nil {
 		return fmt.Errorf("sync sys.module: %w", err)
 	}

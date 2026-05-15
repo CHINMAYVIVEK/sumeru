@@ -3,8 +3,8 @@
 // Import sumeru/core/base (not sumeru/core/orm or sumeru/core/server directly) so renames
 // in engine, orm, or server can be absorbed here without breaking downstream modules.
 //
-// Default filesystem modules shipped with the repo live under core/base/user,
-// core/base/company, etc. (see core/base/base for the technical "base" app).
+// Kernel models (core.user, core.company, …) register from addons/base/models (manifest "base");
+// core/base/base holds the minimal filesystem base manifest; this package is the stable Go API.
 //
 // Public API (prefer struct inputs):
 //   - Types: Model, FieldDefinition, FieldType, BaseModel; field-type constants (Char, Text, …).

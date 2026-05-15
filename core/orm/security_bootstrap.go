@@ -60,6 +60,81 @@ func allowedSetupLang(s string) bool {
 	}
 }
 
+// EnsureDefaultGroupsAndImplied creates kernel module categories, base security groups,
+// xml ids base.group_system / base.group_user, and the Admin implies User edge.
+// Call before module data sync (-i / -u) so addon XML can use ref('base.group_user') in implied_ids.
+func EnsureDefaultGroupsAndImplied() error {
+	ctx := ContextWithBypass(context.Background(), true)
+	_, _, err := ensureDefaultKernelGroups(ctx)
+	return err
+}
+
+func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, err error) {
+	ctx = ContextWithBypass(ctx, true)
+	if DB == nil {
+		return 0, 0, nil
+	}
+	if err := EnsureSecurityJoinIndexes(); err != nil {
+		return 0, 0, err
+	}
+	groupModel, ok := Registry["core.group"]
+	if !ok || groupModel == nil {
+		return 0, 0, fmt.Errorf("core.group not registered")
+	}
+	catModel, ok := Registry["sys.module.category"]
+	if !ok || catModel == nil {
+		return 0, 0, fmt.Errorf("sys.module.category not registered")
+	}
+
+	catAdminID, err := Upsert(ctx, catModel, map[string]interface{}{
+		"name":     "Administration",
+		"sequence": 1,
+	}, "name")
+	if err != nil {
+		return 0, 0, fmt.Errorf("bootstrap sys.module.category Administration: %w", err)
+	}
+	catUserTypesID, err := Upsert(ctx, catModel, map[string]interface{}{
+		"name":     "User types",
+		"sequence": 2,
+	}, "name")
+	if err != nil {
+		return 0, 0, fmt.Errorf("bootstrap sys.module.category User types: %w", err)
+	}
+
+	adminGID, err = Upsert(ctx, groupModel, map[string]interface{}{
+		"name":        "Administration / Settings",
+		"category_id": catAdminID,
+		"sequence":    1,
+	}, "name")
+	if err != nil {
+		return 0, 0, fmt.Errorf("bootstrap core.group admin: %w", err)
+	}
+	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+		"module":  "base",
+		"name":    "group_system",
+		"model":   "core.group",
+		"core_id": adminGID,
+	}, "name")
+
+	userGID, err = Upsert(ctx, groupModel, map[string]interface{}{
+		"name":        "User types / Internal User",
+		"category_id": catUserTypesID,
+		"sequence":    10,
+	}, "name")
+	if err != nil {
+		return 0, 0, fmt.Errorf("bootstrap core.group user: %w", err)
+	}
+	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+		"module":  "base",
+		"name":    "group_user",
+		"model":   "core.group",
+		"core_id": userGID,
+	}, "name")
+
+	_, _ = DB.ExecContext(ctx, `INSERT INTO `+GetTableName("core.group.implied")+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`, adminGID, userGID)
+	return adminGID, userGID, nil
+}
+
 // EnsureBootstrapSecurityFromSetup creates groups, the first administrator, company, and ACLs.
 // Call only from /setup/init after base module install when the database has no users yet.
 func EnsureBootstrapSecurityFromSetup(p SetupAdminParams) error {
@@ -80,14 +155,11 @@ func ensureBootstrapSecurity(ctx context.Context, first *SetupAdminParams) error
 	if DB == nil {
 		return nil
 	}
-	if err := EnsureSecurityJoinIndexes(); err != nil {
+	adminGID, userGID, err := ensureDefaultKernelGroups(ctx)
+	if err != nil {
 		return err
 	}
 
-	groupModel, ok := Registry["core.group"]
-	if !ok || groupModel == nil {
-		return fmt.Errorf("core.group not registered")
-	}
 	userModel, ok := Registry["core.user"]
 	if !ok || userModel == nil {
 		return fmt.Errorf("core.user not registered")
@@ -96,38 +168,6 @@ func ensureBootstrapSecurity(ctx context.Context, first *SetupAdminParams) error
 	if !ok || companyModel == nil {
 		return fmt.Errorf("core.company not registered")
 	}
-
-	adminGID, err := Upsert(ctx, groupModel, map[string]interface{}{
-		"name":     "Administration / Settings",
-		"category": "Administration",
-		"sequence": 1,
-	}, "name")
-	if err != nil {
-		return fmt.Errorf("bootstrap core.group admin: %w", err)
-	}
-	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
-		"module":  "base",
-		"name":    "group_system",
-		"model":   "core.group",
-		"core_id": adminGID,
-	}, "name")
-
-	userGID, err := Upsert(ctx, groupModel, map[string]interface{}{
-		"name":     "User types / Internal User",
-		"category": "User types",
-		"sequence": 10,
-	}, "name")
-	if err != nil {
-		return fmt.Errorf("bootstrap core.group user: %w", err)
-	}
-	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
-		"module":  "base",
-		"name":    "group_user",
-		"model":   "core.group",
-		"core_id": userGID,
-	}, "name")
-
-	_, _ = DB.ExecContext(ctx, `INSERT INTO `+GetTableName("core.group.implied")+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`, adminGID, userGID)
 
 	userTbl := GetTableName("core.user")
 	var userCount int
@@ -224,7 +264,7 @@ func ensureBootstrapACLs(ctx context.Context, adminGID, userGID int) {
 		}
 	}
 
-	globalReads := []string{"sys.model_data", "sys.menu", "sys.action.window", "sys.view", "sys.module"}
+	globalReads := []string{"sys.model_data", "sys.menu", "sys.action.window", "sys.view", "sys.module", "sys.module.category"}
 	for _, m := range globalReads {
 		accName := fmt.Sprintf("access_%s_global_read", strings.ReplaceAll(m, ".", "_"))
 		_, _ = Upsert(ctx, SysAccess{}, map[string]interface{}{

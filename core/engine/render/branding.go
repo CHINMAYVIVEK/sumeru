@@ -38,6 +38,12 @@ func ShellLogoURL() string {
 func EnrichShellPageData(ctx context.Context, d *PageData) {
 	d.AppName = AppDisplayName
 	d.LogoURL = shell.LogoURL
+	if strings.TrimSpace(d.BrandLockupHref) == "" {
+		d.BrandLockupHref = HomeWebURL(ctx)
+	}
+	if strings.TrimSpace(d.BrandLockupHref) == "" {
+		d.BrandLockupHref = "/web/home"
+	}
 	d.ShellCompany = strings.TrimSpace(shell.Company)
 	d.ShellUser = strings.TrimSpace(shell.User)
 	if orm.DB == nil {

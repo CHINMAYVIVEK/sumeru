@@ -127,6 +127,21 @@ func (m SysModule) Fields() []FieldDefinition {
 	}
 }
 
+// SysModuleCategory classifies core.group rows for display (name + sequence).
+type SysModuleCategory struct {
+	ID       int    `orm:"id"`
+	Name     string `orm:"name"`
+	Sequence int    `orm:"sequence"`
+}
+
+func (SysModuleCategory) ModelName() string { return "sys.module.category" }
+func (SysModuleCategory) Fields() []FieldDefinition {
+	return []FieldDefinition{
+		{Name: "name", Type: Char, Required: true, Unique: true, String: "Name"},
+		{Name: "sequence", Type: Integer, String: "Sequence"},
+	}
+}
+
 // SysActionWindow defines window actions
 type SysActionWindow struct {
 	ID        int    `orm:"id"`
@@ -242,6 +257,7 @@ func init() {
 	RegisterModelWithModule(SysActionWindow{}, kernel)
 	RegisterModelWithModule(SysModelData{}, kernel)
 	RegisterModelWithModule(SysModule{}, kernel)
+	RegisterModelWithModule(SysModuleCategory{}, kernel)
 	RegisterModelWithModule(AppLog{}, kernel)
 	RegisterModelWithModule(MailMessage{}, kernel)
 	RegisterModelWithModule(SysSession{}, kernel)

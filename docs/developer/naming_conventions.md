@@ -2,6 +2,8 @@
 
 Sumeru uses a strict naming convention for models to ensure architectural clarity and prevent namespace collisions. This system is inspired by the need to separate framework metadata from foundational business entities.
 
+> **Developer hub:** [Documentation index](index.md) · [Models and fields](models_fields.md)
+
 ## Namespaces
 
 ### 1. `sys.*` (System / Framework)

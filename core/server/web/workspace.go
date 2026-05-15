@@ -46,7 +46,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/web/settings/app-logs", http.StatusFound)
 			return
 		}
-		// Avoid picking an arbitrary act_window (often the lowest id); that misroutes e.g. Sales/CRM roots.
+		// Avoid picking an arbitrary window action (often the lowest id); that misroutes e.g. Sales/CRM roots.
 		log.Printf("web: no action for query action=%q menu_id=%q; redirecting to apps", actionIDStr, menuIDStr)
 		http.Redirect(w, r, "/web/home", http.StatusFound)
 		return
@@ -237,12 +237,7 @@ func menuIDPointsToAppLogs(ctx context.Context, menuIDStr string) bool {
 	return got == want
 }
 
-// actionWindowTargetModel returns the ORM technical model for a sys.action.window row.
-// Prefer core_model (current schema); fall back to res_model for legacy rows/XML.
+// actionWindowTargetModel returns the ORM technical model for a sys.action.window row (core_model).
 func actionWindowTargetModel(actionData map[string]interface{}) string {
-	s := strings.TrimSpace(orm.AsString(actionData["core_model"]))
-	if s != "" {
-		return s
-	}
-	return strings.TrimSpace(orm.AsString(actionData["res_model"]))
+	return strings.TrimSpace(orm.AsString(actionData["core_model"]))
 }

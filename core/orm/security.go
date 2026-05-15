@@ -1,6 +1,6 @@
 package orm
 
-// SysAccess represents sys.access (formerly sys.model.access)
+// SysAccess is per-model CRUD permission tied to an optional core.group.
 type SysAccess struct {
 	ID         int    `orm:"id"`
 	Name       string `orm:"name"`

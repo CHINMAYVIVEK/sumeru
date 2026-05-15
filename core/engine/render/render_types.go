@@ -34,20 +34,22 @@ func RegisterNotebookHook(model, pageTitle string, hook UIHook) {
 
 // PageData is the top-level template payload for base.html.
 type PageData struct {
-	Title                  string // legacy / diagnostics; prefer ViewBreadcrumb for UI
-	ViewBreadcrumb         string // human label for breadcrumb (not the technical model id)
-	AppName                string // product display name (browser tab suffix, header)
-	ModuleName             string
-	Content                template.HTML
-	TopMenus               []parser.MenuItem
-	SidebarMenus           []SidebarMenu
-	ActiveModuleID         string
-	ActiveMenuID           string
-	ViewStylesheetURLs     []string
-	AppsNavActive          bool
-	SettingsNavActive      bool
-	ExtraStylesheetURLs    []string
-	LogoURL                string
+	Title               string // legacy / diagnostics; prefer ViewBreadcrumb for UI
+	ViewBreadcrumb      string // human label for breadcrumb (not the technical model id)
+	AppName             string // product display name (browser tab suffix, header)
+	ModuleName          string
+	Content             template.HTML
+	TopMenus            []parser.MenuItem
+	SidebarMenus        []SidebarMenu
+	ActiveModuleID      string
+	ActiveMenuID        string
+	ViewStylesheetURLs  []string
+	AppsNavActive       bool
+	SettingsNavActive   bool
+	ExtraStylesheetURLs []string
+	LogoURL             string
+	// BrandLockupHref is the shell logo/name link target (default: home dashboard via EnrichShellPageData).
+	BrandLockupHref        string
 	ShellCompany           string
 	ShellUser              string
 	UserInitial            string          // first letter for avatar

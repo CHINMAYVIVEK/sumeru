@@ -11,6 +11,7 @@ import (
 var InitialSetupModelNames = []string{
 	"app.log",
 	"core.company",
+	"sys.module.category", // before core.group (category_id); kernel metadata
 	"core.group",
 	"core.partner",
 	"core.user",
