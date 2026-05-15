@@ -12,6 +12,7 @@ Task-oriented guides for people extending **Sumeru** (addons, views, security, a
 | XML views, actions, menus | [Views, actions, and menus](views_and_actions.md) |
 | Groups, ACLs, record rules | [Security and access](security_access.md) |
 | HTML shell, hooks, CSS | [Web layer](web_layer.md) |
+| Available menu icons | [Web Icons](icons.md) |
 | Naming `sys.*` vs `core.*` | [Naming conventions](naming_conventions.md) |
 | CLI, code gen, scaffolding | [Tooling](tooling.md) |
 

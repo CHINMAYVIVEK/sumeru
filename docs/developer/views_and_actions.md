@@ -55,3 +55,4 @@ Pinned **Home** / **Settings** roots in **`base`** are defined in **`addons/base
 ## Further reading
 
 - Render pipeline and hook points: [Web layer](web_layer.md) and **`docs/refrence/views.rst`**.
+- [Web Icons](icons.md) — Reference for `web_icon` and adding new symbols.
