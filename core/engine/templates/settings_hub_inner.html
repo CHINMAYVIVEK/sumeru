@@ -1,0 +1,53 @@
+<div class="sum-settings-hub">
+    <header class="sum-settings-hub-head">
+        <div class="sum-settings-hub-head-text">
+            <h1 class="sum-settings-hub-title">Settings</h1>
+            <p class="sum-settings-hub-lead">Configure your organization, users, and installed modules from one place.</p>
+        </div>
+        {{if .CompaniesMenuHref}}
+        <a href="{{.CompaniesMenuHref}}" class="sum-settings-hub-cta">Manage companies</a>
+        {{end}}
+    </header>
+
+    <div class="sum-settings-hub-toolbar">
+        <span class="sum-settings-hub-search-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        </span>
+        <label class="sr-only" for="sum-settings-hub-q">Filter settings sections</label>
+        <input id="sum-settings-hub-q" type="search" class="sum-settings-hub-search" placeholder="Search settings…" autocomplete="off" />
+    </div>
+
+    <div id="sum-settings-hub-sections" class="sum-settings-hub-sections">
+        {{range .Sections}}
+        <section class="sum-settings-hub-section" data-sum-settings-filter="{{.FilterText}}">
+            <h2 class="sum-settings-hub-section-title">{{.Title}}</h2>
+            <ul class="sum-settings-hub-links">
+                {{range .Links}}
+                <li><a href="{{.Href}}">{{.Name}}</a></li>
+                {{end}}
+            </ul>
+        </section>
+        {{else}}
+        <p class="sum-settings-hub-empty" role="status">No configuration sections are available for your account.</p>
+        {{end}}
+    </div>
+
+    {{if .AppTiles}}
+    <h2 class="sum-settings-hub-apps-title">Installed applications</h2>
+    <p class="sum-settings-hub-apps-lead">Open an app’s workspace to change its configuration menus.</p>
+    <div class="sum-settings-hub-apps" role="list">
+        {{range .AppTiles}}
+        <div class="sum-settings-hub-app" role="listitem">
+            <a href="{{.OpenMenuHref}}" class="sum-settings-hub-app-main" title="{{.DisplayName}} — {{.Name}}">
+                <div class="sum-settings-hub-app-icon" style="--sum-settings-icon-h: {{.IconHue}};" aria-hidden="true">
+                    <span class="sum-settings-hub-app-letter">{{.IconLetter}}</span>
+                </div>
+                <span class="sum-settings-hub-app-name">{{.DisplayName}}</span>
+                <span class="sum-settings-hub-app-tech">{{.Name}}</span>
+            </a>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+<script type="module" src="/static/js/ui/settings-hub.js"></script>

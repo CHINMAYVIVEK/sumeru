@@ -25,6 +25,7 @@ type dashAppTile struct {
 	Description  string
 	Author       string
 	IconLetter   string
+	IconHue      int    // 0–359 for per-app icon tint (HSL hue)
 	OpenMenuHref string // /web?menu_id=… or /web/apps fallback
 }
 
@@ -35,7 +36,7 @@ type homeDashData struct {
 	EmptyMsg string
 }
 
-// HomeDashboardHandler shows installed application modules (Odoo-style hub).
+// HomeDashboardHandler shows installed application modules as the signed-in user’s app hub.
 func HomeDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
@@ -75,11 +76,9 @@ func HomeDashboardHandler(w http.ResponseWriter, r *http.Request) {
 		if dn == "" {
 			dn = name
 		}
-		if searchQ != "" {
-			lq := strings.ToLower(searchQ)
-			if !strings.Contains(strings.ToLower(name), lq) && !strings.Contains(strings.ToLower(dn), lq) {
-				continue
-			}
+		desc := stringField(row["description"])
+		if searchQ != "" && !homeSearchMatches(searchQ, name, dn, desc) {
+			continue
 		}
 		letter := "?"
 		if r := []rune(strings.TrimSpace(dn)); len(r) > 0 {
@@ -93,9 +92,10 @@ func HomeDashboardHandler(w http.ResponseWriter, r *http.Request) {
 			Name:         name,
 			DisplayName:  dn,
 			Version:      stringField(row["version"]),
-			Description:  stringField(row["description"]),
+			Description:  desc,
 			Author:       stringField(row["author"]),
 			IconLetter:   letter,
+			IconHue:      iconHueFromString(name),
 			OpenMenuHref: openHref,
 		})
 	}
@@ -161,4 +161,35 @@ func rootMenuIDForModule(ctx context.Context, moduleName string) int {
 		return 0
 	}
 	return id
+}
+
+// homeSearchMatches returns true if every whitespace-separated token in q appears
+// in name, display name, or description (case-insensitive).
+func homeSearchMatches(q, technicalName, displayName, description string) bool {
+	q = strings.TrimSpace(strings.ToLower(q))
+	if q == "" {
+		return true
+	}
+	hay := strings.ToLower(strings.TrimSpace(technicalName) + " " + strings.TrimSpace(displayName) + " " + strings.TrimSpace(description))
+	for _, tok := range strings.Fields(q) {
+		t := strings.TrimSpace(strings.ToLower(tok))
+		if t == "" {
+			continue
+		}
+		if !strings.Contains(hay, t) {
+			return false
+		}
+	}
+	return true
+}
+
+func iconHueFromString(s string) int {
+	h := 265
+	for _, c := range strings.TrimSpace(s) {
+		h = (h*31 + int(c)) % 360
+		if h < 0 {
+			h += 360
+		}
+	}
+	return h
 }

@@ -1,40 +1,40 @@
-<div class="sum-home-dash">
-    <header class="sum-home-dash-hero">
-        <p class="sum-home-dash-eyebrow">Installed applications</p>
-        <h1 class="sum-home-dash-title">Dashboard</h1>
-        <p class="sum-home-dash-lead">Open an app or jump to the catalog to install more modules.</p>
-        <form class="sum-home-dash-search" method="get" action="/web/home" role="search">
+<div class="sum-home-hub">
+    <div class="sum-home-hub-toolbar">
+        <form class="sum-home-hub-search" method="get" action="/web/home" role="search">
             {{if .MenuID}}
             <input type="hidden" name="menu_id" value="{{.MenuID}}" />
             {{end}}
-            <label class="visually-hidden" for="sum-home-q">Search apps</label>
-            <input id="sum-home-q" name="q" type="search" class="sum-home-dash-search-input" value="{{.Search}}" placeholder="Search by name…" autocomplete="off" />
-            <button type="submit" class="sum-home-dash-search-btn">Search</button>
-            <a href="/web/home{{if .MenuID}}?menu_id={{.MenuID}}{{end}}" class="sum-home-dash-clear">Clear</a>
+            <span class="sum-home-hub-search-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            </span>
+            <label class="visually-hidden" for="sum-home-q">Search applications</label>
+            <input id="sum-home-q" name="q" type="search" class="sum-home-hub-search-input" value="{{.Search}}" placeholder="Search apps by name, technical name, or description…" autocomplete="off" />
+            <button type="submit" class="sum-home-hub-search-submit">Search</button>
+            {{if .Search}}
+            <a href="/web/home{{if .MenuID}}?menu_id={{.MenuID}}{{end}}" class="sum-home-hub-search-clear">Clear</a>
+            {{end}}
         </form>
-    </header>
+    </div>
 
     {{if .EmptyMsg}}
-    <p class="sum-home-dash-empty">{{.EmptyMsg}}</p>
+    <p class="sum-home-hub-empty" role="status">{{.EmptyMsg}}</p>
     {{else}}
-    <div class="sum-home-dash-grid">
+    <div class="sum-home-hub-apps" role="list">
         {{range .Tiles}}
-        <article class="sum-home-dash-card">
-            <div class="sum-home-dash-card-top">
-                <div class="sum-home-dash-icon" aria-hidden="true">{{.IconLetter}}</div>
-                <div class="sum-home-dash-meta">
-                    <h2 class="sum-home-dash-name">{{.DisplayName}}</h2>
-                    <p class="sum-home-dash-tech">{{.Name}} · v{{.Version}}</p>
+        <div class="sum-home-hub-app" role="listitem">
+            <a href="{{.OpenMenuHref}}" class="sum-home-hub-app-main" title="{{.DisplayName}} — {{.Name}}{{if .Description}}. {{.Description}}{{end}}">
+                <div class="sum-home-hub-app-icon" style="--sum-home-icon-h: {{.IconHue}};" aria-hidden="true">
+                    <span class="sum-home-hub-app-letter">{{.IconLetter}}</span>
                 </div>
-            </div>
-            <p class="sum-home-dash-desc">{{.Description}}</p>
-            <p class="sum-home-dash-author">{{if .Author}}by {{.Author}}{{end}}</p>
-            <div class="sum-home-dash-actions">
-                <a href="{{.OpenMenuHref}}" class="sum-home-dash-btn sum-home-dash-btn--primary">Open</a>
-                <a href="/web/apps?module={{.Name}}&layout=grid" class="sum-home-dash-btn sum-home-dash-btn--ghost">Details</a>
-            </div>
-        </article>
+                <span class="sum-home-hub-app-name">{{.DisplayName}}</span>
+                <span class="sum-home-hub-app-tech">{{.Name}}</span>
+            </a>
+            <a href="/web/apps?module={{.Name}}&layout=grid" class="sum-home-hub-app-config" aria-label="App details for {{.DisplayName}}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </a>
+        </div>
         {{end}}
     </div>
     {{end}}
 </div>
+<script type="module" src="/static/js/ui/home-dashboard.js"></script>

@@ -1,0 +1,254 @@
+/* Settings overview (/web/settings): section cards + installed app shortcuts. */
+
+.sum-body--settings-hub .sum-content {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.sum-settings-hub {
+  padding: 0 0.25rem 2.5rem;
+}
+
+.sum-settings-hub-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0 1.25rem;
+  border-bottom: 1px solid var(--sum-line);
+}
+
+.sum-settings-hub-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  font-weight: var(--sum-font-weight-bold);
+  color: var(--sum-ink);
+  letter-spacing: -0.02em;
+}
+
+.sum-settings-hub-lead {
+  margin: 0;
+  max-width: 42rem;
+  font-size: var(--sum-font-size-md);
+  line-height: 1.5;
+  color: var(--sum-muted);
+}
+
+.sum-settings-hub-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--sum-radius-sm);
+  border: 1px solid var(--sum-header-dark);
+  background: var(--sum-header);
+  color: var(--sum-topbar-fg);
+  font-weight: var(--sum-font-weight-semibold);
+  font-size: var(--sum-font-size-sm);
+  text-decoration: none !important;
+  white-space: nowrap;
+  transition: background var(--sum-dur) var(--sum-ease);
+}
+
+.sum-settings-hub-cta:hover {
+  background: var(--sum-header-dark);
+}
+
+.sum-settings-hub-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 36rem;
+  margin: 1.25rem 0 1rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--sum-radius);
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line-strong);
+  box-shadow: var(--sum-shadow-sm);
+}
+
+.sum-settings-hub-toolbar:focus-within {
+  border-color: color-mix(in srgb, var(--sum-header) 45%, var(--sum-line-strong));
+  box-shadow: var(--sum-focus-ring);
+}
+
+.sum-settings-hub-search-icon {
+  display: flex;
+  align-items: center;
+  padding-left: 0.25rem;
+  color: var(--sum-muted);
+  flex-shrink: 0;
+}
+
+.sum-settings-hub-search {
+  flex: 1 1 10rem;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: var(--sum-font-size-md);
+  color: var(--sum-ink);
+  padding: 0.45rem 0.25rem;
+}
+
+.sum-settings-hub-search::placeholder {
+  color: var(--sum-muted);
+}
+
+.sum-settings-hub-search:focus {
+  outline: none;
+}
+
+.sum-settings-hub-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.sum-settings-hub-section {
+  padding: 1rem 1.1rem 1.15rem;
+  border-radius: var(--sum-radius);
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line);
+  box-shadow: var(--sum-shadow-sm);
+}
+
+.sum-settings-hub-section.is-filtered-out {
+  display: none;
+}
+
+.sum-settings-hub-section-title {
+  margin: 0 0 0.65rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sum-muted);
+}
+
+.sum-settings-hub-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sum-settings-hub-links a {
+  display: inline-block;
+  padding: 0.25rem 0;
+  font-size: var(--sum-font-size-md);
+  font-weight: var(--sum-font-weight-medium);
+  color: var(--sum-header);
+  text-decoration: none !important;
+}
+
+.sum-settings-hub-links a:hover {
+  text-decoration: underline !important;
+}
+
+.sum-settings-hub-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 1.25rem 1.5rem;
+  border: 1px dashed var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  color: var(--sum-muted);
+  text-align: center;
+}
+
+.sum-settings-hub-apps-title {
+  margin: 2rem 0 0.35rem;
+  font-size: 1.1rem;
+  font-weight: var(--sum-font-weight-bold);
+  color: var(--sum-ink);
+}
+
+.sum-settings-hub-apps-lead {
+  margin: 0 0 1rem;
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-muted);
+}
+
+.sum-settings-hub-apps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 0.5rem 0.65rem;
+}
+
+@media (min-width: 640px) {
+  .sum-settings-hub-apps {
+    grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+  }
+}
+
+.sum-settings-hub-app {
+  position: relative;
+}
+
+.sum-settings-hub-app-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 0.35rem;
+  border-radius: var(--sum-radius-sm);
+  text-decoration: none !important;
+  color: inherit;
+  border: 1px solid transparent;
+  transition: border-color var(--sum-dur) var(--sum-ease), background var(--sum-dur) var(--sum-ease);
+}
+
+.sum-settings-hub-app-main:hover {
+  background: var(--sum-row-hover-bg);
+  border-color: var(--sum-line);
+}
+
+.sum-settings-hub-app-icon {
+  --sum-settings-icon-h: 210;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    145deg,
+    hsl(var(--sum-settings-icon-h) 38% 46%) 0%,
+    hsl(var(--sum-settings-icon-h) 42% 36%) 100%
+  );
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.sum-settings-hub-app-letter {
+  font-size: 1.1rem;
+  font-weight: var(--sum-font-weight-bold);
+  line-height: 1;
+  color: inherit;
+}
+
+.sum-settings-hub-app-name {
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-ink);
+  text-align: center;
+  line-height: 1.25;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.sum-settings-hub-app-tech {
+  font-size: 0.6875rem;
+  color: var(--sum-muted);
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

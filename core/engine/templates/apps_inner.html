@@ -16,53 +16,53 @@
     {{if .ModuleDetail}}
     <section class="sum-apps-section-prem" aria-label="Module details">
         <p class="sum-apps-section-label-prem"><a href="/web/apps?{{.ModuleDetail.BackAppsQuery}}" class="sum-apps-back-link">← All apps</a></p>
-        <div class="sum-apps-module-form sum-form-sheet bg-white shadow-sm border border-slate-200 rounded-sm p-8 max-w-3xl">
-            <div class="flex flex-wrap items-center justify-end gap-2 mb-6">
+        <div class="sum-apps-module-form sum-form-sheet sum-apps-module-detail">
+            <div class="sum-apps-module-toolbar">
                 {{if not .ModuleDetail.Editing}}
-                <a href="{{.ModuleDetail.EditURL}}" class="px-4 py-2 text-sm font-semibold rounded-sm bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 shadow-sm">Edit</a>
+                <a href="{{.ModuleDetail.EditURL}}" class="sum-apps-btn-secondary">Edit</a>
                 {{else}}
-                <button type="submit" form="sum-apps-module-save-form" class="px-4 py-2 text-sm font-semibold rounded-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm">Save</button>
-                <a href="{{.ModuleDetail.CancelURL}}" class="px-4 py-2 text-sm font-semibold rounded-sm bg-white text-slate-700 border border-slate-300 hover:bg-slate-50">Cancel</a>
+                <button type="submit" form="sum-apps-module-save-form" class="sum-apps-btn-primary">Save</button>
+                <a href="{{.ModuleDetail.CancelURL}}" class="sum-apps-btn-secondary">Cancel</a>
                 {{end}}
             </div>
-            <h2 class="text-xl font-bold text-slate-800 mb-6">{{.ModuleDetail.DisplayName}}</h2>
-            <form id="sum-apps-module-save-form" method="post" action="/web/module/action" class="space-y-4">
+            <h2 class="sum-apps-module-title">{{.ModuleDetail.DisplayName}}</h2>
+            <form id="sum-apps-module-save-form" method="post" action="/web/module/action" class="sum-apps-module-form-fields">
                 <input type="hidden" name="do" value="save_module" />
                 <input type="hidden" name="module" value="{{.ModuleDetail.Name}}" />
                 <input type="hidden" name="module_row_id" value="{{.ModuleDetail.ID}}" />
                 {{template "apps_post_hiddens" $}}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase">Technical name</label>
-                        <input type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm bg-slate-50 text-slate-600" value="{{.ModuleDetail.Name}}" readonly />
+                <div class="sum-apps-module-grid">
+                    <div class="sum-apps-module-field">
+                        <label for="mod_name_ro">Technical name</label>
+                        <input id="mod_name_ro" type="text" class="sum-apps-module-input sum-apps-module-input--readonly" value="{{.ModuleDetail.Name}}" readonly />
                     </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase">Version</label>
-                        <input type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm bg-slate-50 text-slate-600" value="{{.ModuleDetail.Version}}" readonly />
+                    <div class="sum-apps-module-field">
+                        <label for="mod_ver_ro">Version</label>
+                        <input id="mod_ver_ro" type="text" class="sum-apps-module-input sum-apps-module-input--readonly" value="{{.ModuleDetail.Version}}" readonly />
                     </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase">State</label>
-                        <input type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm bg-slate-50 text-slate-600" value="{{.ModuleDetail.State}}" readonly />
+                    <div class="sum-apps-module-field">
+                        <label for="mod_state_ro">State</label>
+                        <input id="mod_state_ro" type="text" class="sum-apps-module-input sum-apps-module-input--readonly" value="{{.ModuleDetail.State}}" readonly />
                     </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 uppercase">Active</label>
-                        <input type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm bg-slate-50 text-slate-600" value="{{if .ModuleDetail.Active}}yes{{else}}no{{end}}" readonly />
+                    <div class="sum-apps-module-field">
+                        <label for="mod_active_ro">Active</label>
+                        <input id="mod_active_ro" type="text" class="sum-apps-module-input sum-apps-module-input--readonly" value="{{if .ModuleDetail.Active}}yes{{else}}no{{end}}" readonly />
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="text-xs font-bold text-slate-500 uppercase" for="mod_display_name">Display name</label>
-                        <input id="mod_display_name" name="display_name" type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm" value="{{.ModuleDetail.DisplayName}}" {{if not .ModuleDetail.Editing}}readonly{{end}} />
+                    <div class="sum-apps-module-field sum-apps-module-field--full">
+                        <label for="mod_display_name">Display name</label>
+                        <input id="mod_display_name" name="display_name" type="text" class="sum-apps-module-input{{if not .ModuleDetail.Editing}} sum-apps-module-input--readonly{{end}}" value="{{.ModuleDetail.DisplayName}}" {{if not .ModuleDetail.Editing}}readonly{{end}} />
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="text-xs font-bold text-slate-500 uppercase" for="mod_author">Author</label>
-                        <input id="mod_author" name="author" type="text" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm" value="{{.ModuleDetail.Author}}" {{if not .ModuleDetail.Editing}}readonly{{end}} />
+                    <div class="sum-apps-module-field sum-apps-module-field--full">
+                        <label for="mod_author">Author</label>
+                        <input id="mod_author" name="author" type="text" class="sum-apps-module-input{{if not .ModuleDetail.Editing}} sum-apps-module-input--readonly{{end}}" value="{{.ModuleDetail.Author}}" {{if not .ModuleDetail.Editing}}readonly{{end}} />
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="text-xs font-bold text-slate-500 uppercase" for="mod_description">Description</label>
-                        <textarea id="mod_description" name="description" rows="4" class="mt-1 w-full px-3 py-2 border border-slate-200 rounded-sm text-sm" {{if not .ModuleDetail.Editing}}readonly{{end}}>{{.ModuleDetail.Description}}</textarea>
+                    <div class="sum-apps-module-field sum-apps-module-field--full">
+                        <label for="mod_description">Description</label>
+                        <textarea id="mod_description" name="description" rows="4" class="sum-apps-module-input{{if not .ModuleDetail.Editing}} sum-apps-module-input--readonly{{end}}" {{if not .ModuleDetail.Editing}}readonly{{end}}>{{.ModuleDetail.Description}}</textarea>
                     </div>
                 </div>
             </form>
-            <div class="mt-8 flex flex-wrap gap-2 border-t border-slate-100 pt-6">
+            <div class="sum-apps-module-actions">
                 {{if .ModuleDetail.CanInstall}}
                 <form method="post" action="/web/module/action">{{template "apps_post_hiddens" $}}
                     <input type="hidden" name="do" value="install" />

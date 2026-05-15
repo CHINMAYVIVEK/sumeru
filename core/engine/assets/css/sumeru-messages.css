@@ -1,0 +1,197 @@
+/* Activity panel — Messages tab: empty state, thread cards, composer. */
+
+.sum-activity-pane--messages .sum-msg-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sum-msg-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.5rem 1rem;
+  color: var(--sum-muted);
+}
+
+.sum-msg-empty-visual {
+  margin-bottom: 0.75rem;
+  color: var(--sum-line-strong);
+}
+
+.sum-msg-empty-title {
+  margin: 0 0 0.35rem;
+  font-size: var(--sum-font-size-md);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-muted-ink);
+}
+
+.sum-msg-empty-hint {
+  margin: 0;
+  max-width: 16rem;
+  font-size: var(--sum-font-size-sm);
+  line-height: 1.45;
+  color: var(--sum-muted);
+}
+
+.sum-msg-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.sum-msg-thread {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.15rem 0.15rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.sum-msg-card {
+  border-radius: var(--sum-radius-sm);
+  padding: 0.55rem 0.65rem;
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line);
+  box-shadow: var(--sum-shadow-sm);
+}
+
+.sum-msg-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.sum-msg-author {
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-ink);
+}
+
+.sum-msg-time {
+  font-size: 0.6875rem;
+  color: var(--sum-muted);
+  white-space: nowrap;
+}
+
+.sum-msg-body {
+  font-size: var(--sum-font-size-sm);
+  line-height: 1.45;
+  color: var(--sum-muted-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sum-msg-thread-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.25rem 0.75rem 0.5rem;
+  color: var(--sum-muted);
+}
+
+.sum-msg-thread-empty-title {
+  margin: 0 0 0.35rem;
+  font-size: var(--sum-font-size-md);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-muted-ink);
+}
+
+.sum-msg-thread-empty-hint {
+  margin: 0;
+  max-width: 15rem;
+  font-size: var(--sum-font-size-sm);
+  line-height: 1.45;
+}
+
+.sum-msg-composer {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--sum-line);
+  background: linear-gradient(180deg, transparent 0%, var(--sum-surface-alt) 35%);
+}
+
+.sum-msg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.sum-msg-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 4.5rem;
+  resize: vertical;
+  padding: 0.55rem 0.65rem;
+  font-family: var(--sum-font-sans);
+  font-size: var(--sum-font-size-sm);
+  line-height: 1.45;
+  color: var(--sum-ink);
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line-strong);
+  border-radius: var(--sum-radius-sm);
+  transition: border-color var(--sum-dur) var(--sum-ease), box-shadow var(--sum-dur) var(--sum-ease);
+}
+
+.sum-msg-input::placeholder {
+  color: var(--sum-muted);
+}
+
+.sum-msg-input:hover {
+  border-color: color-mix(in srgb, var(--sum-header) 25%, var(--sum-line-strong));
+}
+
+.sum-msg-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sum-header) 45%, var(--sum-line-strong));
+  box-shadow: var(--sum-focus-ring);
+}
+
+.sum-msg-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sum-msg-form-hint {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--sum-muted);
+}
+
+.sum-msg-send {
+  margin-left: auto;
+  padding: 0.4rem 1rem;
+  border-radius: var(--sum-radius-sm);
+  border: 1px solid var(--sum-header-dark);
+  background: var(--sum-header);
+  color: var(--sum-topbar-fg);
+  font-weight: var(--sum-font-weight-semibold);
+  font-size: var(--sum-font-size-sm);
+  cursor: pointer;
+  transition: background var(--sum-dur) var(--sum-ease);
+}
+
+.sum-msg-send:hover {
+  background: var(--sum-header-dark);
+}
+
+.sum-msg-send:focus-visible {
+  outline: none;
+  box-shadow: var(--sum-focus-ring);
+}

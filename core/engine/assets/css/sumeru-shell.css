@@ -541,37 +541,6 @@
   flex-direction: column;
 }
 
-.sum-msg-empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 1.5rem 1rem;
-  color: var(--sum-muted);
-}
-
-.sum-msg-empty-visual {
-  margin-bottom: 0.75rem;
-  color: var(--sum-line-strong);
-}
-
-.sum-msg-empty-title {
-  margin: 0 0 0.35rem;
-  font-size: var(--sum-font-size-md);
-  font-weight: var(--sum-font-weight-semibold);
-  color: var(--sum-muted-ink);
-}
-
-.sum-msg-empty-hint {
-  margin: 0;
-  max-width: 16rem;
-  font-size: var(--sum-font-size-sm);
-  line-height: 1.45;
-  color: var(--sum-muted);
-}
-
 .sum-activity-body {
   padding: 0.35rem 0;
 }

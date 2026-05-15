@@ -3,23 +3,28 @@ package orm
 // Legacy schema fixes that are not expressed as additive columns on Model.Fields():
 // - widen sys.view.arch to TEXT
 // - composite index on mail.message
-// - backfill sys.menu.module from sys.model_data
+// - backfill sys.menu.module from the XML-id registry table (sys_model_data)
 //
 // Registered model columns are added by SyncRegistrySchema (schema_sync.go), invoked on
 // server startup and on module install (-i) / update (-u).
 
-// BackfillSysMenuModule sets sys.menu.module from sys.model_data for rows missing it.
+// BackfillSysMenuModule sets sys.menu.module from sys_model_data for rows missing it.
 func BackfillSysMenuModule() error {
 	if DB == nil {
 		return nil
 	}
-	_, err := DB.Exec(`
-		UPDATE sys_menu m
+	dataTbl := GetTableName("sys.model_data")
+	ok, err := tableExists(dataTbl)
+	if err != nil || !ok {
+		return err
+	}
+	menuTbl := GetTableName("sys.menu")
+	q := `UPDATE ` + quoteIdent(menuTbl) + ` m
 		SET module = d.module
-		FROM sys.model_data d
+		FROM ` + quoteIdent(dataTbl) + ` d
 		WHERE d.model = 'sys.menu' AND d.core_id = m.id
-		  AND (m.module IS NULL OR TRIM(m.module) = '')
-	`)
+		  AND (m.module IS NULL OR TRIM(m.module) = '')`
+	_, err = DB.Exec(q)
 	return err
 }
 

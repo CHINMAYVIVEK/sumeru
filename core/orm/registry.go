@@ -12,7 +12,7 @@ var Registry = map[string]Model{}
 // Kernel / platform models use "base" so metadata and DDL follow one module graph.
 var modelDeclaringModule = make(map[string]string)
 
-// RegisterModelWithModule registers a model and records which addon owns its table (Odoo-style ir.model module).
+// RegisterModelWithModule registers a model and records which addon owns its table (catalog module linkage).
 func RegisterModelWithModule(model Model, declaringModule string) {
 	if model == nil {
 		return

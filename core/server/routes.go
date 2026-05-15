@@ -31,7 +31,7 @@ func registerAppRoutes() {
 	http.HandleFunc("/web/chatter/post", web.ChatterPostHandler)
 
 	// Settings routes
-	http.HandleFunc("/web/settings", web.SettingsHomeRedirect)
+	http.HandleFunc("/web/settings", web.SettingsHubHandler)
 	http.HandleFunc("/web/settings/app-logs", web.AppLogsHandler)
 
 	http.HandleFunc("/", func(responseWriter http.ResponseWriter, request *http.Request) {

@@ -1,0 +1,87 @@
+/* Sumeru AI addon: shell widget + notebook panel (theme tokens only). */
+
+#sumeru-ai-assistant {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+}
+
+.sum-ai-fab {
+  position: relative;
+  width: 3.5rem;
+  height: 3.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--sum-header);
+  color: var(--sum-topbar-fg);
+  box-shadow: 0 6px 24px rgba(33, 37, 41, 0.22);
+  cursor: pointer;
+  transition: background var(--sum-dur) var(--sum-ease), transform 0.15s ease;
+}
+
+.sum-ai-fab:hover {
+  background: var(--sum-header-dark);
+  transform: translateY(-1px);
+}
+
+.sum-ai-fab-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.sum-ai-fab-tooltip {
+  position: absolute;
+  right: calc(100% + 0.65rem);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.25rem 0.45rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  white-space: nowrap;
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-ink);
+  color: var(--sum-surface);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.sum-ai-fab:hover .sum-ai-fab-tooltip,
+.sum-ai-fab:focus-visible .sum-ai-fab-tooltip {
+  opacity: 1;
+}
+
+.sum-ai-panel {
+  padding: 1.25rem 1.35rem;
+  border-radius: var(--sum-radius);
+  border: 1px solid color-mix(in srgb, var(--sum-header) 22%, var(--sum-line));
+  background: color-mix(in srgb, var(--sum-header) 8%, var(--sum-surface));
+}
+
+.sum-ai-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.75rem;
+  font-size: var(--sum-font-size-md);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-ink);
+}
+
+.sum-ai-panel-title-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--sum-header);
+}
+
+.sum-ai-panel-text {
+  margin: 0;
+  font-size: var(--sum-font-size-root);
+  line-height: 1.55;
+  color: var(--sum-muted-ink);
+}

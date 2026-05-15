@@ -67,15 +67,15 @@ func collectMenuAncestors(ctx context.Context, leafID int) []menuCrumb {
 	return stack
 }
 
-// BuildWorkspaceBreadcrumbs builds Home + menu path + current view/record for /web workspace pages.
+// BuildWorkspaceBreadcrumbs builds app-root menu path + current view/record for /web workspace pages.
+// The trail starts at the active application root (same label as shell ModuleName in normal cases), not Home.
 func BuildWorkspaceBreadcrumbs(ctx context.Context, activeMenuID string, viewType, viewHumanTitle, formBaseQuery string, record map[string]interface{}, recordID int) []BreadcrumbItem {
 	var items []BreadcrumbItem
-	items = append(items, BreadcrumbItem{Label: "Home", Href: HomeWebURL(ctx)})
 
 	mid, err := strconv.Atoi(strings.TrimSpace(activeMenuID))
 	if err != nil || mid <= 0 {
 		if strings.TrimSpace(viewHumanTitle) != "" {
-			items = append(items, BreadcrumbItem{Label: viewHumanTitle, Href: ""})
+			return []BreadcrumbItem{{Label: strings.TrimSpace(viewHumanTitle), Href: ""}}
 		}
 		return items
 	}
@@ -114,6 +114,11 @@ func BuildWorkspaceBreadcrumbs(ctx context.Context, activeMenuID string, viewTyp
 		return items
 	}
 
+	// List/tree/kanban: menu chain already names the screen (e.g. "All Companies"); do not append model list title ("Companies").
+	if isMatrix && len(chain) > 0 {
+		return items
+	}
+
 	if strings.TrimSpace(viewHumanTitle) != "" {
 		if len(items) == 0 || items[len(items)-1].Label != viewHumanTitle {
 			items = append(items, BreadcrumbItem{Label: viewHumanTitle, Href: ""})
@@ -145,6 +150,14 @@ func BuildHomeDashboardBreadcrumbs(ctx context.Context) []BreadcrumbItem {
 	return []BreadcrumbItem{
 		{Label: "Home", Href: HomeWebURL(ctx)},
 		{Label: "Dashboard", Href: ""},
+	}
+}
+
+// BuildSettingsHubBreadcrumbs returns Home + Settings overview (current).
+func BuildSettingsHubBreadcrumbs(ctx context.Context) []BreadcrumbItem {
+	return []BreadcrumbItem{
+		{Label: "Home", Href: HomeWebURL(ctx)},
+		{Label: "Settings", Href: ""},
 	}
 }
 

@@ -10,7 +10,7 @@
                     <h1>
                         <field name="name" placeholder="Company legal name…"/>
                     </h1>
-                    <div class="flex space-x-4">
+                    <div class="sum-title-contact-row">
                         <field name="email" string="Email" widget="email"/>
                         <field name="phone" string="Phone"/>
                         <field name="website" string="Website"/>

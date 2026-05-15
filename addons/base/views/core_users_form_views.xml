@@ -14,7 +14,7 @@
                     <h1>
                         <field name="name" placeholder="e.g. Mitchell Admin"/>
                     </h1>
-                    <div class="flex space-x-4">
+                    <div class="sum-title-contact-row">
                         <field name="email" string="Email" widget="email"/>
                         <field name="phone" string="Work phone"/>
                         <field name="mobile" string="Mobile"/>

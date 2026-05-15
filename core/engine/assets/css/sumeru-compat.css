@@ -1,4 +1,4 @@
-/* Form fields and small utility classes used by templates and legacy markup. */
+/* Legacy `.field` blocks on login / setup pages (semantic only). */
 
 .field {
   margin-bottom: 1.25rem;
@@ -31,52 +31,4 @@
   outline: none;
   border-color: var(--sum-header);
   box-shadow: var(--sum-focus-ring);
-}
-
-.flex {
-  display: flex;
-}
-
-.flex-col {
-  flex-direction: column;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.justify-between {
-  justify-content: space-between;
-}
-
-.gap-2 {
-  gap: 0.5rem;
-}
-
-.p-4 {
-  padding: 1rem;
-}
-
-.m-0 {
-  margin: 0;
-}
-
-.text-success {
-  color: var(--sum-success);
-}
-
-.text-danger {
-  color: var(--sum-danger);
-}
-
-.text-warning {
-  color: var(--sum-warning);
-}
-
-.rounded-lg {
-  border-radius: var(--sum-radius);
-}
-
-.shadow-sm {
-  box-shadow: var(--sum-shadow-sm);
 }

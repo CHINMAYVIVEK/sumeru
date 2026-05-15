@@ -1,1 +1,347 @@
-/* /web workspace-specific tweaks (forms, embedded controls). Core layout: sumeru-shell.css + sumeru-views.css. */
+/* /web workspace: keep activity dock as a right column; tree/kanban/form fill the main column. */
+
+.sum-workspace-row {
+  flex-wrap: nowrap;
+}
+
+/* When the main slot hosts a structured view, use column flex so inner regions scroll (not the shell row). */
+.sum-content:has(.sum-tree-view),
+.sum-content:has(.sum-kanban-board),
+.sum-content:has(.sum-form-view) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sum-tree-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.sum-tree-control {
+  flex-shrink: 0;
+}
+
+.sum-web-table-wrap.sum-tree-table-wrap,
+.sum-tree-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.sum-kanban-board {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.sum-kanban-columns {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.sum-form-view {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* —— Premium tree / list toolbar —— */
+.sum-tree-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--sum-surface);
+  border-bottom: 1px solid var(--sum-line);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+
+.sum-tree-control-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.sum-tree-btn-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--sum-radius-sm);
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  text-decoration: none !important;
+  color: var(--sum-topbar-fg) !important;
+  background: var(--sum-header);
+  border: 1px solid var(--sum-header-dark);
+  transition: background var(--sum-dur) var(--sum-ease), box-shadow var(--sum-dur) var(--sum-ease);
+}
+
+.sum-tree-btn-new:hover {
+  background: var(--sum-header-dark);
+  box-shadow: 0 2px 8px rgba(135, 90, 123, 0.25);
+}
+
+.sum-tree-title {
+  margin: 0;
+  font-size: var(--sum-font-size-lg);
+  font-weight: var(--sum-font-weight-bold);
+  color: var(--sum-ink);
+  letter-spacing: var(--sum-letter-spacing-tight);
+}
+
+.sum-tree-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: var(--sum-radius-sm);
+  border: 1px solid var(--sum-line);
+  background: var(--sum-surface-alt);
+  color: var(--sum-muted);
+  cursor: default;
+}
+
+.sum-tree-icon-btn svg {
+  color: var(--sum-muted);
+}
+
+.sum-tree-icon-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.sum-tree-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 14rem;
+  min-width: 8rem;
+  max-width: 22rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--sum-radius-sm);
+  border: 1px solid var(--sum-line);
+  background: var(--sum-bg);
+}
+
+.sum-tree-search-icon {
+  display: flex;
+  color: var(--sum-muted);
+}
+
+.sum-tree-search {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: var(--sum-font-size-root);
+  color: var(--sum-ink);
+}
+
+.sum-tree-control-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.sum-tree-pager {
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sum-tree-view-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface-alt);
+  border: 1px solid var(--sum-line);
+}
+
+.sum-tree-view-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.45rem;
+  color: var(--sum-muted);
+  border: 1px solid transparent;
+  background: transparent;
+  text-decoration: none !important;
+  transition:
+    background var(--sum-dur) var(--sum-ease),
+    color var(--sum-dur) var(--sum-ease),
+    border-color var(--sum-dur) var(--sum-ease);
+}
+
+.sum-tree-view-tab svg {
+  display: block;
+}
+
+.sum-tree-view-tab:hover {
+  color: var(--sum-header);
+  background: var(--sum-row-hover-bg);
+}
+
+.sum-tree-view-tab.is-active {
+  color: var(--sum-header);
+  background: var(--sum-surface);
+  border-color: var(--sum-line);
+  box-shadow: var(--sum-shadow-sm);
+}
+
+/* —— Premium data table —— */
+.sum-web-table-wrap.sum-tree-table-wrap,
+.sum-tree-table-wrap {
+  padding: 0 0.5rem 0.75rem;
+  background: var(--sum-bg);
+}
+
+.sum-tree-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  background: var(--sum-surface);
+  border-radius: var(--sum-radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--sum-line);
+  box-shadow: var(--sum-shadow-sm);
+}
+
+.sum-tree-th {
+  padding: 0.55rem 0.65rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
+  color: var(--sum-muted);
+  background: linear-gradient(180deg, var(--sum-surface-alt) 0%, color-mix(in srgb, var(--sum-surface-alt) 70%, var(--sum-surface)) 100%);
+  border-bottom: 1px solid var(--sum-line);
+}
+
+.sum-tree-th-check,
+.sum-tree-th-grip,
+.sum-tree-th-actions {
+  width: 2.25rem;
+  text-align: center;
+}
+
+.sum-tree-th-muted {
+  opacity: 0.55;
+}
+
+.sum-tree-td,
+.sum-tree-td-check,
+.sum-tree-td-grip,
+.sum-tree-td-actions {
+  padding: 0.45rem 0.55rem;
+  font-size: var(--sum-font-size-root);
+  border-bottom: 1px solid var(--sum-line);
+  vertical-align: middle;
+}
+
+.sum-tree-row:nth-child(even) .sum-tree-td {
+  background: color-mix(in srgb, var(--sum-bg) 55%, var(--sum-surface));
+}
+
+.sum-tree-row--click {
+  cursor: pointer;
+}
+
+.sum-tree-row--click:hover .sum-tree-td {
+  background: var(--sum-row-hover-bg);
+}
+
+.sum-tree-row--click:focus-within .sum-tree-td {
+  outline: 2px solid color-mix(in srgb, var(--sum-header) 35%, transparent);
+  outline-offset: -2px;
+}
+
+.sum-tree-empty {
+  padding: 2rem 1rem !important;
+  text-align: center;
+  color: var(--sum-muted);
+}
+
+.sum-tree-grip {
+  color: var(--sum-gray-300);
+  font-size: 0.75rem;
+  letter-spacing: -0.05em;
+}
+
+/* —— Premium kanban —— */
+.sum-kanban-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-content: flex-start;
+  padding: 0.65rem 0.75rem 1rem;
+  background: var(--sum-bg);
+}
+
+.sum-kanban-empty {
+  width: 100%;
+  padding: 2rem;
+  text-align: center;
+  color: var(--sum-muted);
+  border: 1px dashed var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+}
+
+.sum-kanban-card {
+  flex: 1 1 200px;
+  max-width: 280px;
+  min-width: 180px;
+  padding: 0.85rem 1rem;
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line);
+  box-shadow: var(--sum-shadow-sm);
+  cursor: pointer;
+  transition:
+    transform var(--sum-dur-slow) var(--sum-ease),
+    box-shadow var(--sum-dur-slow) var(--sum-ease),
+    border-color var(--sum-dur) var(--sum-ease);
+}
+
+.sum-kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  border-color: color-mix(in srgb, var(--sum-header) 22%, var(--sum-line));
+}
+
+.sum-kanban-card:focus-visible {
+  outline: none;
+  box-shadow: var(--sum-focus-ring);
+}
+
+.sum-kanban-card-title {
+  margin: 0 0 0.35rem;
+  font-size: var(--sum-font-size-md);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-ink);
+}
+
+.sum-kanban-card-sub {
+  margin: 0;
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-muted);
+  line-height: 1.4;
+}
