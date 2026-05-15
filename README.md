@@ -203,6 +203,8 @@ These apply to **`go run ./cmd/sumeru --`**, **`./sumeru.sh`**, and **`./sumeru`
 
 Styles are **plain CSS** under `core/engine/assets/css/` (no Tailwind in markup; layout uses **`sum-*`** classes and design tokens). The global stack is **`DefaultStylesheetURLs()`** in `core/engine/assets/stylesheets.go`.
 
+**Canonical reference:** keep the global CSS file table (below) only in this README. Other docs should link here instead of duplicating the list.
+
 | File | Responsibility |
 | ---- | ---------------- |
 | `sumeru-theme.css` | **Branding only**: `:root` colors, typography, radii, shadows, layout tokens |

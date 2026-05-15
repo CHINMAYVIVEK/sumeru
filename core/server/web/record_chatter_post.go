@@ -1,7 +1,6 @@
 package web
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,12 +15,10 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	if !RequirePOST(w, r) {
 		return
 	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Invalid form", http.StatusBadRequest)
+	if !ParsePostForm(w, r) {
 		return
 	}
 	if !mail.CompanyChatterEnabled(r.Context()) {
@@ -29,14 +26,11 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	modelName := strings.TrimSpace(r.PostFormValue("model"))
-	next := strings.TrimSpace(r.PostFormValue("next"))
+	next := SafeWebNext(r.PostFormValue("next"), "/web/home")
 	body := strings.TrimSpace(r.PostFormValue("body"))
 	if modelName == "" {
 		http.Error(w, "Missing model", http.StatusBadRequest)
 		return
-	}
-	if next == "" || !strings.HasPrefix(next, "/web") || strings.HasPrefix(next, "//") {
-		next = "/web/home"
 	}
 	if body == "" {
 		http.Redirect(w, r, next, http.StatusSeeOther)
@@ -67,7 +61,7 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	author := "User"
 	if err := mail.PostMessage(r.Context(), modelName, rid, body, mail.SubtypeComment, author); err != nil {
-		log.Printf("web: chatter post %s id=%d: %v", modelName, rid, err)
+		WebLogf("/web/chatter/post", "chatter post %s id=%d: %v", modelName, rid, err)
 		http.Error(w, "Post failed", http.StatusInternalServerError)
 		return
 	}

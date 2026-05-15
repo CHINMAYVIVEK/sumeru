@@ -2,7 +2,6 @@ package web
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -19,22 +18,17 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	if !RequirePOST(w, r) {
 		return
 	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Invalid form", http.StatusBadRequest)
+	if !ParsePostForm(w, r) {
 		return
 	}
 	modelName := strings.TrimSpace(r.PostFormValue("model"))
-	next := strings.TrimSpace(r.PostFormValue("next"))
+	next := SafeWebNext(r.PostFormValue("next"), "/web/home")
 	if modelName == "" {
 		http.Error(w, "Missing model", http.StatusBadRequest)
 		return
-	}
-	if next == "" || !strings.HasPrefix(next, "/web") || strings.HasPrefix(next, "//") {
-		next = "/web/home"
 	}
 
 	inst, ok := orm.Registry[modelName]
@@ -52,11 +46,11 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		newID, err := orm.Create(r.Context(), inst, vals)
 		if err != nil {
-			log.Printf("web: create %s: %v", modelName, err)
+			WebLogf("/web/record/save", "create %s: %v", modelName, err)
 			http.Error(w, "Save failed", http.StatusInternalServerError)
 			return
 		}
-		applyResUsersSecurityPost(r, modelName, newID)
+		applyCoreUserSecurityPost(r, modelName, newID)
 		_ = mail.PostMessage(r.Context(), modelName, int64(newID), fmt.Sprintf("Record created (id %d).", newID), mail.SubtypeNotification, "System")
 		redir := appendRecordIDToNext(next, newID)
 		http.Redirect(w, r, redir, http.StatusSeeOther)
@@ -74,11 +68,11 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := orm.UpdateRecordByID(r.Context(), modelName, id, vals); err != nil {
-		log.Printf("web: update %s id=%d: %v", modelName, id, err)
+		WebLogf("/web/record/save", "update %s id=%d: %v", modelName, id, err)
 		http.Error(w, "Save failed", http.StatusInternalServerError)
 		return
 	}
-	applyResUsersSecurityPost(r, modelName, id)
+	applyCoreUserSecurityPost(r, modelName, id)
 	_ = mail.PostMessage(r.Context(), modelName, int64(id), fmt.Sprintf("Record updated (id %d).", id), mail.SubtypeNotification, "System")
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
@@ -148,7 +142,7 @@ func postFormToModelValues(inst orm.Model, form url.Values) (map[string]interfac
 	return out, nil
 }
 
-func applyResUsersSecurityPost(r *http.Request, modelName string, userID int) {
+func applyCoreUserSecurityPost(r *http.Request, modelName string, userID int) {
 	if modelName != "core.user" || userID <= 0 {
 		return
 	}
@@ -164,19 +158,19 @@ func applyResUsersSecurityPost(r *http.Request, modelName string, userID int) {
 			}
 		}
 		if err := orm.SetUserGroupLinks(r.Context(), userID, gids); err != nil {
-			log.Printf("web: set user %d groups: %v", userID, err)
+			WebLogf("/web/record/save", "set user %d groups: %v", userID, err)
 		}
 	}
 	if _, ok := r.Form["password_plain"]; ok {
 		if pw := strings.TrimSpace(r.PostFormValue("password_plain")); pw != "" {
 			hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
 			if err != nil {
-				log.Printf("web: bcrypt: %v", err)
+				WebLogf("/web/record/save", "bcrypt: %v", err)
 				return
 			}
 			tbl := orm.GetTableName("core.user")
 			if _, err := orm.DB.ExecContext(r.Context(), `UPDATE `+tbl+` SET password = $1 WHERE id = $2`, string(hash), userID); err != nil {
-				log.Printf("web: password update user %d: %v", userID, err)
+				WebLogf("/web/record/save", "password update user %d: %v", userID, err)
 			}
 		}
 	}

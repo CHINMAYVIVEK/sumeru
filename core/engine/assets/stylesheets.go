@@ -1,6 +1,7 @@
 package assets
 
 // DefaultStylesheetURLs is the ordered list of core CSS files for the web UI.
+// When adding a sheet: append here and add a row to the UI assets table in ../../../README.md (canonical).
 // sumeru-theme.css must load first (design tokens). Structural sheets use var(--sum-*).
 func DefaultStylesheetURLs() []string {
 	return []string{

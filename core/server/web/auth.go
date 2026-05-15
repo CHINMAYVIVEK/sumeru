@@ -2,7 +2,6 @@ package web
 
 import (
 	"html/template"
-	"log"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -55,17 +54,14 @@ func LoginGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if SessionUserID(r) > 0 {
-		next := strings.TrimSpace(r.URL.Query().Get("next"))
-		if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-			next = "/web/home"
-		}
+		next := SafePathNext(r.URL.Query().Get("next"), "/web/home")
 		http.Redirect(w, r, next, http.StatusFound)
 		return
 	}
 	tmplPath := filepath.Join(config.AppConfig.TemplatesPath, "login.html")
 	t, err := template.ParseFiles(tmplPath)
 	if err != nil {
-		log.Printf("%s: login template: %v", platformmsg.MsgHTTPTemplateError, err)
+		WebLogf("/web/login", "%s: login template: %v", platformmsg.MsgHTTPTemplateError, err)
 		http.Error(w, "Login page unavailable", http.StatusInternalServerError)
 		return
 	}
@@ -84,16 +80,12 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Bad form", http.StatusBadRequest)
+	if !ParsePostForm(w, r) {
 		return
 	}
 	login := strings.TrimSpace(r.PostFormValue("login"))
 	password := r.PostFormValue("password")
-	next := strings.TrimSpace(r.PostFormValue("next"))
-	if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-		next = "/web/home"
-	}
+	next := SafePathNext(r.PostFormValue("next"), "/web/home")
 	tbl := orm.GetTableName("core.user")
 	var id int
 	var hash string
@@ -111,7 +103,7 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := CreateSession(w, id); err != nil {
-		log.Printf("web: session: %v", err)
+		WebLogf("/web/login", "session: %v", err)
 		http.Error(w, "Could not start session", http.StatusInternalServerError)
 		return
 	}
@@ -148,21 +140,16 @@ func ActionResetPassword(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	if !RequirePOST(w, r) {
 		return
 	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+	if !ParsePostForm(w, r) {
 		return
 	}
 	userID := strings.TrimSpace(r.PostFormValue("id"))
 	login := strings.TrimSpace(r.PostFormValue("login"))
-	log.Printf("action_reset_password: requested for user id=%s login=%q (email not yet wired)", userID, login)
+	WebLogf("/web/action/reset_password", "requested for user id=%s login=%q (email not yet wired)", userID, login)
 	// Redirect back with a flash-style query param so the UI can surface it.
-	next := strings.TrimSpace(r.PostFormValue("next"))
-	if next == "" || !strings.HasPrefix(next, "/web") || strings.HasPrefix(next, "//") {
-		next = "/web/home"
-	}
+	next := SafeWebNext(r.PostFormValue("next"), "/web/home")
 	http.Redirect(w, r, next+"&msg=reset_requested", http.StatusSeeOther)
 }

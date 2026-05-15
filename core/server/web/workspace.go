@@ -1,10 +1,8 @@
 package web
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,23 +21,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	actionIDStr := r.URL.Query().Get("action")
 	menuIDStr := r.URL.Query().Get("menu_id")
 
-	var actionID int
-	if actionIDStr != "" {
-		if id, err := strconv.Atoi(actionIDStr); err == nil {
-			actionID = id
-		} else {
-			if resID, _, err := orm.ResolveXmlId(r.Context(), actionIDStr); err == nil {
-				actionID = resID
-			}
-		}
-	}
-
-	if actionID == 0 && menuIDStr != "" {
-		menuID, err := strconv.Atoi(menuIDStr)
-		if err == nil {
-			actionID = actionIDFromMenu(r.Context(), menuID)
-		}
-	}
+	actionID := ResolveWindowActionID(r.Context(), actionIDStr, menuIDStr)
 
 	if actionID == 0 {
 		if menuIDPointsToAppLogs(r.Context(), menuIDStr) {
@@ -47,7 +29,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Avoid picking an arbitrary window action (often the lowest id); that misroutes e.g. Sales/CRM roots.
-		log.Printf("web: no action for query action=%q menu_id=%q; redirecting to apps", actionIDStr, menuIDStr)
+		WebLogf("/web", "no action for query action=%q menu_id=%q; redirecting to home", actionIDStr, menuIDStr)
 		http.Redirect(w, r, "/web/home", http.StatusFound)
 		return
 	}
@@ -150,7 +132,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 					http.Error(w, fmt.Sprintf("Record %d not found", id), http.StatusNotFound)
 					return
 				}
-				log.Printf("web: load record %s id=%d: %v", targetModel, id, err)
+				WebLogf("/web", "load record %s id=%d: %v", targetModel, id, err)
 				http.Error(w, "Failed to load record", http.StatusInternalServerError)
 				return
 			}
@@ -159,7 +141,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	case "tree", "list":
 		rows, err := orm.SearchLimit(r.Context(), targetModel, nil, 500)
 		if err != nil {
-			log.Printf("web: list %s: %v", targetModel, err)
+			WebLogf("/web", "list %s: %v", targetModel, err)
 			http.Error(w, "Failed to load records", http.StatusInternalServerError)
 			return
 		}
@@ -167,7 +149,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	case "kanban":
 		rows, err := orm.SearchLimit(r.Context(), targetModel, nil, 200)
 		if err != nil {
-			log.Printf("web: kanban %s: %v", targetModel, err)
+			WebLogf("/web", "kanban %s: %v", targetModel, err)
 			http.Error(w, "Failed to load records", http.StatusInternalServerError)
 			return
 		}
@@ -178,66 +160,4 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(html))
-}
-
-func actionIDFromMenu(ctx context.Context, menuID int) int {
-	menuData, err := orm.SearchOne(ctx, "sys.menu", map[string]interface{}{"id": menuID})
-	if err != nil {
-		return 0
-	}
-	if aID, ok := intFromDB(menuData["action_id"]); ok && aID != 0 {
-		return aID
-	}
-	// Section roots (Sales, CRM, …) often have no action; walk descendants in sequence order.
-	return firstDescendantActionID(ctx, menuID)
-}
-
-// firstDescendantActionID returns the first non-zero action_id in a depth-first walk
-// of children ordered by sequence, then id (matches typical “first submenu” behavior).
-func firstDescendantActionID(ctx context.Context, parentID int) int {
-	rows, err := orm.DB.QueryContext(ctx,
-		`SELECT id, action_id FROM `+orm.GetTableName("sys.menu")+
-			` WHERE parent_id = $1 ORDER BY sequence ASC, id ASC`,
-		parentID,
-	)
-	if err != nil {
-		return 0
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var cid int
-		var aid sql.NullInt64
-		if err := rows.Scan(&cid, &aid); err != nil {
-			continue
-		}
-		if aid.Valid && aid.Int64 != 0 {
-			return int(aid.Int64)
-		}
-		if sub := firstDescendantActionID(ctx, cid); sub != 0 {
-			return sub
-		}
-	}
-	return 0
-}
-
-// menuIDPointsToAppLogs is true when menu_id is the Event Log item (no window action; served by AppLogsHandler).
-func menuIDPointsToAppLogs(ctx context.Context, menuIDStr string) bool {
-	menuIDStr = strings.TrimSpace(menuIDStr)
-	if menuIDStr == "" {
-		return false
-	}
-	want, _, err := orm.ResolveXmlId(ctx, "base.menu_app_logs")
-	if err != nil || want == 0 {
-		return false
-	}
-	got, err := strconv.Atoi(menuIDStr)
-	if err != nil {
-		return false
-	}
-	return got == want
-}
-
-// actionWindowTargetModel returns the ORM technical model for a sys.action.window row (core_model).
-func actionWindowTargetModel(actionData map[string]interface{}) string {
-	return strings.TrimSpace(orm.AsString(actionData["core_model"]))
 }

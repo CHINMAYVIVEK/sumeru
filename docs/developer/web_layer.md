@@ -8,24 +8,17 @@ HTTP handlers under **`core/server/web/`** build **`render.PageData`** and execu
 
 ## Render package (`core/engine/render/`)
 
-| Area | Files (indicative) |
-| ---- | ------------------- |
-| Dispatch | `view_render.go` (`RenderView`), `form_render.go` (`RenderForm`) |
-| Lists / pivots | `tree_render.go`, `kanban_render.go`, `pivot_render.go` |
-| Workspace chrome | `workspace_chrome.go` |
-| Chatter | `activity_chatter_render.go` |
-| User security tab | `user_security_render.go` |
-| Hooks / types | `render_types.go` — **`RegisterShellHook`**, **`RegisterNotebookHook`** |
+Import rules live in **`core/engine/render/doc.go`**. File-level layout (which `.go` owns forms, tree, hooks, etc.) is documented in **`sumeru/README.md`** — keep that table in README only.
 
 Hooks let addons inject HTML **without** forking templates: shell chrome and per-notebook-page bodies (matched by model + page title).
 
 ## Assets
 
-- Global CSS order is defined in **`core/engine/assets/stylesheets.go`**.
+- Register a new **global** stylesheet in **`core/engine/assets/stylesheets.go`** (`DefaultStylesheetURLs`) and document it in **`sumeru/README.md`** (UI section). Do not copy the core CSS file list into this doc.
 - Per-page extra sheets go through **`PageData.ViewStylesheetURLs`** (Apps grid, Home hub, Settings hub, etc.).
 - Optional per-addon **`static/css/theme-overrides.css`** is exposed as **`/static/addon-css/<module>.css`**.
 
-Details and file names: **`sumeru/README.md`** (UI section).
+More detail: **`sumeru/README.md`** (UI section).
 
 ## Client scripts
 
