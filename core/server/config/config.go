@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -25,8 +26,15 @@ type Config struct {
 	LogoPath           string   // optional image path (served as /static/app-logo)
 	CompanyDisplayName string   // optional header label; else first core.company when module installed
 	UserDisplayName    string   // optional header label; else first core.user when module installed
-	LogFile            string   // optional; append logs here (multi-writer with stderr); parent dirs created
-	DevMode            bool     // dev_mode = true → enables dev-only features (e.g. unauthenticated branding fallback)
+	LogFile            string   // optional log file path (absolutized in AbsPaths); see log_stdout / log_rolling
+	LogStdout          bool     // when true, emit JSON logs to stdout (typical for Kubernetes)
+	LogRolling         bool     // when true and log_file set, use size-based rotation (lumberjack); false for append-only or external rotation
+	LogMaxSizeMB       int      // max megabytes per log file before rotation (default 100 when log_rolling)
+	LogMaxBackups      int      // retained rotated files (0 = lumberjack default)
+	LogMaxAgeDays      int      // delete rolled files older than N days (0 = no age limit)
+	LogEnabled         bool     // log_enabled: when false, no Zap sinks and L(ctx) is no-op; stdlib log discarded
+	LogTimezone        string   // log_timezone: UTC, Local (default), or IANA (e.g. Asia/Kolkata) for timestamps
+	DevMode            bool     // dev_mode INI key; parseBoolKey(..., false) — debug Zap level and dev-only server paths
 }
 
 var AppConfig Config
@@ -37,7 +45,10 @@ var ConfigFileDir string
 
 func LoadConfig(path string) error {
 	AppConfig = Config{
-		DbSslMode: defaultDbSSLMode,
+		DbSslMode:    defaultDbSSLMode,
+		LogStdout:    true,
+		LogEnabled:   true,
+		LogMaxSizeMB: 100,
 	}
 
 	absPath, err := filepath.Abs(path)
@@ -100,8 +111,28 @@ func LoadConfig(path string) error {
 			AppConfig.UserDisplayName = val
 		case keyLogFile:
 			AppConfig.LogFile = val
+		case keyLogStdout:
+			AppConfig.LogStdout = parseBoolKey(val, true)
+		case keyLogRolling:
+			AppConfig.LogRolling = parseBoolKey(val, false)
+		case keyLogMaxSizeMB:
+			if n, err := strconv.Atoi(strings.TrimSpace(val)); err == nil {
+				AppConfig.LogMaxSizeMB = n
+			}
+		case keyLogMaxBackups:
+			if n, err := strconv.Atoi(strings.TrimSpace(val)); err == nil {
+				AppConfig.LogMaxBackups = n
+			}
+		case keyLogMaxAgeDays:
+			if n, err := strconv.Atoi(strings.TrimSpace(val)); err == nil {
+				AppConfig.LogMaxAgeDays = n
+			}
+		case keyLogEnabled:
+			AppConfig.LogEnabled = parseBoolKey(val, true)
+		case keyLogTimezone:
+			AppConfig.LogTimezone = val
 		case keyDevMode:
-			AppConfig.DevMode = val == "true" || val == "1" || strings.EqualFold(val, "yes")
+			AppConfig.DevMode = parseBoolKey(val, false)
 		}
 	}
 
@@ -118,6 +149,18 @@ func LoadConfig(path string) error {
 	// from the INI directory and break workspace configs next to ../sumeru).
 
 	return nil
+}
+
+// parseBoolKey parses INI booleans; empty string returns defaultVal.
+func parseBoolKey(val string, defaultVal bool) bool {
+	s := strings.TrimSpace(strings.ToLower(val))
+	if s == "" {
+		return defaultVal
+	}
+	if s == "0" || s == "false" || s == "no" || s == "off" {
+		return false
+	}
+	return s == "1" || s == "true" || s == "yes" || s == "on"
 }
 
 func validateRequired(c *Config, path string) error {

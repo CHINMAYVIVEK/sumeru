@@ -1,17 +1,19 @@
 package web
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"strings"
+
+	"sumeru/core/applog"
 )
 
-// WebLogf writes one standard-format line for web handlers (grep-friendly: component=web route=…).
-func WebLogf(route, format string, args ...interface{}) {
+// WebLogf writes a structured web log line with enforced fields from applog.L(ctx) (user_id, log_ts, log_tz).
+func WebLogf(ctx context.Context, route, format string, args ...interface{}) {
 	route = strings.TrimSpace(route)
 	if route == "" {
 		route = "-"
 	}
 	msg := fmt.Sprintf(format, args...)
-	log.Printf("component=web route=%s %s", route, msg)
+	applog.L(ctx).Infow("web", "route", route, "msg", msg)
 }

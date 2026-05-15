@@ -46,7 +46,7 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		newID, err := orm.Create(r.Context(), inst, vals)
 		if err != nil {
-			WebLogf("/web/record/save", "create %s: %v", modelName, err)
+			WebLogf(r.Context(), "/web/record/save", "create %s: %v", modelName, err)
 			http.Error(w, "Save failed", http.StatusInternalServerError)
 			return
 		}
@@ -68,7 +68,7 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := orm.UpdateRecordByID(r.Context(), modelName, id, vals); err != nil {
-		WebLogf("/web/record/save", "update %s id=%d: %v", modelName, id, err)
+		WebLogf(r.Context(), "/web/record/save", "update %s id=%d: %v", modelName, id, err)
 		http.Error(w, "Save failed", http.StatusInternalServerError)
 		return
 	}
@@ -158,19 +158,19 @@ func applyCoreUserSecurityPost(r *http.Request, modelName string, userID int) {
 			}
 		}
 		if err := orm.SetUserGroupLinks(r.Context(), userID, gids); err != nil {
-			WebLogf("/web/record/save", "set user %d groups: %v", userID, err)
+			WebLogf(r.Context(), "/web/record/save", "set user %d groups: %v", userID, err)
 		}
 	}
 	if _, ok := r.Form["password_plain"]; ok {
 		if pw := strings.TrimSpace(r.PostFormValue("password_plain")); pw != "" {
 			hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
 			if err != nil {
-				WebLogf("/web/record/save", "bcrypt: %v", err)
+				WebLogf(r.Context(), "/web/record/save", "bcrypt: %v", err)
 				return
 			}
 			tbl := orm.GetTableName("core.user")
 			if _, err := orm.DB.ExecContext(r.Context(), `UPDATE `+tbl+` SET password = $1 WHERE id = $2`, string(hash), userID); err != nil {
-				WebLogf("/web/record/save", "password update user %d: %v", userID, err)
+				WebLogf(r.Context(), "/web/record/save", "password update user %d: %v", userID, err)
 			}
 		}
 	}

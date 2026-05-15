@@ -154,7 +154,7 @@ func ParseViewList(filePath string) (*ViewList, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", filePath, err)
 	}
-	if err := validateModuleRoot(xml.Name{Local: root}); err != nil {
+	if err := ValidateModuleRoot(xml.Name{Local: root}); err != nil {
 		return nil, fmt.Errorf("%s: %w", filePath, err)
 	}
 	var viewList ViewList
@@ -198,7 +198,7 @@ func ParseViewByType(filePath string, viewType string) (*View, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := validateModuleRoot(xml.Name{Local: root}); err != nil {
+	if err := ValidateModuleRoot(xml.Name{Local: root}); err != nil {
 		return nil, err
 	}
 	var viewList ViewList
@@ -225,7 +225,7 @@ func ParseMenus(filePath string) ([]MenuItem, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := validateModuleRoot(xml.Name{Local: root}); err != nil {
+	if err := ValidateModuleRoot(xml.Name{Local: root}); err != nil {
 		return nil, err
 	}
 	var menuList MenuList

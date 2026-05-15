@@ -3,9 +3,10 @@ package orm
 import (
 	"context"
 	"fmt"
-	"log"
 	"sort"
 	"strings"
+
+	"sumeru/core/applog"
 )
 
 // SyncRegistrySchema adds missing columns and indexes for every model in Registry
@@ -37,14 +38,14 @@ func SyncRegistrySchema() error {
 	sort.Strings(names)
 	for _, name := range names {
 		m := Registry[name]
-		if err := syncModelSchema(m); err != nil {
+		if err := syncModelSchema(ctx, m); err != nil {
 			return fmt.Errorf("schema sync %s: %w", name, err)
 		}
 	}
 	return nil
 }
 
-func syncModelSchema(model Model) error {
+func syncModelSchema(ctx context.Context, model Model) error {
 	tableName := GetTableName(model.ModelName())
 	exists, err := tableExists(tableName)
 	if err != nil {
@@ -68,12 +69,12 @@ func syncModelSchema(model Model) error {
 		if !ok {
 			continue
 		}
-		colDef := buildAddColumnDefinition(field, baseType)
+		colDef := FormatAddColumnDefinition(field, baseType)
 		q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", quoteIdent(tableName), quoteIdent(field.Name), colDef)
 		if _, err := DB.Exec(q); err != nil {
 			return fmt.Errorf("%s: %w", q, err)
 		}
-		log.Printf("schema sync: %s.%s added", tableName, field.Name)
+		applog.L(ctx).Infow("schema_sync", "table", tableName, "field", field.Name)
 	}
 	return ensureModelIndexes(tableName, model)
 }
@@ -124,7 +125,8 @@ func loadTableColumns(tableName string) (map[string]struct{}, error) {
 	return out, rows.Err()
 }
 
-func buildAddColumnDefinition(f FieldDefinition, baseType string) string {
+// FormatAddColumnDefinition builds the SQL column definition fragment for ALTER TABLE ... ADD COLUMN.
+func FormatAddColumnDefinition(f FieldDefinition, baseType string) string {
 	if f.Type == Boolean {
 		if f.DefaultVal == true {
 			return baseType + " NOT NULL DEFAULT TRUE"

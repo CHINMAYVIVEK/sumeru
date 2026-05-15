@@ -24,7 +24,7 @@ make generate
 # equivalent: go generate ./cmd/sumeru
 ```
 
-This runs **`cmd/sumeru-import-gen`** using **`sumeru.conf`**’s **`addons_path`**. External workspaces ( **`sumeru_custom_addons`** ) use **`make generate`** there with their own **`-out`** / **`-package`** — see **`sumeru_custom_addons/README.md`**.
+This runs **`cmd/sumeru-import-gen`** using an INI’s **`addons_path`** (in **`sumeru/`**, `go generate ./cmd/sumeru` uses the tracked **`sumeru.conf.example`** by default). External workspaces (**`sumeru_custom_addons`**) use **`make generate`** there with their own **`-out`** / **`-package`** — see **`sumeru_custom_addons/README.md`**.
 
 ## Scaffold a new addon (`sumeru-bp`)
 

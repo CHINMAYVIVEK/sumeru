@@ -1,15 +1,15 @@
 package server
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
+	"sumeru/core/applog"
 	"sumeru/core/orm"
 	"sumeru/core/server/config"
 	"sumeru/core/server/web"
@@ -37,9 +37,11 @@ func Run() {
 		log.Fatalf("Resolve paths: %v", err)
 	}
 
-	if err := setupLogFile(); err != nil {
-		log.Fatalf("Log file: %v", err)
+	if err := applog.SetupFromConfig(&config.AppConfig); err != nil {
+		log.Fatalf("Logging: %v", err)
 	}
+	defer applog.Sync()
+	applog.RegisterUIDResolver(orm.UIDFromContext)
 
 	if s := strings.TrimSpace(*dbNameLong); s != "" {
 		config.AppConfig.DbName = s
@@ -52,13 +54,13 @@ func Run() {
 		config.AppConfig.HttpPort = s
 	}
 	if strings.TrimSpace(*dbName) != "" || strings.TrimSpace(*dbNameLong) != "" {
-		log.Printf("Using database (CLI -d/--database): %s", config.AppConfig.DbName)
+		applog.L(context.Background()).Infow("server", "msg", "database override", "db", config.AppConfig.DbName)
 	}
 	if strings.TrimSpace(*httpPort) != "" || strings.TrimSpace(*httpPortShort) != "" {
-		log.Printf("Using HTTP port (CLI --http-port/-p): %s", config.AppConfig.HttpPort)
+		applog.L(context.Background()).Infow("server", "msg", "http port override", "port", config.AppConfig.HttpPort)
 	}
 
-	log.Printf("Addon roots: %v", config.AppConfig.AddonPaths)
+	applog.L(context.Background()).Infow("server", "msg", "addon roots", "paths", config.AppConfig.AddonPaths)
 
 	databaseSource := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		config.AppConfig.DbHost, config.AppConfig.DbPort, config.AppConfig.DbUser,
@@ -129,22 +131,4 @@ func Run() {
 	if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, appHandler); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
-}
-
-// setupLogFile opens AppConfig.LogFile for append (creating parent dirs). If set, log lines go to stderr and the file.
-func setupLogFile() error {
-	logPath := strings.TrimSpace(config.AppConfig.LogFile)
-	if logPath == "" {
-		return nil
-	}
-	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
-		return fmt.Errorf("mkdir log dir: %w", err)
-	}
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err != nil {
-		return fmt.Errorf("open log file %q: %w", logPath, err)
-	}
-	log.SetOutput(io.MultiWriter(os.Stderr, logFile))
-	log.Printf("logging to %s", logPath)
-	return nil
 }

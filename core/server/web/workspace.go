@@ -29,7 +29,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Avoid picking an arbitrary window action (often the lowest id); that misroutes e.g. Sales/CRM roots.
-		WebLogf("/web", "no action for query action=%q menu_id=%q; redirecting to home", actionIDStr, menuIDStr)
+		WebLogf(r.Context(), "/web", "no action for query action=%q menu_id=%q; redirecting to home", actionIDStr, menuIDStr)
 		http.Redirect(w, r, "/web/home", http.StatusFound)
 		return
 	}
@@ -132,7 +132,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 					http.Error(w, fmt.Sprintf("Record %d not found", id), http.StatusNotFound)
 					return
 				}
-				WebLogf("/web", "load record %s id=%d: %v", targetModel, id, err)
+				WebLogf(r.Context(), "/web", "load record %s id=%d: %v", targetModel, id, err)
 				http.Error(w, "Failed to load record", http.StatusInternalServerError)
 				return
 			}
@@ -141,7 +141,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	case "tree", "list":
 		rows, err := orm.SearchLimit(r.Context(), targetModel, nil, 500)
 		if err != nil {
-			WebLogf("/web", "list %s: %v", targetModel, err)
+			WebLogf(r.Context(), "/web", "list %s: %v", targetModel, err)
 			http.Error(w, "Failed to load records", http.StatusInternalServerError)
 			return
 		}
@@ -149,7 +149,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	case "kanban":
 		rows, err := orm.SearchLimit(r.Context(), targetModel, nil, 200)
 		if err != nil {
-			WebLogf("/web", "kanban %s: %v", targetModel, err)
+			WebLogf(r.Context(), "/web", "kanban %s: %v", targetModel, err)
 			http.Error(w, "Failed to load records", http.StatusInternalServerError)
 			return
 		}

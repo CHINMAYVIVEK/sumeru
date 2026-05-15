@@ -1,17 +1,15 @@
-package applog
+package orm
 
 import (
 	"context"
 	"fmt"
 	"strings"
 	"time"
-
-	"sumeru/core/orm"
 )
 
-// Log appends one application or module lifecycle row to app.log.
-func Log(ctx context.Context, moduleName, action, detail string) error {
-	if orm.DB == nil {
+// AppendAppLog inserts one row into app.log (module lifecycle / audit).
+func AppendAppLog(ctx context.Context, moduleName, action, detail string) error {
+	if DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
 	moduleName = strings.TrimSpace(moduleName)
@@ -27,6 +25,6 @@ func Log(ctx context.Context, moduleName, action, detail string) error {
 		"author":      "System",
 		"create_date": time.Now().UTC(),
 	}
-	_, err := orm.Create(ctx, orm.AppLog{}, vals)
+	_, err := Create(ctx, AppLog{}, vals)
 	return err
 }

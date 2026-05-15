@@ -1,4 +1,4 @@
-package web
+package web_test
 
 import (
 	"net/http"
@@ -6,12 +6,14 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"sumeru/core/server/web"
 )
 
 func TestSmoke_unauthenticatedWebRedirectsToLogin(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/web", WebHandler)
-	h := SecurityMiddleware(mux)
+	mux.HandleFunc("/web", web.WebHandler)
+	h := web.SecurityMiddleware(mux)
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/web", nil)
@@ -32,8 +34,8 @@ func TestSmoke_unauthenticatedWebRedirectsToLogin(t *testing.T) {
 
 func TestSmoke_unauthenticatedRecordSaveRedirectsToLogin(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/web/record/save", RecordSaveHandler)
-	h := SecurityMiddleware(mux)
+	mux.HandleFunc("/web/record/save", web.RecordSaveHandler)
+	h := web.SecurityMiddleware(mux)
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/web/record/save", strings.NewReader("model=core.user"))
@@ -51,8 +53,8 @@ func TestSmoke_unauthenticatedRecordSaveRedirectsToLogin(t *testing.T) {
 
 func TestSmoke_registerAppRoutesRootRedirectsToHome(t *testing.T) {
 	mux := http.NewServeMux()
-	RegisterAppRoutes(mux)
-	h := SecurityMiddleware(mux)
+	web.RegisterAppRoutes(mux)
+	h := web.SecurityMiddleware(mux)
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -68,8 +70,8 @@ func TestSmoke_registerAppRoutesRootRedirectsToHome(t *testing.T) {
 
 func TestSmoke_registerAppRoutesWebAppsTrailingSlashRedirect(t *testing.T) {
 	mux := http.NewServeMux()
-	RegisterAppRoutes(mux)
-	h := SecurityMiddleware(mux)
+	web.RegisterAppRoutes(mux)
+	h := web.SecurityMiddleware(mux)
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/web/apps/", nil)
@@ -80,5 +82,22 @@ func TestSmoke_registerAppRoutesWebAppsTrailingSlashRedirect(t *testing.T) {
 	}
 	if g, w := rr.Header().Get("Location"), "/web/apps"; g != w {
 		t.Fatalf("Location %q; want %q", g, w)
+	}
+}
+
+func TestSmoke_apiHealth(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/health", web.APIHealthHandler)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET /api/health: status %d", rr.Code)
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, "true") || !strings.Contains(body, "ok") {
+		t.Fatalf("body: %s", body)
 	}
 }

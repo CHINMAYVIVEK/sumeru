@@ -1,8 +1,10 @@
-package module
+package module_test
 
 import (
 	"reflect"
 	"testing"
+
+	"sumeru/core/module"
 )
 
 func TestExtractImpliedGroupXMLRefs(t *testing.T) {
@@ -19,9 +21,9 @@ func TestExtractImpliedGroupXMLRefs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractImpliedGroupXMLRefs(tt.in)
+			got := module.ExtractImpliedGroupXMLRefs(tt.in)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("extractImpliedGroupXMLRefs(%q) = %#v; want %#v", tt.in, got, tt.want)
+				t.Fatalf("ExtractImpliedGroupXMLRefs(%q) = %#v; want %#v", tt.in, got, tt.want)
 			}
 		})
 	}

@@ -61,7 +61,7 @@ func LoginGet(w http.ResponseWriter, r *http.Request) {
 	tmplPath := filepath.Join(config.AppConfig.TemplatesPath, "login.html")
 	t, err := template.ParseFiles(tmplPath)
 	if err != nil {
-		WebLogf("/web/login", "%s: login template: %v", platformmsg.MsgHTTPTemplateError, err)
+		WebLogf(r.Context(), "/web/login", "%s: login template: %v", platformmsg.MsgHTTPTemplateError, err)
 		http.Error(w, "Login page unavailable", http.StatusInternalServerError)
 		return
 	}
@@ -103,7 +103,7 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := CreateSession(w, id); err != nil {
-		WebLogf("/web/login", "session: %v", err)
+		WebLogf(r.Context(), "/web/login", "session: %v", err)
 		http.Error(w, "Could not start session", http.StatusInternalServerError)
 		return
 	}
@@ -148,7 +148,7 @@ func ActionResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	userID := strings.TrimSpace(r.PostFormValue("id"))
 	login := strings.TrimSpace(r.PostFormValue("login"))
-	WebLogf("/web/action/reset_password", "requested for user id=%s login=%q (email not yet wired)", userID, login)
+	WebLogf(r.Context(), "/web/action/reset_password", "requested for user id=%s login=%q (email not yet wired)", userID, login)
 	// Redirect back with a flash-style query param so the UI can surface it.
 	next := SafeWebNext(r.PostFormValue("next"), "/web/home")
 	http.Redirect(w, r, next+"&msg=reset_requested", http.StatusSeeOther)

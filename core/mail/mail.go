@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -21,11 +20,11 @@ const (
 
 // Row is one persisted message (subset of columns used by UI and hooks).
 type Row struct {
-	Body        string
-	Subtype     string
-	Author      string
-	CreateDate  time.Time
-	Model       string
+	Body       string
+	Subtype    string
+	Author     string
+	CreateDate time.Time
+	Model      string
 	CoreID     int64
 }
 
@@ -89,12 +88,12 @@ func PostMessage(ctx context.Context, model string, coreID int64, body, subtype,
 		author = "System"
 	}
 	vals := map[string]interface{}{
-		"model":        model,
-		"core_id":       int(coreID),
-		"body":         body,
-		"subtype":      subtype,
-		"author":       author,
-		"create_date":  time.Now().UTC(),
+		"model":       model,
+		"core_id":     int(coreID),
+		"body":        body,
+		"subtype":     subtype,
+		"author":      author,
+		"create_date": time.Now().UTC(),
 	}
 	if cid := firstCompanyID(ctx); cid > 0 {
 		vals["company_id"] = int(cid)
@@ -193,7 +192,7 @@ func scanMessageRows(rows *sql.Rows) ([]Row, error) {
 
 // LogModuleEvent records a module lifecycle line in app.log (not mail.message).
 func LogModuleEvent(ctx context.Context, moduleName, verb, detail string) {
-	if err := applog.Log(ctx, moduleName, verb, detail); err != nil {
-		log.Printf("applog: %v", err)
+	if err := orm.AppendAppLog(ctx, moduleName, verb, detail); err != nil {
+		applog.L(ctx).Warnw("applog.log_failed", "err", err)
 	}
 }

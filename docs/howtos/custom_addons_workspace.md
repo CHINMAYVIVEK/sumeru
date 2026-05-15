@@ -12,7 +12,7 @@ The sibling directory **`sumeru_custom_addons/`** is a small Go module with:
 
 ## Steps (abbreviated)
 
-1. Copy **`sumeru.conf.example`** → **`sumeru.conf`** and set database + **`addons_path`** (include both **`../sumeru/addons`** and **`addons`** if you need core apps plus local modules).
+1. Copy **`sumeru.conf.example`** → **`sumeru.conf`** and set database + **`addons_path`** (typically **`../sumeru/addons`**, **`../sumeru_addons`**, and **`./addons`** for core + standard + custom modules).
 
 2. From **`sumeru_custom_addons/`**:
 

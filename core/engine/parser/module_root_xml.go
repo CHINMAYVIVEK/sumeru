@@ -15,7 +15,8 @@ type moduleDataWrapper struct {
 	MenuItems []MenuItem `xml:"menuitem"`
 }
 
-func validateModuleRoot(n xml.Name) error {
+// ValidateModuleRoot returns an error if the module data XML root element is not <sumeru>.
+func ValidateModuleRoot(n xml.Name) error {
 	switch strings.ToLower(strings.TrimSpace(n.Local)) {
 	case "sumeru":
 		return nil

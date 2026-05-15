@@ -1,0 +1,36 @@
+# Example INI for local runs and for `go generate ./cmd/sumeru` (import-gen reads addons_path).
+# Copy to sumeru.conf and adjust. Path keys are relative to this file’s directory unless absolute.
+
+[options]
+db_host = localhost
+db_port = 5432
+db_user = postgres
+db_password = postgres
+db_name = sumeru
+db_sslmode = disable
+
+http_port = 8080
+
+# dev_mode        Default false. When true: Zap debug level and dev-only behavior (e.g. branding fallbacks). Use false in production.
+# dev_mode = false
+
+# Core tree only: built-in apps under sumeru/addons/ (base, sumeru_ai, …).
+# Standard business addons live in the sibling sumeru_addons repo; custom work runs from sumeru_custom_addons.
+addons_path = addons
+
+# --- Logging (Zap JSON + optional lumberjack rotation) ---
+# log_enabled      Default true. Set false to disable application logging (Zap no-op; stdlib log discarded).
+# log_timezone     UTC, Local, or IANA (e.g. Asia/Kolkata) for log timestamps and L(ctx) log_tz field.
+# log_stdout       Default true. Use true for Kubernetes (collect stdout). Set false for file-only.
+# log_file         Optional absolute or INI-relative path.
+# log_rolling      Default false. Set true on a VPS/single host for size-based rotation; keep false when the platform rotates logs (e.g. Kubernetes).
+# log_max_size_mb  Max MB per file before rotate (default 100 when rolling is on and this is 0).
+# log_max_backups  Retained rotated files (0 = lumberjack default).
+# log_max_age_days Delete rotated files older than N days (0 = no age limit).
+
+log_stdout = true
+# log_file = ./logs/sumeru.log
+# log_rolling = false
+# log_max_size_mb = 100
+# log_max_backups = 10
+# log_max_age_days = 30

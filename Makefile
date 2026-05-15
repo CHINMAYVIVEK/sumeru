@@ -26,7 +26,7 @@ css:
 
 help:
 	@echo "Sumeru Makefile targets:"
-	@echo "  make generate - go generate ./cmd/sumeru (refresh cmd/sumeru/zimports.go; sumeru-import-gen also supports -package and -out, see README)"
+	@echo "  make generate - go generate ./cmd/sumeru (refresh cmd/sumeru/zimports.go from sumeru.conf.example; copy to sumeru.conf for make run)"
 	@echo "  make bp       - scaffold addon: make bp NAME=my_module  (optional WITH_MODELS=1)"
 	@echo "  make run      - generate then go run ./cmd/sumeru -- -c sumeru.conf (optional EXTRA_RUN_FLAGS)"
 	@echo "  make build    - generate then go build -o sumeru ./cmd/sumeru (binary ./sumeru)"

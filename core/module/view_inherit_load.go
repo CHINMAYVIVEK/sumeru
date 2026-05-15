@@ -2,11 +2,11 @@ package module
 
 import (
 	"context"
-	"sumeru/core/orm"
-	"sumeru/core/engine/parser"
-	"sumeru/core/engine/viewinherit"
 	"fmt"
 	"strings"
+	"sumeru/core/engine/parser"
+	"sumeru/core/engine/viewinherit"
+	"sumeru/core/orm"
 )
 
 // applySysUIViewInherit merges an sys.view inherit <record> into the parent view row (same DB id).

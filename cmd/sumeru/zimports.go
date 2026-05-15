@@ -4,4 +4,5 @@ package main
 
 import (
 	_ "sumeru/addons/base"
+	_ "sumeru/addons/sumeru_ai"
 )

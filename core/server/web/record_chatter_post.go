@@ -61,7 +61,7 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	author := "User"
 	if err := mail.PostMessage(r.Context(), modelName, rid, body, mail.SubtypeComment, author); err != nil {
-		WebLogf("/web/chatter/post", "chatter post %s id=%d: %v", modelName, rid, err)
+		WebLogf(r.Context(), "/web/chatter/post", "chatter post %s id=%d: %v", modelName, rid, err)
 		http.Error(w, "Post failed", http.StatusInternalServerError)
 		return
 	}

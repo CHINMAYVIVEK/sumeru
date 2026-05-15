@@ -1,10 +1,12 @@
 package orm
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
-	"log"
+
+	"sumeru/core/applog"
 )
 
 var DB DBWrapper
@@ -12,14 +14,14 @@ var DB DBWrapper
 func InitDB(connStr string) {
 	rawDB, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatalf("Error opening database: %v", err)
+		applog.L(context.Background()).Fatalw("db_open", "err", err)
 	}
 
 	DB = NewDBWrapper(rawDB)
 
 	err = DB.Ping()
 	if err != nil {
-		log.Fatalf("Error connecting to the database: %v", err)
+		applog.L(context.Background()).Fatalw("db_ping", "err", err)
 	}
 
 	fmt.Println("Successfully connected to the database")

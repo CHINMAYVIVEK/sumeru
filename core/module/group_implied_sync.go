@@ -12,8 +12,8 @@ import (
 // impliedGroupLinkRefRE matches (4, ref('module.xml_id')) link tuples in core.group implied_ids eval strings.
 var impliedGroupLinkRefRE = regexp.MustCompile(`\(\s*4\s*,\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)`)
 
-// extractImpliedGroupXMLRefs returns XML id refs from a core.group implied_ids eval (Odoo-style link tuples).
-func extractImpliedGroupXMLRefs(evalStr string) []string {
+// ExtractImpliedGroupXMLRefs returns XML id refs from a core.group implied_ids eval (Odoo-style link tuples).
+func ExtractImpliedGroupXMLRefs(evalStr string) []string {
 	evalStr = strings.TrimSpace(evalStr)
 	if evalStr == "" {
 		return nil
@@ -37,7 +37,7 @@ func syncCoreGroupImpliedFromEval(ctx context.Context, moduleName string, groupI
 	if groupID <= 0 || strings.TrimSpace(evalStr) == "" {
 		return nil
 	}
-	refs := extractImpliedGroupXMLRefs(evalStr)
+	refs := ExtractImpliedGroupXMLRefs(evalStr)
 	if len(refs) == 0 {
 		return fmt.Errorf("no (4, ref('…')) implied link commands in %q", evalStr)
 	}

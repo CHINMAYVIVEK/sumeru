@@ -33,7 +33,6 @@ func TestValidateDiscoveredAddons_okMinimal(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(addon, "init.go"), []byte("package demo_x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// Fake go.mod as sibling of addon parent: dir is the "repo" with addons/demo_x
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module sumeru\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

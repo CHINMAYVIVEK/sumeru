@@ -25,32 +25,34 @@
 | Step | Command / action | Use case |
 | ---- | ---------------- | -------- |
 | 1. Create DB | `psql … -c "CREATE DATABASE sumeru;"` (or your GUI) | Empty database matching `db_name` in `sumeru.conf` |
-| 2. Configure | Edit **`sumeru.conf`** | Point `db_*`, `http_port`, `addons_path` at your environment |
+| 2. Configure | Copy **`sumeru.conf.example`** → **`sumeru.conf`** and edit | Point `db_*`, `http_port`, `addons_path` at your environment |
 | 3. Download modules | `go mod download` | Populate the Go module cache (CI or fresh clone) |
+| 4. Run tests | `go test ./...` from the **`sumeru/`** module root | Unit and smoke tests live under **`test/`** (`sumeru/test/...`) |
 
 ---
 
-## Standard `sumeru` + workspace `sumeru_custom_addons`
+## Standard `sumeru` + `sumeru_addons` + workspace `sumeru_custom_addons`
 
-Keep the **`sumeru`** Go module pristine for `git pull` (no local churn from custom addon sets). Use the sibling **`sumeru_custom_addons`** workspace (same parent directory as **`sumeru/`** in this monorepo) to run the server with your own INI and a generated blank-import file that lives **outside** **`sumeru/`**:
+Keep **`sumeru`** and **`sumeru_addons`** pull-only for most teams. **Run the HTTP server from `sumeru_custom_addons`** so one INI can list core addons (`../sumeru/addons`), standard business addons (`../sumeru_addons`), and your own `./addons` without editing the standard trees.
 
 | Piece | Role |
 | ----- | ---- |
-| **`sumeru/`** | Upstream-style standard code: `go generate ./cmd/sumeru` refreshes **`cmd/sumeru/zimports.go`** when you develop entirely inside this module. |
-| **`sumeru_custom_addons/`** | Separate `go.mod` with `replace sumeru => ../sumeru`, thin **`main.go`**, and **`make generate`** writing **`addonimports/zimports.go`** via **`sumeru-import-gen`** (`-root ../sumeru`, **`-package addonimports`**, **`-out`** absolute or relative to **`-root`**). |
+| **`sumeru/`** | Core engine + **`addons/`** (`base`, `sumeru_ai`, …). `go generate ./cmd/sumeru` reads **`sumeru.conf.example`** and refreshes **`cmd/sumeru/zimports.go`** (core imports only). |
+| **`sumeru_addons/`** | Separate `go.mod` (`module sumeru_addons`) for standard business apps; depends only on **`sumeru`**. |
+| **`sumeru_custom_addons/`** | Your workspace: `replace` to **`../sumeru`** and **`../sumeru_addons`**, **`make generate`** → **`addonimports/zimports.go`**, **`make run`**. |
 
-From **`sumeru_custom_addons`**: copy **`sumeru.conf.example`** to **`sumeru.conf`**, then **`make run`**. Details and custom-addon import constraints: **[`../sumeru_custom_addons/README.md`](../sumeru_custom_addons/README.md)**.
+From **`sumeru_custom_addons`**: copy **`sumeru.conf.example`** to **`sumeru.conf`**, then **`make run`**. Details: **[`../sumeru_custom_addons/README.md`](../sumeru_custom_addons/README.md)**.
 
-**`sumeru-import-gen`** flags (also used by `go generate ./cmd/sumeru` for the default case):
+**`sumeru-import-gen`** flags (also used by `go generate ./cmd/sumeru`):
 
 | Flag | Default | Use case |
 | ---- | ------- | -------- |
 | **`-root`** | cwd walk-up | Standard **`sumeru`** repo root (directory with **`go.mod`**). |
-| **`-config`** | `sumeru.conf` | INI path; absolute, or relative to **`-root`**. |
+| **`-config`** | `sumeru.conf.example` (via `go generate` in **`cmd/sumeru`**) | INI path; absolute, or relative to **`-root`**. |
 | **`-out`** | `cmd/sumeru/zimports.go` | Output file; if **relative**, resolved against **`-root`** (use an **absolute** path to write under **`sumeru_custom_addons`**). |
 | **`-package`** | `main` | Generated file’s package name (e.g. **`addonimports`** for the workspace). |
 
-**Custom Go addons** in **`sumeru_custom_addons/addons/`** ship as **`sumeru_custom_addons/addons/<name>`** in generated imports; addons under the standard tree stay **`sumeru/…`**. Symlinking into **`sumeru/addons/`** is still valid if you prefer a single module path.
+**Custom Go addons** in **`sumeru_custom_addons/addons/`** ship as **`sumeru_custom_addons/addons/<name>`** in generated imports; addons under **`sumeru/addons/`** use **`sumeru/addons/<name>`**. Standard business addons under **`sumeru_addons/`** use **`sumeru_addons/<name>`** when listed on **`addons_path`** from the custom workspace.
 
 ---
 
@@ -73,9 +75,22 @@ INI format: `key = value` under **`[options]`**. Lines starting with `#` or `;` 
 | `company_display_name` | Optional header chip; if empty and **`company`** module is installed, first **`core.company`** name is used |
 | `user_display_name` | Optional header label; if empty and **`user`** module is installed, first **`core.user`** display is used |
 | `brand_css` | Optional extra CSS file; linked as **`/static/brand.css`** after view stylesheets |
-| `log_file` | Optional; if set, **`log`** output is **appended** to this file and still written to **stderr**; parent directories are created; path is absolutized like other paths |
+| `log_enabled` | Default **true**. Set **false** to disable application JSON logging (Zap no-op; **`log`** package output discarded after init). |
+| `log_timezone` | **`UTC`**, **`Local`**, or an IANA name (e.g. **`Asia/Kolkata`**) for Zap timestamps and the **`log_tz`** field on **`applog.L(ctx)`** lines. |
+| `log_stdout` | Default **true** — JSON logs to **stdout** (Uber **Zap**). Set **false** for file-only sinks. |
+| `log_file` | Optional log path (absolutized like other paths). When set with **`log_stdout`**, both receive the same JSON lines. |
+| `log_rolling` | Default **false** — append-only file. Set **true** with **`log_file`** for **lumberjack** size rotation (typical VPS); keep **false** on Kubernetes and collect **stdout** only. |
+| `log_max_size_mb` | Max megabytes per file before rotation (default **100** when **`log_rolling`** is true and this is **0**). |
+| `log_max_backups` | Retained rotated files ( **0** = lumberjack default ). |
+| `log_max_age_days` | Delete rotated files older than **N** days ( **0** = no age limit ). |
+| `dev_mode` | Default **false** when omitted. When **true**, debug-level Zap logs and dev-only server behavior. Uses the same boolean parsing as **`log_stdout`** (`true` / `false` / `1` / `0` / `yes` / `no` / `on` / `off`). |
 
----
+### HTTP API (Odoo-style JSON-RPC)
+
+| Endpoint | Use case |
+| -------- | -------- |
+| **`GET /api/health`** | Liveness probe; returns **`{"ok":true}`** (no auth). |
+| **`POST /api/rpc`** | JSON body **`{"model":"core.company","method":"search_read","args":[...],"kwargs":{}}`** with the same session cookie as the web UI. Methods: **`search`**, **`search_read`**, **`read`**, **`create`**, **`write`**, **`unlink`**. Optional wrapper: put the same keys inside **`params`** for Odoo-style envelopes. |
 
 ## CLI (`server.Run`)
 
@@ -163,7 +178,7 @@ Use **`-u`** after changing **`views/*.xml`**, **`menus.xml`**, or **`manifest.j
 
 | Target | Command | Use case |
 | ------ | ------- | -------- |
-| `make generate` | `go generate ./cmd/sumeru` | Refresh **`cmd/sumeru/zimports.go`** from **`addons_path`** (see **`sumeru-import-gen`** flags in README) |
+| `make generate` | `go generate ./cmd/sumeru` | Refresh **`cmd/sumeru/zimports.go`** from **`sumeru.conf.example`** (tracked; copy to **`sumeru.conf`** for **`make run`**) |
 | `make run` | `go run ./cmd/sumeru -- -c sumeru.conf` | Quick dev server |
 | `make run EXTRA_RUN_FLAGS='…'` | Appends flags (e.g. **`-p 9090`**, **`-d mydb`**, **`-u sales`**) | Same as a one-line **`go run`** with extra CLI flags |
 | `make build` | `go build -o sumeru ./cmd/sumeru` | Produce **`sumeru`** binary |
@@ -254,8 +269,10 @@ Templates live under `core/engine/templates/` (`base.html`, inner pages). Client
 | `core/base/` | **Stable Go API** for addons: config, DB bootstrap, model registration, queries (struct inputs). Default modules: **`core/base/user/`**, **`core/base/company/`**. |
 | `core/base/base/` | Core **`base`** filesystem module (manifest only; always under prepended **`core/base`**) |
 | `core/module/addon_template/` | Authoring reference for new addons (`manifest.template.json`, `MODULE_STANDARD.txt`) |
-| `addons/` | Extra installable apps (`sales`, `crm`, `inventory`, …); **`user`** and **`company`** ship under **`core/base/`** |
-| `sumeru.conf` | Runtime INI |
+| `addons/` | Core installable apps shipped with **`sumeru`** (`base`, `sumeru_ai`, …); **`user`** and **`company`** ship under **`core/base/`** |
+| `sumeru.conf` | Local runtime INI (gitignored if you use a local policy); copy from **`sumeru.conf.example`**. |
+| `sumeru.conf.example` | Tracked template + **import-gen** input for **`go generate ./cmd/sumeru`**. |
 | `sumeru.sh` | Bash wrapper forwarding all flags |
 | `Makefile` | `run`, `build`, `css`, `help`, `generate` |
-| `../sumeru_custom_addons/` (monorepo) | Optional thin runner + INI + generated **`addonimports/`**; see section *Standard `sumeru` + workspace `sumeru_custom_addons`* above |
+| `../sumeru_addons/` (monorepo) | Standard business addons module; see sibling **`sumeru_addons/README.md`**. |
+| `../sumeru_custom_addons/` (monorepo) | **Recommended** thin runner + INI + **`addonimports/`**; see section *Standard `sumeru` + `sumeru_addons` + workspace `sumeru_custom_addons`* above |

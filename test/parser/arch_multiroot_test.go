@@ -1,10 +1,14 @@
-package parser
+package parser_test
 
-import "testing"
+import (
+	"testing"
+
+	"sumeru/core/engine/parser"
+)
 
 func TestParseViewFromArch_formRoot(t *testing.T) {
 	arch := `<form><header><button name="save" string="Save" type="object"/></header><sheet><group><field name="x" string="X"/></group></sheet></form>`
-	v, err := ParseViewFromArch(arch)
+	v, err := parser.ParseViewFromArch(arch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -15,7 +19,7 @@ func TestParseViewFromArch_formRoot(t *testing.T) {
 
 func TestParseViewFromArch_treeRoot(t *testing.T) {
 	arch := `<tree><field name="a"/><field name="b" string="B"/></tree>`
-	v, err := ParseViewFromArch(arch)
+	v, err := parser.ParseViewFromArch(arch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +30,7 @@ func TestParseViewFromArch_treeRoot(t *testing.T) {
 
 func TestParseViewFromArch_viewRootTreeOpenFalse(t *testing.T) {
 	arch := `<view type="tree" open="false"><field name="x" string="X"/></view>`
-	v, err := ParseViewFromArch(arch)
+	v, err := parser.ParseViewFromArch(arch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +44,7 @@ func TestParseViewFromArch_viewRootTreeOpenFalse(t *testing.T) {
 
 func TestParseViewFromArch_treeOpenFalse(t *testing.T) {
 	arch := `<tree open="false"><field name="a"/></tree>`
-	v, err := ParseViewFromArch(arch)
+	v, err := parser.ParseViewFromArch(arch)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +55,7 @@ func TestParseViewFromArch_treeOpenFalse(t *testing.T) {
 
 func TestParseViewFromArch_treeOpenDefault(t *testing.T) {
 	arch := `<tree><field name="a"/></tree>`
-	v, err := ParseViewFromArch(arch)
+	v, err := parser.ParseViewFromArch(arch)
 	if err != nil {
 		t.Fatal(err)
 	}

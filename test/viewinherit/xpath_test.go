@@ -1,14 +1,16 @@
-package viewinherit
+package viewinherit_test
 
 import (
 	"strings"
 	"testing"
+
+	"sumeru/core/engine/viewinherit"
 )
 
 func TestApplyInheritArchAfter(t *testing.T) {
 	parent := `<view model="sale.order" type="tree"><field name="a" string="A"/><field name="b" string="B"/></view>`
 	frag := `<xpath expr="//field[@name='a']" position="after"><field name="z" string="Z"/></xpath>`
-	out, err := ApplyInheritArch(parent, frag)
+	out, err := viewinherit.ApplyInheritArch(parent, frag)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -17,11 +19,10 @@ func TestApplyInheritArchAfter(t *testing.T) {
 	}
 }
 
-// encoding/xml.Marshal(parser.View) emits empty elements as <field ...></field>, not self-closing.
 func TestApplyInheritArchAfterMarshaledField(t *testing.T) {
 	parent := `<view id="" model="sale.order" type="tree" title="" open=""><field name="state" string="Status" widget="" placeholder="" options=""></field><field name="amount" string="Total" widget="" placeholder="" options=""></field></view>`
 	frag := `<xpath expr="//field[@name='state']" position="after"><field name="phone" string="Phone"/></xpath>`
-	out, err := ApplyInheritArch(parent, frag)
+	out, err := viewinherit.ApplyInheritArch(parent, frag)
 	if err != nil {
 		t.Fatal(err)
 	}

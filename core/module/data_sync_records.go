@@ -41,7 +41,7 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 		if key == "implied_ids" {
 			continue
 		}
-		fieldValues[key] = convertRecordScalar(ctx, moduleName, xmlRecord.Model, key, val)
+		fieldValues[key] = ConvertRecordScalar(ctx, moduleName, xmlRecord.Model, key, val)
 	}
 	conflictColumn := "name"
 	if xmlRecord.Model == "core.user" {
@@ -68,7 +68,8 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 	}, "name")
 }
 
-func convertRecordScalar(ctx context.Context, moduleName, model, column, rawValue string) interface{} {
+// ConvertRecordScalar coerces XML/form string values into types used for registry upserts.
+func ConvertRecordScalar(ctx context.Context, moduleName, model, column, rawValue string) interface{} {
 	trimmedValue := strings.TrimSpace(rawValue)
 	if strings.HasPrefix(column, "perm_") {
 		if boolValue, err := strconv.ParseBool(trimmedValue); err == nil {

@@ -342,7 +342,7 @@ func CheckStageApproval(ctx context.Context, model string, id int, targetState s
 	if err != nil {
 		return err
 	}
-	
+
 	// Get current state to check from_state rules
 	before, err := SearchOne(ctx, model, map[string]interface{}{"id": id})
 	if err != nil {
@@ -360,7 +360,7 @@ func CheckStageApproval(ctx context.Context, model string, id int, targetState s
 		return nil
 	}
 	defer rows.Close()
-	
+
 	hasRule := false
 	match := false
 	for rows.Next() {
@@ -370,7 +370,7 @@ func CheckStageApproval(ctx context.Context, model string, id int, targetState s
 		if err := rows.Scan(&gid, &fromState); err != nil {
 			return err
 		}
-		
+
 		// If fromState is specified, it must match current state
 		if fromState != "" && fromState != currentState {
 			continue
@@ -381,7 +381,7 @@ func CheckStageApproval(ctx context.Context, model string, id int, targetState s
 			break
 		}
 	}
-	
+
 	if hasRule && !match {
 		return fmt.Errorf("approval required for transition to state %q (from %q)", targetState, currentState)
 	}
@@ -402,8 +402,8 @@ func SetUserGroupLinks(ctx context.Context, userID int, groupIDs []int) error {
 			continue
 		}
 		if _, err := DB.ExecContext(ctx, `INSERT INTO `+tbl+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, userID, gid); err != nil {
-				return err
-			}
+			return err
+		}
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 	"sort"
 )
@@ -53,6 +54,7 @@ func SyncRegistrySchemaForNames(modelNames []string) error {
 	if DB == nil {
 		return nil
 	}
+	ctx := ContextWithBypass(context.Background(), true)
 	names := append([]string(nil), modelNames...)
 	sort.Strings(names)
 	for _, name := range names {
@@ -60,7 +62,7 @@ func SyncRegistrySchemaForNames(modelNames []string) error {
 		if !ok {
 			return fmt.Errorf("schema sync: model %q not registered", name)
 		}
-		if err := syncModelSchema(m); err != nil {
+		if err := syncModelSchema(ctx, m); err != nil {
 			return fmt.Errorf("schema sync %s: %w", name, err)
 		}
 	}

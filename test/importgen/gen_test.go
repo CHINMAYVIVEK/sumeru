@@ -1,4 +1,4 @@
-package main
+package importgen_test
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"sumeru/core/importgen"
 	"sumeru/core/module"
 )
 
@@ -23,26 +24,26 @@ func testRepoRoot(t *testing.T) string {
 }
 
 func TestValidateOutputPackage(t *testing.T) {
-	if err := validateOutputPackage("main"); err != nil {
+	if err := importgen.ValidateOutputPackage("main"); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateOutputPackage("addonimports"); err != nil {
+	if err := importgen.ValidateOutputPackage("addonimports"); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateOutputPackage(""); err == nil {
+	if err := importgen.ValidateOutputPackage(""); err == nil {
 		t.Fatal("expected error for empty package")
 	}
-	if err := validateOutputPackage("Bad"); err == nil {
+	if err := importgen.ValidateOutputPackage("Bad"); err == nil {
 		t.Fatal("expected error for uppercase")
 	}
-	if err := validateOutputPackage("bad-pkg"); err == nil {
+	if err := importgen.ValidateOutputPackage("bad-pkg"); err == nil {
 		t.Fatal("expected error for hyphen")
 	}
 }
 
 func TestResolveOutputPath(t *testing.T) {
 	repo := "/opt/sumeru"
-	if got, err := resolveOutputPath(repo, "cmd/sumeru/zimports.go"); err != nil {
+	if got, err := importgen.ResolveOutputPath(repo, "cmd/sumeru/zimports.go"); err != nil {
 		t.Fatal(err)
 	} else {
 		want := filepath.Clean(filepath.Join(repo, "cmd/sumeru/zimports.go"))
@@ -51,7 +52,7 @@ func TestResolveOutputPath(t *testing.T) {
 		}
 	}
 	abs := filepath.Join(t.TempDir(), "nested", "z.go")
-	if got, err := resolveOutputPath(repo, abs); err != nil {
+	if got, err := importgen.ResolveOutputPath(repo, abs); err != nil {
 		t.Fatal(err)
 	} else if got != filepath.Clean(abs) {
 		t.Fatalf("absolute: got %q want %q", got, filepath.Clean(abs))
@@ -59,7 +60,7 @@ func TestResolveOutputPath(t *testing.T) {
 }
 
 func TestBuildImportGoFile(t *testing.T) {
-	s := buildImportGoFile("addonimports", []string{"sumeru/addons/sales", "sumeru/addons/crm"})
+	s := importgen.BuildImportGoFile("addonimports", []string{"sumeru/addons/sales", "sumeru/addons/crm"})
 	if !strings.Contains(s, "package addonimports") {
 		t.Fatalf("missing package: %s", s)
 	}
@@ -71,7 +72,7 @@ func TestBuildImportGoFile(t *testing.T) {
 func TestRunGen_addonimportsExternalOut(t *testing.T) {
 	repoRoot := testRepoRoot(t)
 	out := filepath.Join(t.TempDir(), "addonimports", "zimports.go")
-	dest, err := runGen(repoRoot, "sumeru.conf", out, "addonimports")
+	dest, err := importgen.RunGen(repoRoot, "sumeru.conf.example", out, "addonimports")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +95,7 @@ func TestRunGen_addonimportsExternalOut(t *testing.T) {
 func TestRunGen_defaultPackageMain(t *testing.T) {
 	repoRoot := testRepoRoot(t)
 	out := filepath.Join(t.TempDir(), "zimports_main.go")
-	_, err := runGen(repoRoot, "sumeru.conf", out, "main")
+	_, err := importgen.RunGen(repoRoot, "sumeru.conf.example", out, "main")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +111,7 @@ func TestRunGen_defaultPackageMain(t *testing.T) {
 func TestRunGen_invalidPackage(t *testing.T) {
 	repoRoot := testRepoRoot(t)
 	out := filepath.Join(t.TempDir(), "x.go")
-	_, err := runGen(repoRoot, "sumeru.conf", out, "NotValid")
+	_, err := importgen.RunGen(repoRoot, "sumeru.conf.example", out, "NotValid")
 	if err == nil {
 		t.Fatal("expected error")
 	}

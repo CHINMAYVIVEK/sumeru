@@ -1,9 +1,11 @@
-package module
+package module_test
 
 import (
 	"context"
 	"reflect"
 	"testing"
+
+	"sumeru/core/module"
 )
 
 func TestConvertRecordScalar(t *testing.T) {
@@ -26,9 +28,9 @@ func TestConvertRecordScalar(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := convertRecordScalar(ctx, "base", "sys.access", tt.column, tt.raw)
+			got := module.ConvertRecordScalar(ctx, "base", "sys.access", tt.column, tt.raw)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("convertRecordScalar(%q, %q) = %#v; want %#v", tt.column, tt.raw, got, tt.want)
+				t.Fatalf("ConvertRecordScalar(%q, %q) = %#v; want %#v", tt.column, tt.raw, got, tt.want)
 			}
 		})
 	}

@@ -25,6 +25,13 @@ const (
 	keyCompanyDisplayName = "company_display_name"
 	keyUserDisplayName    = "user_display_name"
 	keyLogFile            = "log_file"
+	keyLogStdout          = "log_stdout"
+	keyLogRolling         = "log_rolling"
+	keyLogMaxSizeMB       = "log_max_size_mb"
+	keyLogMaxBackups      = "log_max_backups"
+	keyLogMaxAgeDays      = "log_max_age_days"
+	keyLogEnabled         = "log_enabled"
+	keyLogTimezone        = "log_timezone"
 	keyDevMode            = "dev_mode"
 )
 

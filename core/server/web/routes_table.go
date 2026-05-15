@@ -35,6 +35,9 @@ func RegisterAppRoutes(mux *http.ServeMux) {
 	reg.HandleFunc("/web/settings", SettingsHubHandler)
 	reg.HandleFunc("/web/settings/app-logs", AppLogsHandler)
 
+	reg.HandleFunc("/api/health", APIHealthHandler)
+	reg.HandleFunc("/api/rpc", RPCJSONHandler)
+
 	reg.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
