@@ -29,19 +29,17 @@ func RenderTree(_ context.Context, view *parser.View, rows []map[string]interfac
 	sb.WriteString(`<button type="button" class="sum-tree-icon-btn" disabled aria-hidden="true" title="Configuration">`)
 	sb.WriteString(`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`)
 	sb.WriteString(`</button>`)
+	if n > 0 {
+		sb.WriteString(fmt.Sprintf(`<span class="sum-tree-pager" aria-live="polite">1-%d / %d</span>`, n, n))
+	} else {
+		sb.WriteString(`<span class="sum-tree-pager">0 / 0</span>`)
+	}
 	sb.WriteString(`</div>`)
 	sb.WriteString(`<div class="sum-tree-search-wrap" role="search">`)
 	sb.WriteString(`<span class="sum-tree-search-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></span>`)
 	sb.WriteString(`<input type="search" class="sum-tree-search" placeholder="Search…" disabled aria-disabled="true" />`)
 	sb.WriteString(`<span class="sum-tree-search-caret" aria-hidden="true"></span>`)
 	sb.WriteString(`</div>`)
-	sb.WriteString(`<div class="sum-tree-control-right">`)
-	if n > 0 {
-		sb.WriteString(fmt.Sprintf(`<span class="sum-tree-pager" aria-live="polite">1-%d / %d</span>`, n, n))
-	} else {
-		sb.WriteString(`<span class="sum-tree-pager">0 / 0</span>`)
-	}
-	sb.WriteString(`</div></div>`)
 	sb.WriteString(`</div>`)
 
 	sb.WriteString(`<div class="sum-web-table-wrap sum-tree-table-wrap">`)

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,196 +13,257 @@
     {{end}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap"
+        rel="stylesheet">
 </head>
+
 <body class="sum-body{{if .AppsNavActive}} sum-body--apps{{end}}{{.ExtraBodyClasses}}">
-<div id="sum-shell" class="sum-shell">
-    <header class="sum-topbar">
-        <div class="sum-topbar-left">
-            <button type="button" id="sum-sidebar-toggle" class="sum-icon-btn sum-topbar-sidebar-toggle" aria-label="Toggle sidebar" title="Sidebar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
-            </button>
-            <a href="{{.BrandLockupHref}}" class="sum-brand-lockup">
-                {{if .LogoURL}}
-                <img src="{{.LogoURL}}" alt="" class="sum-logo" width="32" height="32"/>
-                {{end}}
-                <span class="sum-brand">
-                    <span class="sum-brand-text">{{.AppName}}</span>
-                </span>
-            </a>
-            <nav class="sum-top-nav" aria-label="Main modules">
-                {{range .TopMenus}}
-                <a href="{{.Action}}" class="top-menu-item {{if and (not $.AppsNavActive) (eq .ID $.ActiveModuleID)}}active{{end}}">
-                    {{template "sumMenuIcon" .WebIcon}}
-                    <span class="top-menu-item-label">{{.Name}}</span>
+    <div id="sum-shell" class="sum-shell">
+        <header class="sum-topbar">
+            <div class="sum-topbar-left">
+                <button type="button" id="sum-sidebar-toggle" class="sum-icon-btn sum-topbar-sidebar-toggle"
+                    aria-label="Toggle sidebar" title="Sidebar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 6h16M4 12h16M4 18h7" />
+                    </svg>
+                </button>
+                <a href="{{.BrandLockupHref}}" class="sum-brand-lockup">
+                    {{if .LogoURL}}
+                    <img src="{{.LogoURL}}" alt="" class="sum-logo" width="32" height="32" />
+                    {{end}}
+                    <span class="sum-brand">
+                        <span class="sum-brand-text">{{.AppName}}</span>
+                    </span>
                 </a>
-                {{end}}
-                {{/* Settings is always second-to-last — pinned regardless of install state */}}
-                <a href="/web/settings" class="top-menu-item top-menu-item--settings {{if .SettingsNavActive}}active{{end}}">
-                    {{template "sumMenuIcon" "settings"}}
-                    <span class="top-menu-item-label">Settings</span>
-                </a>
-                {{/* Apps is always last */}}
-                <a href="/web/apps" class="top-menu-item top-menu-item--apps {{if .AppsNavActive}}active{{end}}">
-                    {{template "sumMenuIcon" "apps"}}
-                    <span class="top-menu-item-label">Apps</span>
-                </a>
-            </nav>
-        </div>
-    </header>
-
-    <div class="sum-main-row">
-        <aside id="sum-sidebar" class="sum-sidebar" aria-label="Side navigation">
-            <div class="sum-sidebar-inner" aria-label="Current module menus">
-                {{range .SidebarMenus}}
-                <div class="sum-sidebar-group">
-                    <h3 class="sum-sidebar-group-title">{{.Name}}</h3>
-                    <div class="sum-sidebar-links">
-                        {{range .SubMenus}}
-                        <a href="{{.Action}}" class="sidebar-link {{if eq .ID $.ActiveMenuID}}active{{end}}">
-                            {{template "sumMenuIcon" .WebIcon}}
-                            <span>{{.Name}}</span>
-                        </a>
-                        {{end}}
-                    </div>
-                </div>
-                {{else}}
-                <div class="sum-sidebar-empty">No menus for this app</div>
-                {{end}}
+                <nav class="sum-top-nav" aria-label="Main modules">
+                    {{range .TopMenus}}
+                    <a href="{{.Action}}"
+                        class="top-menu-item {{if and (not $.AppsNavActive) (eq .ID $.ActiveModuleID)}}active{{end}}">
+                        {{template "sumMenuIcon" .WebIcon}}
+                        <span class="top-menu-item-label">{{.Name}}</span>
+                    </a>
+                    {{end}}
+                    {{/* Settings is always second-to-last — pinned regardless of install state */}}
+                    <a href="/web/settings"
+                        class="top-menu-item top-menu-item--settings {{if .SettingsNavActive}}active{{end}}">
+                        {{template "sumMenuIcon" "settings"}}
+                        <span class="top-menu-item-label">Settings</span>
+                    </a>
+                    {{/* Apps is always last */}}
+                    <a href="/web/apps" class="top-menu-item top-menu-item--apps {{if .AppsNavActive}}active{{end}}">
+                        {{template "sumMenuIcon" "apps"}}
+                        <span class="top-menu-item-label">Apps</span>
+                    </a>
+                </nav>
             </div>
-            <div class="sum-sidebar-settings" aria-label="User and company">
-                <div class="sum-sidebar-settings-label">Account</div>
-                <div class="sum-sidebar-settings-row"><a href="/web/logout" class="sidebar-link">Log out</a></div>
-                {{if .ShellCompany}}
-                <div class="sum-sidebar-settings-row">
-                    <span class="sum-sidebar-settings-key">Company</span>
-                    <span class="sum-sidebar-settings-val" title="{{.ShellCompany}}">{{.ShellCompany}}</span>
-                </div>
-                {{end}}
-                {{if .ShellUser}}
-                <div class="sum-sidebar-settings-row sum-sidebar-settings-row--user">
-                    <div class="sum-sidebar-avatar" aria-hidden="true">{{if .UserInitial}}{{.UserInitial}}{{else}}?{{end}}</div>
-                    <div class="sum-sidebar-settings-user">
-                        <span class="sum-sidebar-settings-key">User</span>
-                        <span class="sum-sidebar-settings-val" title="{{.ShellUser}}">{{.ShellUser}}</span>
-                    </div>
-                </div>
-                {{end}}
-            </div>
-        </aside>
-        <button type="button" id="sum-sidebar-reveal" class="sum-sidebar-reveal" hidden aria-label="Show sidebar" title="Show sidebar"></button>
+        </header>
 
-        <main class="sum-workspace">
-            <div class="sum-breadcrumb-bar">
-                <div class="sum-breadcrumb-left">
-                    <button type="button" id="sum-sidebar-toggle-breadcrumb" class="sum-icon-btn sum-icon-btn--subtle" aria-label="Toggle sidebar">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
-                    </button>
-                    <nav class="sum-breadcrumb" aria-label="Breadcrumb">
-                        {{- if .BreadcrumbItems -}}
-                        {{- range $i, $c := .BreadcrumbItems -}}
-                        {{- if $i -}}<span class="sum-bc-sep" aria-hidden="true">/</span>{{- end -}}
-                        {{- if $c.Href -}}<a href="{{$c.Href}}" class="sum-bc-link">{{$c.Label}}</a>{{- else -}}<span class="sum-bc-current" aria-current="page">{{$c.Label}}</span>{{- end -}}
-                        {{- end -}}
-                        {{- else -}}
-                        <span class="sum-bc-module">{{.ModuleName}}</span>
-                        <span class="sum-bc-sep" aria-hidden="true">/</span>
-                        <span class="sum-bc-title">{{if .ViewBreadcrumb}}{{.ViewBreadcrumb}}{{else}}{{.Title}}{{end}}</span>
-                        {{- end -}}
-                    </nav>
-                </div>
-                <div class="sum-breadcrumb-right">
-                    {{if .ViewTabs}}
-                    <div class="sum-view-toolbar sum-view-toolbar--inline" role="toolbar" aria-label="Switch view">
-                        {{range .ViewTabs}}
-                        <a href="{{.Href}}" class="sum-view-tab {{if .Active}}is-active{{end}}" data-view="{{.Mode}}" title="{{.Label}}">
-                            {{if eq .Mode "apps_grid"}}
-                            <span class="sum-view-tab-icon" aria-hidden="true">
-                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
-                            </span>
-                            {{else if eq .Mode "apps_list"}}
-                            <span class="sum-view-tab-icon" aria-hidden="true">
-                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-                            </span>
-                            {{else if eq .Mode "kanban"}}
-                            <span class="sum-view-tab-icon" aria-hidden="true">
-                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-                            </span>
-                            {{else if eq .Mode "tree"}}
-                            <span class="sum-view-tab-icon" aria-hidden="true">
-                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-                            </span>
-                            {{else}}
-                            <span class="sum-view-tab-icon" aria-hidden="true">
-                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
-                            </span>
+        <div class="sum-main-row">
+            <aside id="sum-sidebar" class="sum-sidebar" aria-label="Side navigation">
+                <div class="sum-sidebar-inner" aria-label="Current module menus">
+                    {{range .SidebarMenus}}
+                    <div class="sum-sidebar-group">
+                        <h3 class="sum-sidebar-group-title">{{.Name}}</h3>
+                        <div class="sum-sidebar-links">
+                            {{range .SubMenus}}
+                            <a href="{{.Action}}" class="sidebar-link {{if eq .ID $.ActiveMenuID}}active{{end}}">
+                                {{template "sumMenuIcon" .WebIcon}}
+                                <span>{{.Name}}</span>
+                            </a>
                             {{end}}
-                            <span class="sum-view-tab-label">{{.Label}}</span>
-                        </a>
-                        {{end}}
+                        </div>
                     </div>
-                    {{end}}
-                    {{if .ActivityEnabled}}
-                    <button type="button" id="sum-activity-toggle" class="sum-icon-btn sum-icon-btn--subtle sum-activity-toggle-btn" aria-label="Toggle messages and log panel" title="Messages / Log" aria-pressed="true">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                    </button>
+                    {{else}}
+                    <div class="sum-sidebar-empty">No menus for this app</div>
                     {{end}}
                 </div>
-            </div>
-
-            <div class="sum-workspace-row{{if .ActivityEnabled}} sum-workspace-row--with-activity{{end}}">
-                <div class="sum-content">
-                    {{.Content}}
-                </div>{{- if .ActivityEnabled -}}
-                <div class="sum-activity-dock"><div id="sum-activity-resizer" class="sum-activity-resizer" role="separator" aria-orientation="vertical" aria-label="Resize activity panel"></div><aside id="sum-activity-panel" class="sum-activity-panel" aria-label="Activity and messages">
-                    <div class="sum-activity-head sum-activity-head--tabs">
-                        <div class="sum-activity-tablist" role="tablist" aria-label="Panel tabs">
-                            <button type="button" class="sum-activity-tab is-active" role="tab" aria-selected="true" data-sum-activity-tab="messages">Messages</button>
-                            <button type="button" class="sum-activity-tab" role="tab" aria-selected="false" data-sum-activity-tab="log">Log</button>
+                <div class="sum-sidebar-settings" aria-label="User and company">
+                    <div class="sum-sidebar-settings-label">Account</div>
+                    <div class="sum-sidebar-settings-row"><a href="/web/logout" class="sidebar-link">Log out</a></div>
+                    {{if .ShellCompany}}
+                    <div class="sum-sidebar-settings-row">
+                        <span class="sum-sidebar-settings-key">Company</span>
+                        <span class="sum-sidebar-settings-val" title="{{.ShellCompany}}">{{.ShellCompany}}</span>
+                    </div>
+                    {{end}}
+                    {{if .ShellUser}}
+                    <div class="sum-sidebar-settings-row sum-sidebar-settings-row--user">
+                        <div class="sum-sidebar-avatar" aria-hidden="true">{{if
+                            .UserInitial}}{{.UserInitial}}{{else}}?{{end}}</div>
+                        <div class="sum-sidebar-settings-user">
+                            <span class="sum-sidebar-settings-key">User</span>
+                            <span class="sum-sidebar-settings-val" title="{{.ShellUser}}">{{.ShellUser}}</span>
                         </div>
-                        <button type="button" id="sum-activity-collapse" class="sum-activity-collapse-btn" aria-label="Hide messages panel" title="Hide panel">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+                    </div>
+                    {{end}}
+                </div>
+            </aside>
+            <button type="button" id="sum-sidebar-reveal" class="sum-sidebar-reveal" hidden aria-label="Show sidebar"
+                title="Show sidebar"></button>
+
+            <main class="sum-workspace">
+                <div class="sum-breadcrumb-bar">
+                    <div class="sum-breadcrumb-left">
+                        <button type="button" id="sum-sidebar-toggle-breadcrumb"
+                            class="sum-icon-btn sum-icon-btn--subtle" aria-label="Toggle sidebar">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M4 6h16M4 12h16M4 18h7" />
+                            </svg>
                         </button>
+                        <nav class="sum-breadcrumb" aria-label="Breadcrumb">
+                            {{- if .BreadcrumbItems -}}
+                            {{- range $i, $c := .BreadcrumbItems -}}
+                            {{- if $i -}}<span class="sum-bc-sep" aria-hidden="true">/</span>{{- end -}}
+                            {{- if $c.Href -}}<a href="{{$c.Href}}" class="sum-bc-link">{{$c.Label}}</a>{{- else
+                            -}}<span class="sum-bc-current" aria-current="page">{{$c.Label}}</span>{{- end -}}
+                            {{- end -}}
+                            {{- else -}}
+                            <span class="sum-bc-module">{{.ModuleName}}</span>
+                            <span class="sum-bc-sep" aria-hidden="true">/</span>
+                            <span class="sum-bc-title">{{if
+                                .ViewBreadcrumb}}{{.ViewBreadcrumb}}{{else}}{{.Title}}{{end}}</span>
+                            {{- end -}}
+                        </nav>
                     </div>
-                    <div id="sum-activity-pane-messages" class="sum-activity-pane sum-activity-pane--messages" role="tabpanel">
-                        {{if .ActivityPanelChatter}}
-                        {{.ActivityChatterHTML}}
-                        {{else}}
-                        <div class="sum-msg-empty" role="status">
-                            <div class="sum-msg-empty-visual" aria-hidden="true">
-                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                            </div>
-                            <p class="sum-msg-empty-title">Messages</p>
-                            <p class="sum-msg-empty-hint">Open a record to view and post comments here. List views show the activity log on the Log tab.</p>
-                        </div>
-                        {{end}}
-                    </div>
-                    <div id="sum-activity-pane-log" class="sum-activity-pane sum-activity-pane--log" role="tabpanel" hidden>
-                        <div class="sum-activity-body">
-                            {{range .ActivityLogItems}}
-                            <div class="sum-activity-entry">
-                                <span class="sum-activity-dot"></span>
-                                <div>
-                                    <div class="sum-activity-meta">{{.Meta}}</div>
-                                    <div class="sum-activity-msg">{{.Body}}</div>
-                                </div>
-                            </div>
-                            {{else}}
-                            <div class="sum-activity-entry sum-activity-entry--empty">
-                                <span class="sum-activity-dot sum-activity-dot--muted"></span>
-                                <div>
-                                    <div class="sum-activity-meta">Log</div>
-                                    <div class="sum-activity-msg">No log entries yet.</div>
-                                </div>
-                            </div>
+                    <div class="sum-breadcrumb-right">
+                        {{if .ViewTabs}}
+                        <div class="sum-view-toolbar sum-view-toolbar--inline" role="toolbar" aria-label="Switch view">
+                            {{range .ViewTabs}}
+                            <a href="{{.Href}}" class="sum-view-tab {{if .Active}}is-active{{end}}"
+                                data-view="{{.Mode}}" title="{{.Label}}">
+                                {{if eq .Mode "apps_grid"}}
+                                <span class="sum-view-tab-icon" aria-hidden="true">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.75">
+                                        <rect x="3" y="3" width="8" height="8" rx="1" />
+                                        <rect x="13" y="3" width="8" height="8" rx="1" />
+                                        <rect x="3" y="13" width="8" height="8" rx="1" />
+                                        <rect x="13" y="13" width="8" height="8" rx="1" />
+                                    </svg>
+                                </span>
+                                {{else if eq .Mode "apps_list"}}
+                                <span class="sum-view-tab-icon" aria-hidden="true">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.75">
+                                        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                                    </svg>
+                                </span>
+                                {{else if eq .Mode "kanban"}}
+                                <span class="sum-view-tab-icon" aria-hidden="true">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.75">
+                                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                                        <rect x="14" y="14" width="7" height="7" rx="1" />
+                                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                                    </svg>
+                                </span>
+                                {{else if eq .Mode "tree"}}
+                                <span class="sum-view-tab-icon" aria-hidden="true">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.75">
+                                        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                                    </svg>
+                                </span>
+                                {{else}}
+                                <span class="sum-view-tab-icon" aria-hidden="true">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.75">
+                                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+                                        <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                                    </svg>
+                                </span>
+                                {{end}}
+                                <span class="sum-view-tab-label">{{.Label}}</span>
+                            </a>
                             {{end}}
                         </div>
+                        {{end}}
+                        {{if .ActivityEnabled}}
+                        <button type="button" id="sum-activity-toggle"
+                            class="sum-icon-btn sum-icon-btn--subtle sum-activity-toggle-btn"
+                            aria-label="Toggle messages and log panel" title="Messages / Log" aria-pressed="true">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" aria-hidden="true">
+                                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                            </svg>
+                        </button>
+                        {{end}}
                     </div>
-                </aside><button type="button" id="sum-activity-reveal" class="sum-activity-reveal" hidden aria-label="Show messages panel" title="Messages / Log"></button></div>{{- end -}}
-            </div>
-        </main>
+                </div>
+
+                <div class="sum-workspace-row{{if .ActivityEnabled}} sum-workspace-row--with-activity{{end}}">
+                    <div class="sum-content">
+                        {{.Content}}
+                    </div>{{- if .ActivityEnabled -}}
+                    <div class="sum-activity-dock">
+                        <div id="sum-activity-resizer" class="sum-activity-resizer" role="separator"
+                            aria-orientation="vertical" aria-label="Resize activity panel"></div>
+                        <aside id="sum-activity-panel" class="sum-activity-panel" aria-label="Activity and messages">
+                            <div class="sum-activity-head sum-activity-head--tabs">
+                                <div class="sum-activity-tablist" role="tablist" aria-label="Panel tabs">
+                                    <button type="button" class="sum-activity-tab is-active" role="tab"
+                                        aria-selected="true" data-sum-activity-tab="messages">Messages</button>
+                                    <button type="button" class="sum-activity-tab" role="tab" aria-selected="false"
+                                        data-sum-activity-tab="log">Log</button>
+                                </div>
+                                <button type="button" id="sum-activity-collapse" class="sum-activity-collapse-btn"
+                                    aria-label="Hide messages panel" title="Hide panel">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" aria-hidden="true">
+                                        <path d="M9 18l6-6-6-6" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div id="sum-activity-pane-messages" class="sum-activity-pane sum-activity-pane--messages"
+                                role="tabpanel">
+                                {{if .ActivityPanelChatter}}
+                                {{.ActivityChatterHTML}}
+                                {{else}}
+                                <div class="sum-msg-empty" role="status">
+                                    <div class="sum-msg-empty-visual" aria-hidden="true">
+                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="1.25">
+                                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                                        </svg>
+                                    </div>
+                                    <p class="sum-msg-empty-title">Messages</p>
+                                    <p class="sum-msg-empty-hint">Open a record to view and post comments here. List
+                                        views show the activity log on the Log tab.</p>
+                                </div>
+                                {{end}}
+                            </div>
+                            <div id="sum-activity-pane-log" class="sum-activity-pane sum-activity-pane--log"
+                                role="tabpanel" hidden>
+                                <div class="sum-activity-body">
+                                    {{range .ActivityLogItems}}
+                                    <div class="sum-activity-entry">
+                                        <span class="sum-activity-dot"></span>
+                                        <div>
+                                            <div class="sum-activity-meta">{{.Meta}}</div>
+                                            <div class="sum-activity-msg">{{.Body}}</div>
+                                        </div>
+                                    </div>
+                                    {{else}}
+                                    <div class="sum-activity-entry sum-activity-entry--empty">
+                                        <span class="sum-activity-dot sum-activity-dot--muted"></span>
+                                        <div>
+                                            <div class="sum-activity-meta">Log</div>
+                                            <div class="sum-activity-msg">No log entries yet.</div>
+                                        </div>
+                                    </div>
+                                    {{end}}
+                                </div>
+                            </div>
+                        </aside><button type="button" id="sum-activity-reveal" class="sum-activity-reveal" hidden
+                            aria-label="Show messages panel" title="Messages / Log"></button>
+                    </div>{{- end -}}
+                </div>
+            </main>
+        </div>
     </div>
-</div>
-<script type="module" src="/static/js/core.js"></script>
+    <script type="module" src="/static/js/core.js"></script>
 </body>
+
 </html>

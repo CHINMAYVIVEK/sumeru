@@ -150,13 +150,6 @@
   color: var(--sum-ink);
 }
 
-.sum-tree-control-right {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
 .sum-tree-pager {
   font-size: var(--sum-font-size-sm);
   color: var(--sum-muted);
