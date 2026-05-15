@@ -83,6 +83,9 @@ func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request)
 	if err := orm.BackfillSysMenuModule(); err != nil {
 		log.Printf("Warning: backfill sys.menu.module: %v", err)
 	}
+	if err := orm.FixSysMenuSelfParent(); err != nil {
+		log.Printf("Warning: fix sys.menu self-parent: %v", err)
+	}
 
 	go func() {
 		time.Sleep(400 * time.Millisecond)

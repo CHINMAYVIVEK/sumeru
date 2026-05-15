@@ -98,6 +98,9 @@ func Run() {
 	if err := orm.BackfillSysMenuModule(); err != nil {
 		log.Printf("Warning: backfill sys.menu.module: %v", err)
 	}
+	if err := orm.FixSysMenuSelfParent(); err != nil {
+		log.Printf("Warning: fix sys.menu self-parent: %v", err)
+	}
 	if err := orm.EnsureSysViewArchText(); err != nil {
 		log.Printf("Note: sys.view.arch column: %v", err)
 	}

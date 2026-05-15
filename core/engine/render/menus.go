@@ -73,7 +73,9 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 			AccessGroups: strings.TrimSpace(accessGroups),
 			Action:       fmt.Sprintf("/web?menu_id=%d", id),
 		}
-		if parentID.Valid {
+		// Treat self-referential parent_id (id = parent) as no parent — bad rows otherwise never
+		// appear as top-bar roots or sidebar roots.
+		if parentID.Valid && parentID.Int64 != int64(id) {
 			m.ParentID = fmt.Sprintf("%d", parentID.Int64)
 		}
 		if actionID.Valid && actionID.Int64 != 0 {

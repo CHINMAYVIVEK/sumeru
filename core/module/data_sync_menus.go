@@ -32,11 +32,16 @@ func syncMenusFromItems(ctx context.Context, moduleName string, menus []parser.M
 			menuValues["web_icon"] = sanitizedIcon
 		}
 
-		if menu.ParentID != "" {
-			parentID, err := resolveXMLIDInModule(ctx, moduleName, menu.ParentID)
+		// Root menuitems have no parent in XML. Always persist NULL for parent_id so a later
+		// update clears any stale value (e.g. self-referential parent_id == row id), which would
+		// otherwise hide the menu from the top bar (roots are parent_id IS NULL / empty ParentID).
+		if pid := strings.TrimSpace(menu.ParentID); pid != "" {
+			parentID, err := resolveXMLIDInModule(ctx, moduleName, pid)
 			if err == nil && parentID != 0 {
 				menuValues["parent_id"] = parentID
 			}
+		} else {
+			menuValues["parent_id"] = nil
 		}
 
 		// Prefer stable identity via sys.model_data (XML id), not Upsert on display name:

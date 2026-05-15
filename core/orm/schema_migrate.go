@@ -28,6 +28,17 @@ func BackfillSysMenuModule() error {
 	return err
 }
 
+// FixSysMenuSelfParent clears parent_id when it incorrectly equals the row id (bad data hides
+// roots from the shell top bar). Safe to run on every startup.
+func FixSysMenuSelfParent() error {
+	if DB == nil {
+		return nil
+	}
+	menuTbl := GetTableName("sys.menu")
+	_, err := DB.Exec(`UPDATE ` + quoteIdent(menuTbl) + ` SET parent_id = NULL WHERE id = parent_id AND parent_id IS NOT NULL`)
+	return err
+}
+
 // EnsureSysViewArchText widens sys.view.arch for large inherited views.
 func EnsureSysViewArchText() error {
 	if DB == nil {

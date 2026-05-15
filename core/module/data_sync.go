@@ -50,6 +50,8 @@ func (addon *Addon) SyncToDB(ctx context.Context) error {
 				if xmlRecord.Model == "sys.view" {
 					if strings.TrimSpace(parser.RecordFieldMap(xmlRecord)["inherit_id"]) != "" {
 						inheritQueue = append(inheritQueue, xmlRecord)
+					} else {
+						upsertSysViewFromRecord(ctx, moduleName, xmlRecord)
 					}
 				}
 				syncGenericRegistryRecord(ctx, moduleName, xmlRecord)
