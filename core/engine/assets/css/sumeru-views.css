@@ -48,14 +48,34 @@
 }
 
 .sum-form-view .sum-form-sheet {
-  width: 100%;
-  max-width: 100%;
-  margin: 0.75rem 0;
-  padding: 1.25rem 1.5rem 2rem;
-  background: var(--sum-surface);
-  border-radius: var(--sum-radius);
-  box-shadow: var(--sum-shadow-md), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
-  border: 1px solid var(--sum-line);
+	width: 100%;
+	max-width: 100%;
+	margin: 0.75rem 0;
+	padding: 1.25rem 1.5rem 2rem;
+	background: var(--sum-surface);
+	border-radius: var(--sum-radius);
+	box-shadow: var(--sum-shadow-md), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+	border: 1px solid var(--sum-line);
+	box-sizing: border-box;
+	overflow-wrap: break-word;
+	word-wrap: break-word;
+}
+
+.sum-form-sheet-bg {
+	box-sizing: border-box;
+}
+
+.sum-form-split-layout,
+.sum-form-split-main,
+.sum-form-split-left {
+	box-sizing: border-box;
+	min-width: 0;
+}
+
+.sum-form-page-grid,
+.sum-form-group-grid {
+	box-sizing: border-box;
+	min-width: 0;
 }
 
 .sum-form-view--readonly .sum-form-sheet {

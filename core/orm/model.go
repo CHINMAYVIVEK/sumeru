@@ -13,8 +13,8 @@ const (
 	DateTime  FieldType = "datetime"
 	Selection FieldType = "selection"
 	Many2One  FieldType = "many2one"
-	Many2many FieldType = "many2many"
-	One2many  FieldType = "one2many"
+	Many2Many FieldType = "many2many"
+	One2Many  FieldType = "one2many"
 	Json      FieldType = "json"
 )
 
@@ -28,6 +28,7 @@ type FieldDefinition struct {
 	Column2       string // For Many2many (target model's FK in rel table)
 	String        string // Label
 	DefaultVal    interface{}
+	Selection     [][]string // Options for Selection type: {{"key", "Value"}, ...}
 	Unique        bool
 	Index         bool // Generate database index
 }

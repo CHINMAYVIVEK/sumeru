@@ -23,5 +23,7 @@ const (
 	DateTime  = orm.DateTime
 	Selection = orm.Selection
 	Many2One  = orm.Many2One
+	Many2Many = orm.Many2Many
+	One2Many  = orm.One2Many
 	Json      = orm.Json
 )

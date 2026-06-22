@@ -105,6 +105,24 @@ func createTable(model Model) error {
 		if field.Unique {
 			colType += " UNIQUE"
 		}
+
+		// Handle Default values
+		defVal := field.DefaultVal
+		if defVal != nil {
+			switch v := defVal.(type) {
+			case string:
+				colType += fmt.Sprintf(" DEFAULT '%s'", strings.ReplaceAll(v, "'", "''"))
+			case bool:
+				if v {
+					colType += " DEFAULT TRUE"
+				} else {
+					colType += " DEFAULT FALSE"
+				}
+			case int, int64, float64:
+				colType += fmt.Sprintf(" DEFAULT %v", v)
+			}
+		}
+
 		columns = append(columns, fmt.Sprintf("%s %s", field.Name, colType))
 	}
 
