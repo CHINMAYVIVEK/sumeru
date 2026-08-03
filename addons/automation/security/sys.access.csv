@@ -1,0 +1,4 @@
+id,name,model,group_id,perm_read,perm_write,perm_create,perm_unlink
+access_sys_cron_user,access_sys_cron_user,sys.cron,,1,0,0,0
+access_sys_workflow_user,access_sys_workflow_user,sys.workflow.transition,,1,0,0,0
+access_sys_server_action_user,access_sys_server_action_user,sys.server_action,,1,0,0,0

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <record id="lang_en_US" model="core.lang">
+            <field name="code">en_US</field>
+            <field name="name">English (US)</field>
+            <field name="iso_code">en</field>
+            <field name="active">True</field>
+        </record>
+        <record id="lang_hi_IN" model="core.lang">
+            <field name="code">hi_IN</field>
+            <field name="name">Hindi</field>
+            <field name="iso_code">hi</field>
+            <field name="active">True</field>
+        </record>
+    </data>
+</sumeru>

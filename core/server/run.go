@@ -8,9 +8,11 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"sumeru/core/applog"
 	"sumeru/core/orm"
+	"sumeru/core/scheduler"
 	"sumeru/core/server/config"
 	"sumeru/core/server/web"
 )
@@ -128,6 +130,7 @@ func Run() {
 
 	registerBrandingAndStatic()
 	registerAppRoutes()
+	scheduler.Start(context.Background(), time.Minute)
 
 	log.Printf("Server starting on :%s...", config.AppConfig.HttpPort)
 	appHandler := web.SecurityMiddleware(nil)

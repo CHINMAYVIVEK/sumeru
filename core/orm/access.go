@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
+
+	"sumeru/core/cache"
 )
 
 const superuserUID = 1
@@ -14,6 +17,20 @@ func EffectiveGroupIDs(ctx context.Context, uid int) ([]int, error) {
 	if uid <= 0 || DB == nil {
 		return nil, nil
 	}
+	cacheKey := fmt.Sprintf("eff_groups:%d", uid)
+	if v, ok := cache.Get(cacheKey); ok {
+		if ids, ok := v.([]int); ok {
+			return ids, nil
+		}
+	}
+	ids, err := effectiveGroupIDsUncached(ctx, uid)
+	if err == nil && ids != nil {
+		cache.Set(cacheKey, ids, 30*time.Second)
+	}
+	return ids, err
+}
+
+func effectiveGroupIDsUncached(ctx context.Context, uid int) ([]int, error) {
 	if uid == superuserUID {
 		rows, err := DB.QueryContext(ctx, `SELECT id FROM `+GetTableName("core.group")+` ORDER BY id`)
 		if err != nil {
@@ -109,6 +126,7 @@ func CheckModelAccess(ctx context.Context, uid int, model string, op string) err
 		return fmt.Errorf("unknown model %q", model)
 	}
 	if uid <= 0 {
+		LogAccessDeny(ctx, model, op, "not authenticated")
 		return fmt.Errorf("access denied on %s: not authenticated", model)
 	}
 	groups, err := EffectiveGroupIDs(ctx, uid)
@@ -142,6 +160,7 @@ func CheckModelAccess(ctx context.Context, uid int, model string, op string) err
 			return nil
 		}
 	}
+	LogAccessDeny(ctx, model, op, "no matching ACL")
 	return fmt.Errorf("access denied on %s for operation %s", model, op)
 }
 
@@ -209,7 +228,14 @@ func ApplicableRuleDomains(ctx context.Context, uid int, model string, op string
 		if err != nil {
 			return nil, fmt.Errorf("rule %d: %w", id, err)
 		}
-		dom = SubstituteDomainUID(dom, uid)
+		dc := DomainContext{UID: uid}
+		if cids, err := UserCompanyIDs(ctx, uid); err == nil {
+			dc.CompanyIDs = cids
+			if len(cids) > 0 {
+				dc.CompanyID = cids[0]
+			}
+		}
+		dom = SubstituteDomainContext(dom, dc)
 
 		if n == 0 {
 			// Global rule (no groups)

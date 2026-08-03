@@ -1,0 +1,3 @@
+id,name,model,group_id,perm_read,perm_write,perm_create,perm_unlink
+access_mail_message_user,access_mail_message_user,mail.message,,1,1,1,0
+access_mail_activity_user,access_mail_activity_user,mail.activity,,1,1,1,1

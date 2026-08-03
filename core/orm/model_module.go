@@ -6,6 +6,17 @@ import (
 	"strings"
 )
 
+// PlatformAutoInstall modules materialize on a fresh DB and cannot be uninstalled.
+var PlatformAutoInstall = map[string]bool{
+	"base": true,
+	"mail": true,
+}
+
+// IsPlatformModule reports whether name is part of the always-on platform spine.
+func IsPlatformModule(name string) bool {
+	return PlatformAutoInstall[name]
+}
+
 // DeclaringModule returns the sys.module technical name that owns this model's tables.
 // Values come from RegisterModelWithModule; if unset, legacyTechnicalModuleFromName is used once
 // all addons declare Module at registration.
@@ -24,8 +35,10 @@ func legacyTechnicalModuleFromName(modelName string) string {
 	}
 	prefix := modelName[:i]
 	switch prefix {
-	case "sys", "mail", "app":
+	case "sys", "app":
 		return ""
+	case "mail":
+		return "mail"
 	case "core":
 		return "base"
 	case "crm":

@@ -37,7 +37,20 @@ func ParseDomainJSON(raw string) ([][]interface{}, error) {
 }
 
 // SubstituteDomainUID replaces string "$uid" in domain values with uid.
+// Prefer SubstituteDomainContext for ABAC tokens ($company_id, $company_ids).
 func SubstituteDomainUID(domain [][]interface{}, uid int) [][]interface{} {
+	return SubstituteDomainContext(domain, DomainContext{UID: uid})
+}
+
+// DomainContext holds ABAC substitution tokens for record-rule domains.
+type DomainContext struct {
+	UID        int
+	CompanyID  int64
+	CompanyIDs []int64
+}
+
+// SubstituteDomainContext replaces $uid, $company_id, and $company_ids in domain values.
+func SubstituteDomainContext(domain [][]interface{}, dc DomainContext) [][]interface{} {
 	if len(domain) == 0 {
 		return domain
 	}
@@ -48,11 +61,25 @@ func SubstituteDomainUID(domain [][]interface{}, uid int) [][]interface{} {
 			continue
 		}
 		v := d[2]
-		if s, ok := v.(string); ok && s == "$uid" {
-			out[i] = []interface{}{d[0], d[1], int64(uid)}
+		s, ok := v.(string)
+		if !ok {
+			out[i] = d
 			continue
 		}
-		out[i] = d
+		switch s {
+		case "$uid", "uid":
+			out[i] = []interface{}{d[0], d[1], int64(dc.UID)}
+		case "$company_id", "company_id":
+			out[i] = []interface{}{d[0], d[1], dc.CompanyID}
+		case "$company_ids", "company_ids":
+			arr := make([]interface{}, len(dc.CompanyIDs))
+			for j, id := range dc.CompanyIDs {
+				arr[j] = id
+			}
+			out[i] = []interface{}{d[0], d[1], arr}
+		default:
+			out[i] = d
+		}
 	}
 	return out
 }

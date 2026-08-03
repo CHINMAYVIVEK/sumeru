@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <menuitem id="menu_mail_root" name="Discuss" sequence="15" web_icon="apps"/>
+        <menuitem id="menu_mail_messages" name="Messages" parent="menu_mail_root" sequence="10" action="mail.action_mail.message" web_icon="log"/>
+        <menuitem id="menu_mail_activities" name="Activities" parent="menu_mail_root" sequence="20" action="mail.action_mail.activity" web_icon="users"/>
+    </data>
+</sumeru>

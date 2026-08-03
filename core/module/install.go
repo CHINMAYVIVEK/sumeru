@@ -52,18 +52,25 @@ func installModuleUnlocked(context context.Context, moduleName string) error {
 		}
 	}
 
+	if _, err := orm.DB.ExecContext(context,
+		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'to_install', active = true WHERE name = $1`,
+		moduleName,
+	); err != nil {
+		return err
+	}
+
 	if err := orm.SyncRegistrySchemaForModule(moduleName); err != nil {
 		return fmt.Errorf("schema sync: %w", err)
+	}
+
+	if err := addon.SyncToDB(context); err != nil {
+		return err
 	}
 
 	if _, err := orm.DB.ExecContext(context,
 		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'installed', active = true WHERE name = $1`,
 		moduleName,
 	); err != nil {
-		return err
-	}
-
-	if err := addon.SyncToDB(context); err != nil {
 		return err
 	}
 	mail.LogModuleEvent(context, moduleName, "Installed", "")
@@ -79,8 +86,8 @@ func UninstallModuleByName(context context.Context, moduleName string) error {
 	installMu.Lock()
 	defer installMu.Unlock()
 
-	if moduleName == coreModule {
-		return fmt.Errorf("cannot uninstall core module %q", coreModule)
+	if IsPlatformAutoInstall(moduleName) {
+		return fmt.Errorf("cannot uninstall platform module %q", moduleName)
 	}
 	if _, ok := DiscoveredAddons[moduleName]; !ok {
 		return fmt.Errorf("unknown module %q", moduleName)
@@ -90,6 +97,13 @@ func UninstallModuleByName(context context.Context, moduleName string) error {
 		return err
 	} else if dependency != "" {
 		return fmt.Errorf("module %q is required by installed module %q; uninstall that first", moduleName, dependency)
+	}
+
+	if _, err := orm.DB.ExecContext(systemContext,
+		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'to_remove' WHERE name = $1`,
+		moduleName,
+	); err != nil {
+		return err
 	}
 
 	if err := deleteModuleMetadata(systemContext, moduleName); err != nil {

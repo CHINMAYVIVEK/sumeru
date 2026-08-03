@@ -1,6 +1,9 @@
 package module
 
-import "sumeru/core/engine/parser"
+import (
+	"sumeru/core/engine/parser"
+	"sumeru/core/orm"
+)
 
 const coreModule = "base"
 
@@ -26,4 +29,9 @@ type Addon struct {
 	Manifest Manifest
 	Path     string
 	Menus    []parser.MenuItem
+}
+
+// IsPlatformAutoInstall reports whether name is installed automatically on bootstrap.
+func IsPlatformAutoInstall(name string) bool {
+	return orm.IsPlatformModule(name)
 }

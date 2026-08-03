@@ -23,7 +23,8 @@ func UpdateModuleData(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	if moduleStateString(row) != "installed" {
+	state := moduleStateString(row)
+	if state != "installed" && state != "to_upgrade" {
 		return fmt.Errorf("module %q is not installed", name)
 	}
 	missing, err := missingInstalledDependencies(ctx, name)
@@ -34,6 +35,11 @@ func UpdateModuleData(ctx context.Context, name string) error {
 		// e.g. -u all while a leaf is marked installed without its deps — skip reload (no DB churn).
 		return nil
 	}
+	if _, err := orm.DB.ExecContext(ctx,
+		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'to_upgrade' WHERE name = $1`, name,
+	); err != nil {
+		return err
+	}
 	if err := orm.SyncRegistrySchemaForModule(name); err != nil {
 		return fmt.Errorf("schema sync: %w", err)
 	}
@@ -41,6 +47,11 @@ func UpdateModuleData(ctx context.Context, name string) error {
 		return err
 	}
 	if err := a.SyncToDB(ctx); err != nil {
+		return err
+	}
+	if _, err := orm.DB.ExecContext(ctx,
+		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'installed' WHERE name = $1`, name,
+	); err != nil {
 		return err
 	}
 	mail.LogModuleEvent(ctx, name, "Updated", "module data reloaded")

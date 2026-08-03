@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <menuitem id="menu_automation_root" name="Automation" sequence="25" web_icon="settings"/>
+        <menuitem id="menu_automation_cron" name="Scheduled Actions" parent="menu_automation_root" sequence="10" action="automation.action_sys.cron" web_icon="settings"/>
+        <menuitem id="menu_automation_workflow" name="Workflow Transitions" parent="menu_automation_root" sequence="20" action="automation.action_sys.workflow.transition" web_icon="settings"/>
+        <menuitem id="menu_automation_server" name="Server Actions" parent="menu_automation_root" sequence="30" action="automation.action_sys.server_action" web_icon="settings"/>
+    </data>
+</sumeru>

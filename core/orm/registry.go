@@ -44,7 +44,7 @@ func SyncModels() error {
 		name := model.ModelName()
 		if len(installed) == 0 {
 			owner := DeclaringModule(name)
-			if owner != "" && owner != "base" {
+			if owner != "" && !IsPlatformModule(owner) {
 				continue
 			}
 		} else if !ShouldMaterializeModel(name, installed) {

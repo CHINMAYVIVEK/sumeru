@@ -108,7 +108,7 @@ type SysModule struct {
 	Author      string `orm:"author"`
 	Version     string `orm:"version"`
 	Description string `orm:"description"`
-	State       string `orm:"state"` // installed | uninstalled
+	State       string `orm:"state"` // uninstalled | to_install | installed | to_upgrade | to_remove
 	Application bool   `orm:"application"`
 	Active      bool   `orm:"active"`
 }
@@ -259,6 +259,6 @@ func init() {
 	RegisterModelWithModule(SysModule{}, kernel)
 	RegisterModelWithModule(SysModuleCategory{}, kernel)
 	RegisterModelWithModule(AppLog{}, kernel)
-	RegisterModelWithModule(MailMessage{}, kernel)
+	RegisterModelWithModule(MailMessage{}, "mail")
 	RegisterModelWithModule(SysSession{}, kernel)
 }

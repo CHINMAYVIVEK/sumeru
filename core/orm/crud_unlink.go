@@ -28,5 +28,8 @@ func Unlink(ctx context.Context, modelName string, id int) (err error) {
 	tbl := GetTableName(modelName)
 	query := fmt.Sprintf("DELETE FROM %s WHERE id = $1", tbl)
 	_, err = DB.ExecContext(ctx, query, id)
+	if err == nil && !SecurityBypass(ctx) {
+		AppendAudit(ctx, "unlink", modelName, int64(id), rec, nil, "")
+	}
 	return err
 }

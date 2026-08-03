@@ -163,6 +163,10 @@ func applyCoreUserSecurityPost(r *http.Request, modelName string, userID int) {
 	}
 	if _, ok := r.Form["password_plain"]; ok {
 		if pw := strings.TrimSpace(r.PostFormValue("password_plain")); pw != "" {
+			if err := orm.ValidatePasswordPolicy(pw); err != nil {
+				WebLogf(r.Context(), "/web/record/save", "password policy: %v", err)
+				return
+			}
 			hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
 			if err != nil {
 				WebLogf(r.Context(), "/web/record/save", "bcrypt: %v", err)

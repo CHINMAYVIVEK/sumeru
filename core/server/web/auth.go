@@ -16,13 +16,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// SecurityMiddleware attaches orm.UIDFromContext from the session cookie for each request context.
+// SecurityMiddleware attaches orm.UIDFromContext from session cookie or API key.
 func SecurityMiddleware(next http.Handler) http.Handler {
 	if next == nil {
 		next = http.DefaultServeMux
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		uid := SessionUserID(r)
+		uid := AuthenticatedUserID(r)
 		ctx := orm.ContextWithUID(r.Context(), uid)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -94,11 +94,16 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 		`SELECT id, COALESCE(password, ''), active FROM `+tbl+` WHERE LOWER(TRIM(login)) = LOWER(TRIM($1)) LIMIT 1`,
 		login,
 	).Scan(&id, &hash, &active)
+	clientIP := r.RemoteAddr
 	if err != nil || !active || strings.TrimSpace(hash) == "" {
+		orm.AppendUserLog(r.Context(), 0, clientIP, "failure")
+		orm.AppendAudit(r.Context(), "login_fail", "core.user", 0, nil, nil, "login="+login)
 		renderLoginError(w, r, next, "Invalid login or password.")
 		return
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
+		orm.AppendUserLog(r.Context(), id, clientIP, "failure")
+		orm.AppendAudit(r.Context(), "login_fail", "core.user", int64(id), nil, nil, "bad password")
 		renderLoginError(w, r, next, "Invalid login or password.")
 		return
 	}
@@ -107,6 +112,7 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Could not start session", http.StatusInternalServerError)
 		return
 	}
+	orm.AppendUserLog(r.Context(), id, clientIP, "success")
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 

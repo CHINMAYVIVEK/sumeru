@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"sumeru/core/applog"
+	"sumeru/core/orm"
 	"sumeru/core/server/api"
 )
 
@@ -21,13 +22,14 @@ func APIHealthHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
-// RPCJSONHandler is an Odoo-style model RPC: POST JSON {"model","method","args","kwargs"} with session auth.
+// RPCJSONHandler is model RPC: POST JSON {"model","method","args","kwargs"} with session or API key auth.
 func RPCJSONHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if SessionUserID(r) <= 0 {
+	uid := AuthenticatedUserID(r)
+	if uid <= 0 {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -36,7 +38,7 @@ func RPCJSONHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-	ctx := r.Context()
+	ctx := orm.ContextWithUID(r.Context(), uid)
 	result, err := api.DispatchRPC(ctx, body)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if err != nil {

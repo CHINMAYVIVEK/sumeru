@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"sumeru/core/applog"
+	"sumeru/core/event"
 )
 
 // UpdateRecordByID sets only columns that appear in the model's field definitions (never id).
@@ -16,6 +17,9 @@ func UpdateRecordByID(ctx context.Context, modelName string, id int, values map[
 	}
 	uid := SecurityUID(ctx)
 	if err := CheckModelAccess(ctx, uid, modelName, "write"); err != nil {
+		return err
+	}
+	if err := CheckFieldWriteAccess(ctx, uid, modelName, values); err != nil {
 		return err
 	}
 	inst, ok := Registry[modelName]
@@ -30,12 +34,11 @@ func UpdateRecordByID(ctx context.Context, modelName string, id int, values map[
 		return err
 	}
 
-	// STAGE APPROVAL CHECK
-	// If the model has a 'state' field and it's being changed, check for approval rules.
+	// Workflow / stage approval when state changes.
 	if newState, ok := values["state"].(string); ok {
 		oldState := AsString(before["state"])
 		if newState != oldState {
-			if err := CheckStageApproval(ctx, modelName, id, newState); err != nil {
+			if err := CanWorkflowTransition(ctx, modelName, id, oldState, newState, uid); err != nil {
 				return err
 			}
 		}
@@ -72,6 +75,14 @@ func UpdateRecordByID(ctx context.Context, modelName string, id int, values map[
 	tbl := GetTableName(modelName)
 	q := fmt.Sprintf(`UPDATE %s SET %s WHERE id = $%d`, tbl, strings.Join(sets, ", "), i)
 	_, err = DB.ExecContext(ctx, q, args...)
+	if err == nil && !SecurityBypass(ctx) {
+		AppendAudit(ctx, "write", modelName, int64(id), before, values, "")
+		_ = event.Publish(ctx, event.Event{
+			Name:  "record.updated",
+			Actor: uid,
+			Payload: map[string]interface{}{"model": modelName, "id": id},
+		})
+	}
 	return err
 }
 

@@ -1,4 +1,4 @@
-// Package api exposes Odoo-style JSON-RPC over HTTP for authenticated sessions.
+// Package api exposes JSON-RPC over HTTP for authenticated sessions or API keys.
 package api
 
 import (
@@ -9,6 +9,16 @@ import (
 
 	"sumeru/core/orm"
 )
+
+// PublicMethods is the allowlist of model methods callable via RPC.
+var PublicMethods = map[string]bool{
+	"search":      true,
+	"search_read": true,
+	"read":        true,
+	"create":      true,
+	"write":       true,
+	"unlink":      true,
+}
 
 // rpcRequest is the JSON body for POST /api/rpc.
 // If model is empty and params is set, params is unmarshalled again (Odoo-style wrapper).
@@ -40,8 +50,14 @@ func DispatchRPC(ctx context.Context, body []byte) (interface{}, error) {
 	if method == "" {
 		return nil, fmt.Errorf("method is required")
 	}
+	if !PublicMethods[method] {
+		return nil, fmt.Errorf("method %q is not a public RPC method", method)
+	}
 	if _, ok := orm.Registry[model]; !ok {
 		return nil, fmt.Errorf("unknown model %q", model)
+	}
+	if orm.UIDFromContext(ctx) <= 0 {
+		return nil, fmt.Errorf("authentication required")
 	}
 
 	switch method {

@@ -1,44 +1,55 @@
 package web
 
-import "net/http"
+import (
+	"net/http"
+
+	"sumeru/core/server/controller"
+)
+
+func init() {
+	// Bridge auth helpers into the controller registry (used by AuthSession / AuthAPIKey).
+	controller.RequireSession = func(w http.ResponseWriter, r *http.Request) bool {
+		return requireLogin(w, r)
+	}
+	controller.ResolveUID = func(r *http.Request) int {
+		if uid := SessionUserID(r); uid > 0 {
+			return uid
+		}
+		return APIKeyUserID(r)
+	}
+}
 
 // RegisterAppRoutes registers HTTP handlers for /web and related paths after DB init.
-// If mux is nil, handlers are registered on [http.DefaultServeMux].
+// Built-in routes go through the controller registry so addons can override/extend.
 func RegisterAppRoutes(mux *http.ServeMux) {
 	reg := mux
 	if reg == nil {
 		reg = http.DefaultServeMux
 	}
-	reg.HandleFunc("/web/login", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			LoginGet(w, r)
-		case http.MethodPost:
-			LoginPost(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	reg.HandleFunc("/web/company/switch", SwitchCompanyPost)
-	reg.HandleFunc("/web/logout", LogoutGet)
-	reg.HandleFunc("/web/home", HomeDashboardHandler)
-	reg.HandleFunc("/web", WebHandler)
-	reg.HandleFunc("/web/apps", AppsHandler)
+
+	controller.Register(http.MethodGet, "/web/login", controller.AuthNone, LoginGet)
+	controller.Register(http.MethodPost, "/web/login", controller.AuthNone, LoginPost)
+	controller.Register(http.MethodPost, "/web/company/switch", controller.AuthSession, SwitchCompanyPost)
+	controller.Register(http.MethodGet, "/web/logout", controller.AuthNone, LogoutGet)
+	controller.Register(http.MethodGet, "/web/home", controller.AuthSession, HomeDashboardHandler)
+	controller.Register(http.MethodGet, "/web", controller.AuthSession, WebHandler)
+	controller.Register(http.MethodGet, "/web/apps", controller.AuthSession, AppsHandler)
+	controller.Register(http.MethodPost, "/web/module/action", controller.AuthSession, ModuleActionHandler)
+	controller.Register(http.MethodPost, "/web/record/save", controller.AuthSession, RecordSaveHandler)
+	controller.Register(http.MethodPost, "/web/record/delete", controller.AuthSession, RecordDeleteHandler)
+	controller.Register(http.MethodPost, "/web/action/reset_password", controller.AuthSession, ActionResetPassword)
+	controller.Register(http.MethodPost, "/web/chatter/post", controller.AuthSession, ChatterPostHandler)
+	controller.Register(http.MethodGet, "/web/settings", controller.AuthSession, SettingsHubHandler)
+	controller.Register(http.MethodGet, "/web/settings/app-logs", controller.AuthSession, AppLogsHandler)
+	controller.Register(http.MethodGet, "/api/health", controller.AuthNone, APIHealthHandler)
+	controller.Register(http.MethodPost, "/api/rpc", controller.AuthAPIKey, RPCJSONHandler)
+	controller.Register(http.MethodPost, "/web/import/csv", controller.AuthSession, ImportCSVHandler)
+
+	controller.Apply(reg)
+
 	reg.HandleFunc("/web/apps/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/web/apps", http.StatusFound)
 	})
-	reg.HandleFunc("/web/module/action", ModuleActionHandler)
-	reg.HandleFunc("/web/record/save", RecordSaveHandler)
-	reg.HandleFunc("/web/record/delete", RecordDeleteHandler)
-	reg.HandleFunc("/web/action/reset_password", ActionResetPassword)
-	reg.HandleFunc("/web/chatter/post", ChatterPostHandler)
-
-	reg.HandleFunc("/web/settings", SettingsHubHandler)
-	reg.HandleFunc("/web/settings/app-logs", AppLogsHandler)
-
-	reg.HandleFunc("/api/health", APIHealthHandler)
-	reg.HandleFunc("/api/rpc", RPCJSONHandler)
-
 	reg.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -49,7 +60,6 @@ func RegisterAppRoutes(mux *http.ServeMux) {
 }
 
 // RegisterSetupRoutes registers first-run setup handlers (DB not ready).
-// If mux is nil, handlers are registered on [http.DefaultServeMux].
 func RegisterSetupRoutes(mux *http.ServeMux) {
 	reg := mux
 	if reg == nil {

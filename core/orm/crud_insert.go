@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"sumeru/core/applog"
+	"sumeru/core/event"
 )
 
 // Create inserts a new record into the database
@@ -35,6 +36,14 @@ func Create(ctx context.Context, model Model, values map[string]interface{}) (id
 		GetTableName(model.ModelName()), strings.Join(cols, ", "), strings.Join(placeholders, ", "))
 
 	err = DB.QueryRowContext(ctx, query, args...).Scan(&id)
+	if err == nil && !SecurityBypass(ctx) {
+		AppendAudit(ctx, "create", model.ModelName(), int64(id), nil, values, "")
+		_ = event.Publish(ctx, event.Event{
+			Name:   "record.created",
+			Actor:  uid,
+			Payload: map[string]interface{}{"model": model.ModelName(), "id": id},
+		})
+	}
 	return id, err
 }
 

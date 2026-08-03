@@ -1,0 +1,14 @@
+{
+  "name": "automation",
+  "display_name": "Automation",
+  "version": "1.0.0",
+  "author": "Sumeru",
+  "description": "Scheduled jobs, workflow transitions, server actions, and event bindings.",
+  "depends": ["base", "mail"],
+  "application": false,
+  "data": [
+    "security/sys.access.csv",
+    "views/automation_views.xml",
+    "views/menus.xml"
+  ]
+}

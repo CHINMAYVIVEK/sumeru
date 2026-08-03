@@ -63,9 +63,24 @@ func (addon *Addon) SyncToDB(ctx context.Context) error {
 			continue
 		}
 
-		menus, err := parser.ParseMenus(xmlPath)
-		if err == nil && len(menus) > 0 {
-			syncMenusFromItems(ctx, moduleName, menus)
+		menuList, err := parser.ParseMenuList(xmlPath)
+		if err == nil {
+			if len(menuList.MenuItems) > 0 {
+				syncMenusFromItems(ctx, moduleName, menuList.MenuItems)
+			}
+			for _, xmlRecord := range menuList.Records {
+				if xmlRecord.Model == "sys.action.window" {
+					upsertSysActionWindowFromRecord(ctx, moduleName, xmlRecord)
+				}
+				if xmlRecord.Model == "sys.view" {
+					if strings.TrimSpace(parser.RecordFieldMap(xmlRecord)["inherit_id"]) != "" {
+						inheritQueue = append(inheritQueue, xmlRecord)
+					} else {
+						upsertSysViewFromRecord(ctx, moduleName, xmlRecord)
+					}
+				}
+				syncGenericRegistryRecord(ctx, moduleName, xmlRecord)
+			}
 		}
 	}
 

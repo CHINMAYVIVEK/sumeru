@@ -27,7 +27,7 @@ func SyncRegistrySchema() error {
 	names := make([]string, 0, len(Registry))
 	for name := range Registry {
 		if len(installed) == 0 {
-			if owner := DeclaringModule(name); owner != "" && owner != "base" {
+			if owner := DeclaringModule(name); owner != "" && !IsPlatformModule(owner) {
 				continue
 			}
 		} else if !ShouldMaterializeModel(name, installed) {

@@ -29,6 +29,7 @@
                     </group>
                     <group string="Company">
                         <field name="company_id" string="Company"/>
+                        <field name="company_ids" string="Allowed Companies"/>
                     </group>
                 </group>
 
@@ -53,6 +54,8 @@
                         <group>
                             <label for="login" string="Login is used to sign in. Keep it unique."/>
                             <field name="login" string="Login"/>
+                            <field name="totp_enabled" string="Two-Factor Authentication"/>
+                            <field name="password_min_len" string="Min Password Length"/>
                         </group>
                     </page>
                 </notebook>

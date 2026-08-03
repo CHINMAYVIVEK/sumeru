@@ -37,10 +37,8 @@ func syncSysModuleRows(context context.Context, discovered map[string]*Addon) er
 		if err == sql.ErrNoRows {
 			state := "uninstalled"
 			if isBootstrap {
-				// Only the core base module is auto-installed on a fresh database.
-				// All other modules — including non-application ones — start as
-				// uninstalled and must be explicitly installed by the user.
-				if addon.Manifest.Name == coreModule {
+				// Platform spine (base, mail, …) auto-installs; other addons start uninstalled.
+				if IsPlatformAutoInstall(addon.Manifest.Name) {
 					state = "installed"
 				}
 			}

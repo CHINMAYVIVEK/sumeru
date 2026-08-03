@@ -1,0 +1,14 @@
+{
+  "name": "mail",
+  "display_name": "Discuss & Chatter",
+  "version": "1.0.0",
+  "author": "Sumeru",
+  "description": "Messaging, chatter, and activity notifications for all applications.",
+  "depends": ["base"],
+  "application": false,
+  "data": [
+    "security/sys.access.csv",
+    "views/mail_message_views.xml",
+    "views/menus.xml"
+  ]
+}
