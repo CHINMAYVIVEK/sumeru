@@ -51,6 +51,14 @@ func RegisterAppRoutes(mux *http.ServeMux) {
 	reg.HandleFunc("/web/apps/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/web/apps", http.StatusFound)
 	})
+	// Thin aliases → canonical Settings hub.
+	redirectSettingsHub := func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/web/settings", http.StatusFound)
+	}
+	reg.HandleFunc("/web/settings/", redirectSettingsHub)
+	reg.HandleFunc("/web/settings/home", redirectSettingsHub)
+	reg.HandleFunc("/web/settings/dashboard", redirectSettingsHub)
+	reg.HandleFunc("/web/settings/Dashboard", redirectSettingsHub)
 	reg.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)

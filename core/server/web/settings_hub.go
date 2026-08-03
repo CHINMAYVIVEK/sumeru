@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/render"
 	"sumeru/core/module"
 	"sumeru/core/orm"
+	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/server/config"
 )
 
@@ -44,8 +44,7 @@ type settingsHubData struct {
 	CompaniesMenuHref string
 }
 
-// SettingsHubHandler renders the default /web/settings overview: sections from the Settings
-// menu tree plus installed application modules for quick access.
+// SettingsHubHandler renders the Settings overview at /web/settings.
 func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
@@ -60,7 +59,6 @@ func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 	menuIDStr := fmt.Sprintf("%d", rootID)
 
 	topMenus, sidebarMenus, activeModuleID, moduleName := render.LoadShellMenus(ctx, menuIDStr)
-
 	var sections []settingsHubSection
 	for _, sec := range sidebarMenus {
 		var links []settingsHubLink
@@ -152,7 +150,6 @@ func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 
 	page := render.PageData{
 		Title:                "Settings",
-		ViewBreadcrumb:       "Overview",
 		ModuleName:           moduleName,
 		Content:              template.HTML(innerBuf.String()),
 		TopMenus:             topMenus,

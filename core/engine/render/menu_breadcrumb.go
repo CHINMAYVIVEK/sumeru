@@ -25,6 +25,11 @@ func HomeWebURL(ctx context.Context) string {
 	return fmt.Sprintf("/web/home?menu_id=%d", id)
 }
 
+// SettingsHomeURL is the canonical Settings hub URL.
+func SettingsHomeURL() string {
+	return "/web/settings"
+}
+
 // MenuWebURL builds a /web URL for a sys.menu row.
 func MenuWebURL(menuID, actionID int) string {
 	if actionID > 0 {
@@ -83,10 +88,19 @@ func BuildWorkspaceBreadcrumbs(ctx context.Context, activeMenuID string, viewTyp
 	chain := collectMenuAncestors(ctx, mid)
 	vt := strings.ToLower(strings.TrimSpace(viewType))
 	isMatrix := vt == "tree" || vt == "list" || vt == "kanban"
+	settingsRootID := 0
+	if IsMenuUnderSettingsRoot(ctx, activeMenuID) {
+		if rid, _, err := orm.ResolveXmlId(ctx, "base.menu_settings_root"); err == nil && rid > 0 {
+			settingsRootID = rid
+		}
+	}
 
 	for i, m := range chain {
 		isLast := i == len(chain)-1
 		href := MenuWebURL(m.ID, m.ActionID)
+		if settingsRootID > 0 && m.ID == settingsRootID {
+			href = SettingsHomeURL()
+		}
 		if isLast && isMatrix {
 			href = ""
 		}
@@ -153,10 +167,9 @@ func BuildHomeDashboardBreadcrumbs(ctx context.Context) []BreadcrumbItem {
 	}
 }
 
-// BuildSettingsHubBreadcrumbs returns Home + Settings overview (current).
+// BuildSettingsHubBreadcrumbs returns a single Settings crumb for the hub page.
 func BuildSettingsHubBreadcrumbs(ctx context.Context) []BreadcrumbItem {
 	return []BreadcrumbItem{
-		{Label: "Home", Href: HomeWebURL(ctx)},
 		{Label: "Settings", Href: ""},
 	}
 }
