@@ -5,7 +5,7 @@ import (
 	"sumeru/core/orm"
 )
 
-const coreModule = "base"
+const KernelModule = "base"
 
 type Manifest struct {
 	Name        string   `json:"name"`
@@ -31,7 +31,7 @@ type Addon struct {
 	Menus    []parser.MenuItem
 }
 
-// IsPlatformAutoInstall reports whether name is installed automatically on bootstrap.
-func IsPlatformAutoInstall(name string) bool {
+// IsPlatformModule reports whether name is part of the always-on platform spine.
+func IsPlatformModule(name string) bool {
 	return orm.IsPlatformModule(name)
 }

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"sumeru/core/base/platformmsg"
+	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/assets"
 	"sumeru/core/engine/render"
 	"sumeru/core/orm"
@@ -15,6 +15,32 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+// APIKeyUserID extracts a bearer / X-API-Key credential and resolves it to a user id.
+func APIKeyUserID(r *http.Request) int {
+	if r == nil {
+		return 0
+	}
+	raw := strings.TrimSpace(r.Header.Get("X-API-Key"))
+	if raw == "" {
+		auth := strings.TrimSpace(r.Header.Get("Authorization"))
+		if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
+			raw = strings.TrimSpace(auth[7:])
+		}
+	}
+	if raw == "" {
+		return 0
+	}
+	return orm.UIDFromAPIKey(r.Context(), raw)
+}
+
+// AuthenticatedUserID returns session uid, or API key uid if no session.
+func AuthenticatedUserID(r *http.Request) int {
+	if uid := SessionUserID(r); uid > 0 {
+		return uid
+	}
+	return APIKeyUserID(r)
+}
 
 // SecurityMiddleware attaches orm.UIDFromContext from session cookie or API key.
 func SecurityMiddleware(next http.Handler) http.Handler {
@@ -140,8 +166,7 @@ func LogoutGet(w http.ResponseWriter, r *http.Request) {
 }
 
 // ActionResetPassword is a stub for the "Send reset instructions" button on the user form.
-// Email delivery is not yet wired; this handler logs the attempt and returns a clear message
-// so the button doesn't silently fail. Replace with a real email implementation later.
+// WIP: email delivery is not yet wired; this handler logs the attempt and redirects.
 func ActionResetPassword(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return

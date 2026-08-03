@@ -9,7 +9,7 @@
    - Struct embeds **`base.BaseModel`**
    - **`ModelName()`** returns a dotted name (e.g. **`mymodule.document`**)
    - **`Fields()`** lists columns
-   - **`init()`** calls **`base.RegisterModel(..., Module: "<manifest name>")`**
+   - **`init()`** calls **`sdk.RegisterModel(..., Module: "<manifest name>")`**
 
 2. Ensure **`addons/<your_module>/init.go`** blank-imports **`sumeru/addons/<your_module>/models`**.
 

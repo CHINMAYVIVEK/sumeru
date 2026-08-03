@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"sumeru/core/mail"
+	"sumeru/addons/mail"
 	"sumeru/core/orm"
 
 	"golang.org/x/crypto/bcrypt"

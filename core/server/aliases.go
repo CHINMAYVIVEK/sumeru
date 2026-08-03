@@ -1,16 +1,18 @@
 package server
 
 import (
-	"sumeru/core/base"
+	"sumeru/core/engine/render"
+	"sumeru/core/module"
+	"sumeru/core/sdk"
 	"sumeru/core/server/config"
 )
 
-// Config is the on-disk configuration shape (stable alias via base).
-type Config = base.Config
+// Config is the on-disk configuration shape (stable alias via sdk).
+type Config = sdk.Config
 
 // Cfg returns a pointer to the live process configuration.
 func Cfg() *config.Config {
-	return base.Cfg()
+	return sdk.Cfg()
 }
 
 // LoadConfig loads INI configuration from path.
@@ -25,25 +27,25 @@ func AbsPaths() error {
 
 // InitDB opens the database pool.
 func InitDB(databaseConnectionString string) {
-	base.InitDB(base.InitDBInput{DSN: databaseConnectionString})
+	sdk.InitDB(sdk.InitDBInput{DSN: databaseConnectionString})
 }
 
 // SyncModels syncs registered models to the database.
 func SyncModels() error {
-	return base.SyncModels(base.SyncModelsInput{})
+	return sdk.SyncModels(sdk.SyncModelsInput{})
 }
 
 // LoadAddonPaths discovers and loads addons from the given roots.
 func LoadAddonPaths(paths []string) error {
-	return base.LoadAddonPaths(base.LoadAddonPathsInput{Paths: paths})
+	return module.LoadAddonPaths(paths)
 }
 
 // RunModuleCLI runs -i / -u module lists.
 func RunModuleCLI(installCSV, updateCSV string) error {
-	return base.RunModuleCLI(base.RunModuleCLIInput{Install: installCSV, Update: updateCSV})
+	return module.RunModuleCLI(installCSV, updateCSV)
 }
 
 // SetExtraStylesheetURLs registers extra CSS URLs for the shell.
 func SetExtraStylesheetURLs(urls []string) {
-	base.SetExtraStylesheetURLs(base.SetExtraStylesheetURLsInput{URLs: urls})
+	render.SetExtraStylesheetURLs(urls)
 }

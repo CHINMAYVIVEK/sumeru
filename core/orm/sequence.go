@@ -82,6 +82,10 @@ func SetConfig(ctx context.Context, key, value string) error {
 	if n > 0 {
 		return nil
 	}
-	_, err = Create(bypass, SysConfigParameter{}, map[string]interface{}{"key": key, "value": value})
+	inst, ok := Registry["sys.config_parameter"]
+	if !ok {
+		return fmt.Errorf("unknown model %q", "sys.config_parameter")
+	}
+	_, err = Create(bypass, inst, map[string]interface{}{"key": key, "value": value})
 	return err
 }

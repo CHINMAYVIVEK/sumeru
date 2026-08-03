@@ -24,7 +24,7 @@ Only **installed** modules have their **`data`** XML applied on startup sync. Un
 
 ## Go side-effect imports
 
-Go structs register with the ORM in **`init()`** via **`base.RegisterModel`**. The **`cmd/sumeru`** binary must **blank-import** the addon root package so those **`init`** hooks run.
+Go structs register with the ORM in **`init()`** via **`sdk.RegisterModel`**. The **`cmd/sumeru`** binary must **blank-import** the addon root package so those **`init`** hooks run.
 
 - In-repo default: **`go generate ./cmd/sumeru`** runs **`sumeru-import-gen`**, which rewrites **`cmd/sumeru/zimports.go`** from **`addons_path`** in your INI.
 - After adding a **new** addon under a configured root, run **`make generate`** (or **`go generate ./cmd/sumeru`**) then **`-i your_module`** once.

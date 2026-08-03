@@ -6,27 +6,7 @@ import (
 	"fmt"
 )
 
-// FilterWritableFields removes keys the uid may not write (sys.field_access).
-// If no rules exist for a field, write is allowed (opt-in deny).
-func FilterWritableFields(ctx context.Context, uid int, model string, values map[string]interface{}) (map[string]interface{}, error) {
-	if SecurityBypass(ctx) || uid == superuserUID || len(values) == 0 {
-		return values, nil
-	}
-	denied, err := fieldAccessDenied(ctx, uid, model, "write")
-	if err != nil || len(denied) == 0 {
-		return values, err
-	}
-	out := make(map[string]interface{}, len(values))
-	for k, v := range values {
-		if denied[k] {
-			continue
-		}
-		out[k] = v
-	}
-	return out, nil
-}
-
-// CheckFieldWriteAccess errors if any key in values is write-denied.
+// CheckFieldWriteAccess errors if any key in values is write-denied by sys.field_access.
 func CheckFieldWriteAccess(ctx context.Context, uid int, model string, values map[string]interface{}) error {
 	if SecurityBypass(ctx) || uid == superuserUID {
 		return nil
@@ -63,8 +43,6 @@ func fieldAccessDenied(ctx context.Context, uid int, model, op string) (map[stri
 		return out, nil
 	}
 	defer rows.Close()
-	// Collect rules per field; deny if user matches a rule with perm=false,
-	// or if rules exist and none grant the permission.
 	type rule struct {
 		gid  int
 		perm bool
@@ -100,19 +78,4 @@ func fieldAccessDenied(ctx context.Context, uid int, model, op string) (map[stri
 		}
 	}
 	return out, rows.Err()
-}
-
-// StripDeniedReadFields removes read-denied fields from a record map.
-func StripDeniedReadFields(ctx context.Context, uid int, model string, rec map[string]interface{}) map[string]interface{} {
-	if SecurityBypass(ctx) || uid == superuserUID || rec == nil {
-		return rec
-	}
-	denied, err := fieldAccessDenied(ctx, uid, model, "read")
-	if err != nil || len(denied) == 0 {
-		return rec
-	}
-	for k := range denied {
-		delete(rec, k)
-	}
-	return rec
 }

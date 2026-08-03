@@ -1,0 +1,49 @@
+package orm
+
+// SysModule tracks installable addons.
+type SysModule struct {
+	ID          int    `orm:"id"`
+	Name        string `orm:"name"` // technical name
+	DisplayName string `orm:"display_name"`
+	Author      string `orm:"author"`
+	Version     string `orm:"version"`
+	Description string `orm:"description"`
+	State       string `orm:"state"` // uninstalled | to_install | installed | to_upgrade | to_remove
+	Application bool   `orm:"application"`
+	Active      bool   `orm:"active"`
+}
+
+func (m SysModule) ModelName() string { return "sys.module" }
+func (m SysModule) Fields() []FieldDefinition {
+	return []FieldDefinition{
+		{Name: "name", Type: Char, Required: true, Unique: true},
+		{Name: "display_name", Type: Char},
+		{Name: "author", Type: Char},
+		{Name: "version", Type: Char},
+		{Name: "description", Type: Text},
+		{Name: "state", Type: Char, Required: true},
+		{Name: "application", Type: Boolean, Required: true},
+		{Name: "active", Type: Boolean, Required: true},
+	}
+}
+
+// SysModuleCategory classifies core.group rows for display (name + sequence).
+type SysModuleCategory struct {
+	ID       int    `orm:"id"`
+	Name     string `orm:"name"`
+	Sequence int    `orm:"sequence"`
+}
+
+func (SysModuleCategory) ModelName() string { return "sys.module.category" }
+func (SysModuleCategory) Fields() []FieldDefinition {
+	return []FieldDefinition{
+		{Name: "name", Type: Char, Required: true, Unique: true, String: "Name"},
+		{Name: "sequence", Type: Integer, String: "Sequence"},
+	}
+}
+
+func init() {
+	const kernel = "base"
+	RegisterModelWithModule(SysModule{}, kernel)
+	RegisterModelWithModule(SysModuleCategory{}, kernel)
+}

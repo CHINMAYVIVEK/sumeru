@@ -44,7 +44,6 @@ const (
 	fileGoMod = "go.mod"
 
 	segCore      = "core"
-	segBase      = "base"
 	segEngine    = "engine"
 	segAssets    = "assets"
 	segTemplates = "templates"

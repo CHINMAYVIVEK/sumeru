@@ -11,54 +11,6 @@ import (
 	"time"
 )
 
-// SysAPIKey stores hashed API keys for external RPC auth (model: core.user.apikey).
-type SysAPIKey struct {
-	ID        int    `orm:"id"`
-	UserID    int    `orm:"user_id"`
-	Name      string `orm:"name"`
-	KeyPrefix string `orm:"key_prefix"`
-	KeyHash   string `orm:"key_hash"`
-	Active    bool   `orm:"active"`
-	CreateDate string `orm:"create_date"`
-}
-
-func (SysAPIKey) ModelName() string { return "core.user.apikey" }
-func (SysAPIKey) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "user_id", Type: Many2One, Relation: "core.user", Required: true, Index: true, String: "User"},
-		{Name: "name", Type: Char, Required: true, String: "Name"},
-		{Name: "key_prefix", Type: Char, Required: true, String: "Prefix"},
-		{Name: "key_hash", Type: Char, Required: true, String: "Hash"},
-		{Name: "active", Type: Boolean, DefaultVal: true, String: "Active"},
-		{Name: "create_date", Type: DateTime, Required: true, String: "Created"},
-	}
-}
-
-// CoreUserLog records successful (and optionally failed) logins.
-type CoreUserLog struct {
-	ID         int    `orm:"id"`
-	UserID     int    `orm:"user_id"`
-	CreateDate string `orm:"create_date"`
-	IP         string `orm:"ip"`
-	Result     string `orm:"result"` // success | failure
-}
-
-func (CoreUserLog) ModelName() string { return "core.user.log" }
-func (CoreUserLog) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "user_id", Type: Many2One, Relation: "core.user", Index: true, String: "User"},
-		{Name: "create_date", Type: DateTime, Required: true, String: "When"},
-		{Name: "ip", Type: Char, String: "IP"},
-		{Name: "result", Type: Char, Required: true, DefaultVal: "success", String: "Result"},
-	}
-}
-
-func init() {
-	const kernel = "base"
-	RegisterModelWithModule(SysAPIKey{}, kernel)
-	RegisterModelWithModule(CoreUserLog{}, kernel)
-}
-
 // HashAPIKey returns a hex SHA-256 digest of the raw key.
 func HashAPIKey(raw string) string {
 	sum := sha256.Sum256([]byte(raw))
@@ -111,15 +63,23 @@ func CreateAPIKeyForUser(ctx context.Context, userID int, name string) (raw stri
 	if userID <= 0 {
 		return "", fmt.Errorf("user id required")
 	}
+	inst, ok := Registry["core.user.apikey"]
+	if !ok {
+		return "", fmt.Errorf("unknown model %q", "core.user.apikey")
+	}
 	raw, prefix, hash, err := GenerateAPIKey()
 	if err != nil {
 		return "", err
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
-		name = "API Key"
+		if seq, seqErr := NextSequence(ctx, "core.user.apikey"); seqErr == nil {
+			name = seq
+		} else {
+			name = "API Key"
+		}
 	}
-	_, err = Create(ctx, SysAPIKey{}, map[string]interface{}{
+	_, err = Create(ctx, inst, map[string]interface{}{
 		"user_id":     userID,
 		"name":        name,
 		"key_prefix":  prefix,
@@ -135,6 +95,10 @@ func AppendUserLog(ctx context.Context, userID int, ip, result string) {
 	if DB == nil {
 		return
 	}
+	inst, ok := Registry["core.user.log"]
+	if !ok {
+		return
+	}
 	result = strings.TrimSpace(result)
 	if result == "" {
 		result = "success"
@@ -148,5 +112,5 @@ func AppendUserLog(ctx context.Context, userID int, ip, result string) {
 		vals["user_id"] = userID
 	}
 	bypass := ContextWithBypass(ctx, true)
-	_, _ = Create(bypass, CoreUserLog{}, vals)
+	_, _ = Create(bypass, inst, vals)
 }

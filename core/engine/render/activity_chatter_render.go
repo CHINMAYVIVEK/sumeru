@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"sumeru/core/engine/parser"
-	"sumeru/core/mail"
+	"sumeru/addons/mail"
 )
 
 // writeActivityChatterPanel renders thread + composer for the right activity panel (comments only).

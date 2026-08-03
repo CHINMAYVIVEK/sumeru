@@ -49,12 +49,7 @@ func FindRepoRoot(fromAbsolutePath string) (string, error) {
 
 func isBuiltinAddonPath(addonPath string) bool {
 	sanitizedPath := filepath.Clean(addonPath)
-	if strings.Contains(sanitizedPath, "module"+string(filepath.Separator)+"builtin") {
-		return true
-	}
-	// .../core/base/base — minimal "base" sys.module (manifest only; no init.go requirement)
-	return strings.Contains(filepath.ToSlash(sanitizedPath), "/core/base/base") &&
-		filepath.Base(sanitizedPath) == "base" && filepath.Base(filepath.Dir(sanitizedPath)) == "base"
+	return strings.Contains(sanitizedPath, "module"+string(filepath.Separator)+"builtin")
 }
 
 // addonGoModuleContext resolves the Go module root, module import path, and repo-relative
@@ -80,7 +75,7 @@ func addonGoModuleContext(addonPath string) (repositoryRoot, moduleImportPath, r
 }
 
 // ValidateDiscoveredAddons checks strict layout for every discovered addon.
-// Filesystem-only modules under core/module/builtin or core/base/base skip the Go init.go / models rules.
+// Filesystem-only modules under core/module/builtin skip the Go init.go / models rules.
 // Each addon is validated against the Go module root that contains it (supports multiple
 // addon roots, e.g. standard sumeru plus a sibling workspace module).
 func ValidateDiscoveredAddons(discoveredAddons map[string]*Addon) error {

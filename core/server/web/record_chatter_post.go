@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"sumeru/core/mail"
+	"sumeru/addons/mail"
 	"sumeru/core/orm"
 )
 

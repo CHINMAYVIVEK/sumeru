@@ -7,9 +7,9 @@ import (
 )
 
 // AbsPaths resolves relative config paths to absolute paths.
-// AddonPaths is set to [core/base, <each addons_path segment>...] — core/base holds
-// the shipped platform addons (base, user, company). When sumeru_home is set, that
-// tree is under the standard sumeru checkout.
+// AddonPaths is set from addons_path segments (platform addons live under addons/,
+// e.g. addons/base). When sumeru_home is set, default assets/templates resolve
+// under the standard sumeru checkout.
 // Relative addons_path, assets_path, templates_path, etc. resolve against ConfigFileDir (INI directory).
 func AbsPaths() error {
 	su := strings.TrimSpace(AppConfig.SumeruHome)
@@ -22,23 +22,6 @@ func AbsPaths() error {
 		sumeruAbs, err = filepath.Abs(su)
 		if err != nil {
 			return err
-		}
-	}
-
-	var coreBaseRoot string
-	if sumeruAbs != "" {
-		coreBaseRoot = filepath.Clean(filepath.Join(sumeruAbs, segCore, segBase))
-	} else {
-		if ConfigFileDir != "" {
-			if fi, statErr := os.Stat(filepath.Join(ConfigFileDir, fileGoMod)); statErr == nil && !fi.IsDir() {
-				coreBaseRoot = filepath.Clean(filepath.Join(ConfigFileDir, segCore, segBase))
-			}
-		}
-		if coreBaseRoot == "" {
-			coreBaseRoot, err = filepath.Abs(filepath.Join(segCore, segBase))
-			if err != nil {
-				return err
-			}
 		}
 	}
 
@@ -61,7 +44,7 @@ func AbsPaths() error {
 	if err != nil {
 		return err
 	}
-	AppConfig.AddonPaths = append([]string{coreBaseRoot}, userRoots...)
+	AppConfig.AddonPaths = userRoots
 
 	return resolveConfigPathFields(sumeruAbs)
 }

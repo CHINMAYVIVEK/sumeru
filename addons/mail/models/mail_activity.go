@@ -1,10 +1,10 @@
 package models
 
-import "sumeru/core/base"
+import "sumeru/core/sdk"
 
 // MailActivity is a scheduled follow-up on a record (platform companion to chatter).
 type MailActivity struct {
-	base.BaseModel
+	sdk.BaseModel
 	Name       string `db:"name"`
 	Model      string `db:"model"`
 	ResID      int64  `db:"res_id"`
@@ -16,19 +16,19 @@ type MailActivity struct {
 
 func (MailActivity) ModelName() string { return "mail.activity" }
 
-func (MailActivity) Fields() []base.FieldDefinition {
-	return []base.FieldDefinition{
-		{Name: "name", Type: base.Char, Required: true, String: "Activity"},
-		{Name: "model", Type: base.Char, Required: true, Index: true, String: "Model"},
-		{Name: "res_id", Type: base.Integer, Required: true, Index: true, String: "Record"},
-		{Name: "user_id", Type: base.Many2One, Relation: "core.user", String: "Assigned To"},
-		{Name: "summary", Type: base.Text, String: "Summary"},
-		{Name: "date_deadline", Type: base.Date, String: "Due Date"},
-		{Name: "state", Type: base.Selection, DefaultVal: "planned", String: "State",
+func (MailActivity) Fields() []sdk.FieldDefinition {
+	return []sdk.FieldDefinition{
+		{Name: "name", Type: sdk.Char, Required: true, String: "Activity"},
+		{Name: "model", Type: sdk.Char, Required: true, Index: true, String: "Model"},
+		{Name: "res_id", Type: sdk.Integer, Required: true, Index: true, String: "Record"},
+		{Name: "user_id", Type: sdk.Many2One, Relation: "core.user", String: "Assigned To"},
+		{Name: "summary", Type: sdk.Text, String: "Summary"},
+		{Name: "date_deadline", Type: sdk.Date, String: "Due Date"},
+		{Name: "state", Type: sdk.Selection, DefaultVal: "planned", String: "State",
 			Selection: [][]string{{"planned", "Planned"}, {"done", "Done"}, {"cancelled", "Cancelled"}}},
 	}
 }
 
 func init() {
-	base.RegisterModel(base.RegisterModelInput{Model: &MailActivity{}, Module: "mail"})
+	sdk.RegisterModel(sdk.RegisterModelInput{Model: &MailActivity{}, Module: "mail"})
 }

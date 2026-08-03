@@ -2,7 +2,7 @@
 
 ## “My new Go model is ignored” / table never appears
 
-- Confirm **`base.RegisterModel(..., Module: "<manifest name>")`** uses the **exact** **`manifest.json`** **`name`**.
+- Confirm **`sdk.RegisterModel(..., Module: "<manifest name>")`** uses the **exact** **`manifest.json`** **`name`**.
 - Ensure the addon root package is blank-imported in **`cmd/sumeru/zimports.go`** (or **`addonimports/zimports.go`** in **`sumeru_custom_addons`**): run **`make generate`**.
 - Rebuild/restart the server so **`init()`** runs.
 

@@ -1,9 +1,9 @@
 package models
 
-import "sumeru/core/base"
+import "sumeru/core/sdk"
 
 type CoreUser struct {
-	base.BaseModel
+	sdk.BaseModel
 	Login     string `db:"login"`
 	Password  string `db:"password"` // bcrypt hash; never list in UI
 	Name      string `db:"name"`
@@ -24,28 +24,28 @@ type CoreUser struct {
 
 func (CoreUser) ModelName() string { return "core.user" }
 
-func (CoreUser) Fields() []base.FieldDefinition {
-	return []base.FieldDefinition{
-		{Name: "login", Type: base.Char, Required: true, Unique: true, String: "Login", Index: true},
-		{Name: "password", Type: base.Char, String: "Password"},
-		{Name: "name", Type: base.Char, String: "Name"},
-		{Name: "active", Type: base.Boolean, String: "Active", DefaultVal: true},
-		{Name: "email", Type: base.Char, String: "Email"},
-		{Name: "phone", Type: base.Char, String: "Work Phone"},
-		{Name: "mobile", Type: base.Char, String: "Mobile"},
-		{Name: "company_id", Type: base.Many2One, Relation: "core.company", String: "Company", Index: true},
-		{Name: "company_ids", Type: base.Many2Many, Relation: "core.company", RelationTable: "core_user_company_rel", Column1: "user_id", Column2: "company_id", String: "Companies"},
-		{Name: "lang", Type: base.Selection, String: "Language", DefaultVal: "en_US"},
-		{Name: "tz", Type: base.Char, String: "Timezone"},
-		{Name: "signature", Type: base.Text, String: "Email Signature"},
-		{Name: "user_type", Type: base.Selection, String: "User Type", DefaultVal: "internal",
+func (CoreUser) Fields() []sdk.FieldDefinition {
+	return []sdk.FieldDefinition{
+		{Name: "login", Type: sdk.Char, Required: true, Unique: true, String: "Login", Index: true},
+		{Name: "password", Type: sdk.Char, String: "Password"},
+		{Name: "name", Type: sdk.Char, String: "Name"},
+		{Name: "active", Type: sdk.Boolean, String: "Active", DefaultVal: true},
+		{Name: "email", Type: sdk.Char, String: "Email"},
+		{Name: "phone", Type: sdk.Char, String: "Work Phone"},
+		{Name: "mobile", Type: sdk.Char, String: "Mobile"},
+		{Name: "company_id", Type: sdk.Many2One, Relation: "core.company", String: "Company", Index: true},
+		{Name: "company_ids", Type: sdk.Many2Many, Relation: "core.company", RelationTable: "core_user_company_rel", Column1: "user_id", Column2: "company_id", String: "Companies"},
+		{Name: "lang", Type: sdk.Selection, String: "Language", DefaultVal: "en_US"},
+		{Name: "tz", Type: sdk.Char, String: "Timezone"},
+		{Name: "signature", Type: sdk.Text, String: "Email Signature"},
+		{Name: "user_type", Type: sdk.Selection, String: "User Type", DefaultVal: "internal",
 			Selection: [][]string{{"internal", "Internal"}, {"portal", "Portal"}, {"public", "Public"}}},
-		{Name: "totp_secret", Type: base.Char, String: "TOTP Secret"},
-		{Name: "totp_enabled", Type: base.Boolean, DefaultVal: false, String: "2FA Enabled"},
-		{Name: "password_min_len", Type: base.Integer, DefaultVal: 8, String: "Min Password Length"},
+		{Name: "totp_secret", Type: sdk.Char, String: "TOTP Secret"},
+		{Name: "totp_enabled", Type: sdk.Boolean, DefaultVal: false, String: "2FA Enabled"},
+		{Name: "password_min_len", Type: sdk.Integer, DefaultVal: 8, String: "Min Password Length"},
 	}
 }
 
 func init() {
-	base.RegisterModel(base.RegisterModelInput{Model: &CoreUser{}, Module: "base"})
+	sdk.RegisterModel(sdk.RegisterModelInput{Model: &CoreUser{}, Module: "base"})
 }

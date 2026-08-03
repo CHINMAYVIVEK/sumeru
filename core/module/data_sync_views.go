@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"sumeru/core/base/platformmsg"
+	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/parser"
 	"sumeru/core/orm"
 )

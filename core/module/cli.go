@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"sumeru/core/mail"
+	"sumeru/addons/mail"
 	"sumeru/core/orm"
 )
 

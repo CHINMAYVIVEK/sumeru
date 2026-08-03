@@ -3,7 +3,12 @@ package orm
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
+
+func quoteIdent(s string) string {
+	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
+}
 
 // DBWrapper defines the interface for database operations.
 // This allows the ORM to be decoupled from the standard library's sql.DB,

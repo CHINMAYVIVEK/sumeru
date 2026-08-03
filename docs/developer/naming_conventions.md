@@ -30,3 +30,14 @@ Custom modules should use their own short prefix to avoid collisions.
 
 ## Why Not Dots?
 While we use dots in the *string identifier* (e.g., `"core.user"`), the underlying database tables follow the snake_case convention with underscores (e.g., `core_user`).
+
+## Go packages: `sdk` vs addon `base`
+
+| Path | Go package | Role |
+| ---- | ---------- | ---- |
+| `sumeru/core/sdk` | `sdk` | Stable facade for addon/integration code (`RegisterModel`, field types, Search/Create, …). Prefer this over importing `sumeru/core/orm` directly. |
+| `sumeru/addons/base` | `base` | Installable kernel addon (manifest name `"base"`). Models live under `addons/base/models` (`package models`). |
+
+Do **not** rename the addon package or technical module name `"base"`. Only the former Go facade `sumeru/core/base` is now `sumeru/core/sdk`.
+
+HTTP routes register through **`sumeru/core/server/router`** (`router.Register`, …).

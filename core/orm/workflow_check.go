@@ -76,3 +76,59 @@ func checkWorkflowTransitionRows(ctx context.Context, model, fromState, toState 
 	}
 	return nil
 }
+
+// CheckStageApproval verifies if uid has permission to move record to targetState.
+func CheckStageApproval(ctx context.Context, model string, id int, targetState string) error {
+	if SecurityBypass(ctx) || SecurityUID(ctx) == superuserUID {
+		return nil
+	}
+	uid := SecurityUID(ctx)
+	groups, err := EffectiveGroupIDs(ctx, uid)
+	if err != nil {
+		return err
+	}
+
+	// Get current state to check from_state rules
+	before, err := SearchOne(ctx, model, map[string]interface{}{"id": id})
+	if err != nil {
+		// If record not found, we can't check from_state. For now, assume it's okay (e.g. create case handled elsewhere).
+		return nil
+	}
+	currentState := AsString(before["state"])
+
+	appTbl := GetTableName("sys.approval_rule")
+	// Find rules for this model and target state
+	q := `SELECT group_id, COALESCE(from_state, '') FROM ` + appTbl + ` WHERE model = $1 AND to_state = $2 AND require_approval = true`
+	rows, err := DB.QueryContext(ctx, q, model, targetState)
+	if err != nil {
+		// If table doesn't exist yet or other error, allow.
+		return nil
+	}
+	defer rows.Close()
+
+	hasRule := false
+	match := false
+	for rows.Next() {
+		hasRule = true
+		var gid int
+		var fromState string
+		if err := rows.Scan(&gid, &fromState); err != nil {
+			return err
+		}
+
+		// If fromState is specified, it must match current state
+		if fromState != "" && fromState != currentState {
+			continue
+		}
+
+		if intSliceContains(groups, gid) {
+			match = true
+			break
+		}
+	}
+
+	if hasRule && !match {
+		return fmt.Errorf("approval required for transition to state %q (from %q)", targetState, currentState)
+	}
+	return nil
+}

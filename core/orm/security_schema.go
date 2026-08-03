@@ -46,18 +46,6 @@ func NullableGroupIDForAccess(groupID int) interface{} {
 	return int64(groupID)
 }
 
-// CoalesceGroupID scans sql.NullInt64 style into int (0 = none / global row semantics).
-func CoalesceGroupID(v interface{}) int {
-	if v == nil {
-		return 0
-	}
-	n, ok := CoerceInt64(v)
-	if !ok || n == 0 {
-		return 0
-	}
-	return int(n)
-}
-
 // NormalizeAccessGroupList splits comma-separated XML ids.
 func NormalizeAccessGroupList(s string) []string {
 	s = strings.TrimSpace(s)

@@ -1,30 +1,30 @@
 package models
 
 import (
-	"sumeru/core/base"
+	"sumeru/core/sdk"
 )
 
 type Partner struct {
-	base.BaseModel
+	sdk.BaseModel
 }
 
 func (p Partner) ModelName() string {
 	return "core.partner"
 }
 
-func (p Partner) Fields() []base.FieldDefinition {
-	return []base.FieldDefinition{
-		{Name: "name", Type: base.Char, String: "Name", Required: true},
-		{Name: "email", Type: base.Char, String: "Email"},
-		{Name: "phone", Type: base.Char, String: "Phone"},
-		{Name: "street", Type: base.Char, String: "Street"},
-		{Name: "city", Type: base.Char, String: "City"},
-		{Name: "country_id", Type: base.Many2One, Relation: "core.country", String: "Country"},
-		{Name: "comment", Type: base.Text, String: "Notes"},
-		{Name: "is_company", Type: base.Boolean, String: "Is a Company"},
+func (p Partner) Fields() []sdk.FieldDefinition {
+	return []sdk.FieldDefinition{
+		{Name: "name", Type: sdk.Char, String: "Name", Required: true},
+		{Name: "email", Type: sdk.Char, String: "Email"},
+		{Name: "phone", Type: sdk.Char, String: "Phone"},
+		{Name: "street", Type: sdk.Char, String: "Street"},
+		{Name: "city", Type: sdk.Char, String: "City"},
+		{Name: "country_id", Type: sdk.Many2One, Relation: "core.country", String: "Country"},
+		{Name: "comment", Type: sdk.Text, String: "Notes"},
+		{Name: "is_company", Type: sdk.Boolean, String: "Is a Company"},
 	}
 }
 
 func init() {
-	base.RegisterModel(base.RegisterModelInput{Model: &Partner{}, Module: "base"})
+	sdk.RegisterModel(sdk.RegisterModelInput{Model: &Partner{}, Module: "base"})
 }

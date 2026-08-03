@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"sumeru/core/mail"
+	"sumeru/addons/mail"
 	"sumeru/core/orm"
 )
 
@@ -86,7 +86,7 @@ func UninstallModuleByName(context context.Context, moduleName string) error {
 	installMu.Lock()
 	defer installMu.Unlock()
 
-	if IsPlatformAutoInstall(moduleName) {
+	if IsPlatformModule(moduleName) {
 		return fmt.Errorf("cannot uninstall platform module %q", moduleName)
 	}
 	if _, ok := DiscoveredAddons[moduleName]; !ok {
@@ -144,8 +144,8 @@ func SetModuleActive(context context.Context, moduleName string, active bool) er
 	installMu.Lock()
 	defer installMu.Unlock()
 
-	if moduleName == coreModule && !active {
-		return fmt.Errorf("cannot deactivate core module %q", coreModule)
+	if moduleName == KernelModule && !active {
+		return fmt.Errorf("cannot deactivate core module %q", KernelModule)
 	}
 	if _, ok := DiscoveredAddons[moduleName]; !ok {
 		return fmt.Errorf("unknown module %q", moduleName)

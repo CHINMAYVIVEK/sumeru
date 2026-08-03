@@ -180,21 +180,6 @@ func ParseViewList(filePath string) (*ViewList, error) {
 	return &viewList, nil
 }
 
-func ParseView(filePath string) (*View, error) {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	var view View
-	err = xml.Unmarshal(data, &view)
-	if err != nil {
-		return nil, err
-	}
-
-	return &view, nil
-}
-
 func ParseViewFromArch(arch string) (*View, error) {
 	v, err := parseViewFromArchInternal(strings.TrimSpace(arch))
 	if err != nil {
@@ -202,33 +187,6 @@ func ParseViewFromArch(arch string) (*View, error) {
 	}
 	v.Type = strings.ToLower(strings.TrimSpace(v.Type))
 	return v, nil
-}
-
-func ParseViewByType(filePath string, viewType string) (*View, error) {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-	root, err := PeekModuleXMLRootName(data)
-	if err != nil {
-		return nil, err
-	}
-	if err := ValidateModuleRoot(xml.Name{Local: root}); err != nil {
-		return nil, err
-	}
-	var viewList ViewList
-	if err := xml.Unmarshal(data, &viewList); err != nil {
-		return nil, err
-	}
-	viewList.MergeViewListData()
-
-	for _, v := range viewList.Views {
-		if v.Type == viewType {
-			return &v, nil
-		}
-	}
-
-	return nil, fmt.Errorf("view type %s not found in %s", viewType, filePath)
 }
 
 func ParseMenuList(filePath string) (*MenuList, error) {
@@ -249,13 +207,4 @@ func ParseMenuList(filePath string) (*MenuList, error) {
 	}
 	menuList.MergeMenuListData()
 	return &menuList, nil
-}
-
-// ParseMenus is kept for backward compatibility.
-func ParseMenus(filePath string) ([]MenuItem, error) {
-	ml, err := ParseMenuList(filePath)
-	if err != nil {
-		return nil, err
-	}
-	return ml.MenuItems, nil
 }

@@ -138,3 +138,11 @@ func Run() {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
+
+func registerAppRoutes() {
+	web.RegisterAppRoutes(nil)
+}
+
+func registerSetupRoutes() {
+	web.RegisterSetupRoutes(nil)
+}

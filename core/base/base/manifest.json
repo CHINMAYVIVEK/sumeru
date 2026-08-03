@@ -1,9 +1,0 @@
-{
-  "name": "base",
-  "version": "1.0",
-  "depends": [],
-  "author": "Sumeru",
-  "description": "Core platform and shared services (shipped with core, not under addons/)",
-  "application": false,
-  "data": []
-}

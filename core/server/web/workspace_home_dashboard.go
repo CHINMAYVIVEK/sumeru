@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"sumeru/core/base/platformmsg"
+	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/render"
 	"sumeru/core/module"
 	"sumeru/core/orm"

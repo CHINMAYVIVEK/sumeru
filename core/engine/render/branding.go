@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"sumeru/core/mail"
+	"sumeru/addons/mail"
 	"sumeru/core/orm"
 	"sumeru/core/server/config"
 )

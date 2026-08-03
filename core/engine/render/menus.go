@@ -64,9 +64,17 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 			continue
 		}
 
+		lang := "en_US"
+		if uid := orm.UIDFromContext(ctx); uid > 0 {
+			if u, err := orm.SearchOne(ctx, "core.user", map[string]interface{}{"id": uid}); err == nil {
+				if l := strings.TrimSpace(orm.AsString(u["lang"])); l != "" {
+					lang = l
+				}
+			}
+		}
 		m := parser.MenuItem{
 			ID:           fmt.Sprintf("%d", id),
-			Name:         name,
+			Name:         orm.Translate(ctx, lang, name),
 			Sequence:     int(seq.Int64),
 			Module:       mod,
 			WebIcon:      sanitizeMenuIcon(webIcon),

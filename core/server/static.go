@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"sumeru/core/base"
 	"sumeru/core/engine/assets"
 	"sumeru/core/engine/render"
 	"sumeru/core/module"
@@ -65,7 +64,7 @@ func registerBrandingAndStatic() {
 		}
 	}
 
-	base.SetExtraStylesheetURLs(base.SetExtraStylesheetURLsInput{URLs: extraCSS})
+	render.SetExtraStylesheetURLs(extraCSS)
 
 	logoURL := ""
 	if config.AppConfig.LogoPath != "" {

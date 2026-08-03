@@ -6,15 +6,15 @@ import (
 	"strings"
 )
 
-// PlatformAutoInstall modules materialize on a fresh DB and cannot be uninstalled.
-var PlatformAutoInstall = map[string]bool{
+// PlatformModules materialize on a fresh DB and cannot be uninstalled.
+var PlatformModules = map[string]bool{
 	"base": true,
 	"mail": true,
 }
 
 // IsPlatformModule reports whether name is part of the always-on platform spine.
 func IsPlatformModule(name string) bool {
-	return PlatformAutoInstall[name]
+	return PlatformModules[name]
 }
 
 // DeclaringModule returns the sys.module technical name that owns this model's tables.

@@ -18,8 +18,8 @@ type Config struct {
 	DbSslMode          string
 	HttpPort           string
 	AddonsPath         string   // raw from file: comma-separated addon directory roots (see AddonPaths after AbsPaths)
-	AddonPaths         []string // absolute: core/base (platform addons), then addons_path; filled by AbsPaths()
-	SumeruHome         string   // optional: directory of standard sumeru repo (go.mod); used for core/base and default assets/templates if set
+	AddonPaths         []string // absolute addon roots from addons_path; filled by AbsPaths()
+	SumeruHome         string   // optional: directory of standard sumeru repo (go.mod); used for default assets/templates if set
 	AssetsPath         string   // static files (CSS/JS); default core/engine/assets
 	TemplatesPath      string   // HTML templates; default core/engine/templates
 	BrandCSS           string   // optional path to extra CSS (served as /static/brand.css)

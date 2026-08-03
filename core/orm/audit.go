@@ -21,7 +21,8 @@ func AppendAudit(ctx context.Context, action, model string, resID int64, before,
 	if DB == nil || strings.TrimSpace(action) == "" || skipAuditModel(model) {
 		return
 	}
-	if _, ok := Registry["sys.audit"]; !ok {
+	inst, ok := Registry["sys.audit"]
+	if !ok {
 		return
 	}
 	uid := SecurityUID(ctx)
@@ -49,7 +50,7 @@ func AppendAudit(ctx context.Context, action, model string, resID int64, before,
 		vals["user_id"] = uid
 	}
 	bypass := ContextWithBypass(ctx, true)
-	_, _ = Create(bypass, SysAudit{}, vals)
+	_, _ = Create(bypass, inst, vals)
 }
 
 func scrubAuditMap(m map[string]interface{}) map[string]interface{} {

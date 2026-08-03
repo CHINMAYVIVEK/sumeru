@@ -177,6 +177,7 @@ func ensureBootstrapSecurity(ctx context.Context, first *SetupAdminParams) error
 
 	if userCount > 0 {
 		ensureBootstrapACLs(ctx, adminGID, userGID)
+		ensurePlatformDefaults(ctx)
 		return nil
 	}
 
@@ -237,7 +238,28 @@ func ensureBootstrapSecurity(ctx context.Context, first *SetupAdminParams) error
 	_, _ = DB.ExecContext(ctx, `UPDATE `+userTbl+` SET company_id = $1 WHERE id = $2`, compID, adminUID)
 
 	ensureBootstrapACLs(ctx, adminGID, userGID)
+	ensurePlatformDefaults(ctx)
 	return nil
+}
+
+// ensurePlatformDefaults seeds config parameters and default sequences used by platform services.
+func ensurePlatformDefaults(ctx context.Context) {
+	_ = SetConfig(ctx, "auth.password_min_length", "8")
+	if _, ok := Registry["sys.sequence"]; !ok {
+		return
+	}
+	if _, err := SearchOne(ctx, "sys.sequence", map[string]interface{}{"code": "core.user.apikey"}); err == nil {
+		return
+	}
+	inst := Registry["sys.sequence"]
+	_, _ = Create(ctx, inst, map[string]interface{}{
+		"name":        "API Key",
+		"code":        "core.user.apikey",
+		"prefix":      "KEY/",
+		"padding":     4,
+		"number_next": 1,
+		"active":      true,
+	})
 }
 
 func ensureBootstrapACLs(ctx context.Context, adminGID, userGID int) {

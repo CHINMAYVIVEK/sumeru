@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"sumeru/core/engine/parser"
-	"sumeru/core/mail"
+	"sumeru/addons/mail"
 )
 
 // RenderView builds full HTML for a workspace view (form, tree, kanban, pivot) inside the shell layout.

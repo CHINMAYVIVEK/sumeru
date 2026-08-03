@@ -84,15 +84,6 @@ func (m *MenuList) MergeMenuListData() {
 	m.Data = nil
 }
 
-// ConvertActionsToRecords takes []Action and returns []Record.
-func ConvertActionsToRecords(actions []Action) []Record {
-	var records []Record
-	for _, a := range actions {
-		records = append(records, a.ToRecord())
-	}
-	return records
-}
-
 func parseNoUpdateFlag(raw string) bool {
 	s := strings.TrimSpace(strings.ToLower(raw))
 	return s == "1" || s == "true" || s == "yes"

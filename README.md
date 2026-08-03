@@ -2,12 +2,12 @@
 
 **Sumeru** is an experimental ERP-style web application in Go (this repository’s Go module is **`sumeru`**): PostgreSQL-backed ORM, **addons** (module XML under `<sumeru>` + manifests), model sync on startup, and a web UI (XML views, plain CSS, shell with sidebar and activity panel).
 
-- **Entry binary:** `cmd/sumeru/main.go` → **`sumeru/core/server`** (`server.Run`). Library code under **`core/`** has no `main`; addon code uses **`sumeru/core/base`** as the stable API.
-- **Addon Go code:** import **`sumeru/core/base`** for models (stable API); avoid importing **`sumeru/core/orm`** directly in new code.
+- **Entry binary:** `cmd/sumeru/main.go` → **`sumeru/core/server`** (`server.Run`). Library code under **`core/`** has no `main`; addon code uses **`sumeru/core/sdk`** as the stable API.
+- **Addon Go code:** import **`sumeru/core/sdk`** for models (stable API); avoid importing **`sumeru/core/orm`** directly in new code.
 
 **Documentation:** **[`docs/developer/index.md`](docs/developer/index.md)** (concepts and reference layout) · **[`docs/howtos/index.md`](docs/howtos/index.md)** (step-by-step recipes) · user intro in **`docs/user/`** · RST stubs in **`docs/refrence/`**.
 
-**Convention:** path-related INI values resolve from the **INI file’s directory** (and optional **`sumeru_home`** for the **`core/base`** tree). When running only from the **`sumeru`** repo root with **`sumeru.conf`** there, that matches the old “cwd = repo root” habit; prefer absolute paths in production.
+**Convention:** path-related INI values resolve from the **INI file’s directory** (and optional **`sumeru_home`** for default assets/templates). When running only from the **`sumeru`** repo root with **`sumeru.conf`** there, that matches the old “cwd = repo root” habit; prefer absolute paths in production.
 
 ---
 
@@ -67,8 +67,8 @@ INI format: `key = value` under **`[options]`**. Lines starting with `#` or `;` 
 | `db_name` | Database name (overridable at runtime with **`-d`** / **`--database`**) |
 | `db_sslmode` | PostgreSQL SSL mode (e.g. `disable` for local dev) |
 | `http_port` | HTTP listen port (default **8080**; overridable with **`--http-port`** / **`-p`**) |
-| `addons_path` | Comma-separated addon roots; **`core/base`** (platform **`base`**, **`user`**, **`company`**) is always prepended first. Later roots **override** duplicate module **names**. Relative segments are resolved from the **INI file’s directory**. |
-| `sumeru_home` | Optional. If set, **`core/base`** loads from this directory under the standard **`sumeru`** checkout. Relative values are resolved from the **INI file’s directory**. When set, default **`assets_path`** / **`templates_path`** (if omitted in the INI) are under this tree. Use for configs outside the repo (e.g. **`sumeru_custom_addons/sumeru.conf`**). |
+| `addons_path` | Comma-separated addon roots (e.g. **`addons`** for kernel apps including **`base`**). Later roots **override** duplicate module **names**. Relative segments are resolved from the **INI file’s directory**. |
+| `sumeru_home` | Optional. Directory of the standard **`sumeru`** checkout. Relative values are resolved from the **INI file’s directory**. When set, default **`assets_path`** / **`templates_path`** (if omitted in the INI) are under this tree. Use for configs outside the repo (e.g. **`sumeru_custom_addons/sumeru.conf`**). |
 | `assets_path` | Static files root (default **`core/engine/assets`**; resolved from INI dir unless absolute; see **`sumeru_home`**) |
 | `templates_path` | HTML templates (default **`core/engine/templates`**; same resolution rules) |
 | `logo_path` | Optional image file; served at **`/static/app-logo`** (`.svg`, `.png`, `.jpg`/`.jpeg`, `.webp`) |
@@ -266,10 +266,10 @@ Templates live under `core/engine/templates/` (`base.html`, inner pages). Client
 | `core/server/` | INI **`config/`**, **`run.go`**, HTTP **`web/`** handlers |
 | `core/module/` | Addon discovery, install/update, XML sync to DB |
 | `cmd/sumeru/` | Default server **`main`** + generated **`zimports.go`** (blank imports for addon registration) |
-| `core/base/` | **Stable Go API** for addons: config, DB bootstrap, model registration, queries (struct inputs). Default modules: **`core/base/user/`**, **`core/base/company/`**. |
-| `core/base/base/` | Core **`base`** filesystem module (manifest only; always under prepended **`core/base`**) |
+| `core/sdk/` | **Stable Go API** for addons: config, DB bootstrap, model registration, queries (struct inputs). |
+| `core/server/router/` | Addon-extensible HTTP route registry |
 | `core/module/addon_template/` | Authoring reference for new addons (`manifest.template.json`, `MODULE_STANDARD.txt`) |
-| `addons/` | Core installable apps shipped with **`sumeru`** (`base`, `sumeru_ai`, …); **`user`** and **`company`** ship under **`core/base/`** |
+| `addons/` | Core installable apps shipped with **`sumeru`** (`base`, `mail`, `automation`, `sumeru_ai`, …) |
 | `sumeru.conf` | Local runtime INI (gitignored if you use a local policy); copy from **`sumeru.conf.example`**. |
 | `sumeru.conf.example` | Tracked template + **import-gen** input for **`go generate ./cmd/sumeru`**. |
 | `sumeru.sh` | Bash wrapper forwarding all flags |

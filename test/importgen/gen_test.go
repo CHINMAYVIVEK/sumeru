@@ -87,7 +87,7 @@ func TestRunGen_addonimportsExternalOut(t *testing.T) {
 	if !strings.Contains(body, "package addonimports") {
 		t.Fatalf("body: %s", body)
 	}
-	if !strings.Contains(body, `_ "sumeru/addons/`) && !strings.Contains(body, `_ "sumeru/core/base/`) {
+	if !strings.Contains(body, `_ "sumeru/addons/`) && !strings.Contains(body, `_ "sumeru/core/sdk/`) {
 		t.Fatalf("expected sumeru blank imports, got: %s", body)
 	}
 }

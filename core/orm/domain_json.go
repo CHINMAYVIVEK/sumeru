@@ -196,11 +196,3 @@ func toFloat64(v interface{}) (float64, bool) {
 	}
 }
 
-// MergeDomains concatenates domains with AND semantics for SQL builder.
-func MergeDomains(parts ...[][]interface{}) [][]interface{} {
-	var out [][]interface{}
-	for _, p := range parts {
-		out = append(out, p...)
-	}
-	return out
-}
