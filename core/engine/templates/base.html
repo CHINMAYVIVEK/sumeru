@@ -43,17 +43,20 @@
                         <span class="top-menu-item-label">{{.Name}}</span>
                     </a>
                     {{end}}
-                    {{/* Settings is always second-to-last — pinned regardless of install state */}}
+                    {{/* Settings — internal users; Apps — system admin */}}
+                    {{if .SettingsNavAllowed}}
                     <a href="/web/settings"
                         class="top-menu-item top-menu-item--settings {{if .SettingsNavActive}}active{{end}}">
                         {{template "sumMenuIcon" "settings"}}
                         <span class="top-menu-item-label">Settings</span>
                     </a>
-                    {{/* Apps is always last */}}
+                    {{end}}
+                    {{if .AppsNavAllowed}}
                     <a href="/web/apps" class="top-menu-item top-menu-item--apps {{if .AppsNavActive}}active{{end}}">
                         {{template "sumMenuIcon" "apps"}}
                         <span class="top-menu-item-label">Apps</span>
                     </a>
+                    {{end}}
                 </nav>
             </div>
             <div class="sum-topbar-right" aria-label="Company and account">

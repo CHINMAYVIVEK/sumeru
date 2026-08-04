@@ -673,6 +673,111 @@
   background: color-mix(in srgb, var(--sum-surface) 97%, var(--sum-bg));
 }
 
+.sum-form-group--full,
+.sum-read-section--full,
+.sum-field-widget--full {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.sum-form-group--plain {
+  border: none;
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sum-form-sheet {
+  max-width: 72rem;
+  margin-inline: auto;
+}
+
+.sum-field-textarea {
+  min-height: 6rem;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.45;
+}
+
+.sum-m2o {
+  position: relative;
+}
+
+.sum-m2o-results {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% - 0.15rem);
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--sum-ink) 12%, transparent);
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.sum-m2o-option {
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+}
+
+.sum-m2o-option:hover {
+  background: color-mix(in srgb, var(--sum-header) 12%, var(--sum-surface));
+}
+
+.sum-o2m-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+}
+
+.sum-o2m-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sum-font-size-sm);
+}
+
+.sum-o2m-table th,
+.sum-o2m-table td {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--sum-line);
+  text-align: left;
+}
+
+.sum-o2m-title {
+  font-weight: var(--sum-font-weight-bold);
+  margin-bottom: 0.5rem;
+}
+
+.sum-security-section {
+  margin: 1rem 0 1.25rem;
+}
+
+.sum-security-assigned-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--sum-muted-ink);
+}
+
+
+.sum-security-section-title {
+  margin: 0 0 0.5rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sum-muted);
+}
+
+.sum-header-btn--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .sum-form-group-title {
   margin: 0 0 1rem;
   padding-bottom: 0.45rem;

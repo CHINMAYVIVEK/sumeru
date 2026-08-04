@@ -38,7 +38,7 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 	impliedEval := strings.TrimSpace(fieldMapStrings["implied_ids"])
 	fieldValues := map[string]interface{}{}
 	for key, val := range fieldMapStrings {
-		if key == "implied_ids" {
+		if key == "implied_ids" || key == "groups" {
 			continue
 		}
 		fieldValues[key] = ConvertRecordScalar(ctx, moduleName, xmlRecord.Model, key, val)
@@ -55,9 +55,21 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 		fmt.Printf(platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
 		return
 	}
-	if xmlRecord.Model == "core.group" && impliedEval != "" {
-		if err := syncCoreGroupImpliedFromEval(ctx, moduleName, id, impliedEval); err != nil {
-			fmt.Printf("Warning: core.group implied_ids %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+	if xmlRecord.Model == "core.group" {
+		if impliedEval != "" {
+			if err := syncCoreGroupImpliedFromEval(ctx, moduleName, id, impliedEval); err != nil {
+				fmt.Printf("Warning: core.group implied_ids %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+			}
+		}
+		if err := EnsureSystemImpliesManagerGroup(ctx, moduleName, xmlRecord.ID, id); err != nil {
+			fmt.Printf("Warning: system→manager imply %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+		}
+	}
+	if xmlRecord.Model == "sys.rule" {
+		if groupsEval := strings.TrimSpace(fieldMapStrings["groups"]); groupsEval != "" {
+			if err := syncSysRuleGroupsFromEval(ctx, moduleName, id, groupsEval); err != nil {
+				fmt.Printf("Warning: sys.rule groups %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+			}
 		}
 	}
 	_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{

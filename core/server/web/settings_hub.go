@@ -50,6 +50,10 @@ func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	if !orm.UserHasGroupXML(ctx, orm.SecurityUID(ctx), "base.group_user") {
+		http.Redirect(w, r, "/web/home", http.StatusFound)
+		return
+	}
 
 	rootID, _, err := orm.ResolveXmlId(ctx, "base.menu_settings_root")
 	if err != nil || rootID == 0 {

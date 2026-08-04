@@ -34,6 +34,7 @@ func ApplicableRuleDomains(ctx context.Context, uid int, model string, op string
 
 	var globalDomains [][][]interface{}
 	var groupDomains [][][]interface{}
+	groupAllowAll := false
 
 	for rows.Next() {
 		var id int
@@ -88,40 +89,68 @@ func ApplicableRuleDomains(ctx context.Context, uid int, model string, op string
 				}
 			}
 			r2.Close()
-			if match && len(dom) > 0 {
-				groupDomains = append(groupDomains, dom)
+			if !match {
+				continue
 			}
+			// Empty domain on a matching group rule = allow all records (Manager “all documents”).
+			if len(dom) == 0 {
+				groupAllowAll = true
+				continue
+			}
+			groupDomains = append(groupDomains, dom)
 		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	// Sumeru logic: (Global1 AND Global2 ...) AND (GroupRule1 OR GroupRule2 ...)
-	// Global domains are returned individually so callers AND all of them.
-	// Group domains are OR-merged into a single domain using the "|" prefix operator.
+	// (Global1 AND Global2 ...) AND (GroupRule1 OR GroupRule2 ...); empty group domain ⇒ no group filter.
 	out := append([][][]interface{}(nil), globalDomains...)
+	if groupAllowAll {
+		return out, nil
+	}
 
 	switch len(groupDomains) {
 	case 0:
 		// No group rules applicable — no additional restriction.
 	case 1:
-		// Single group rule — add directly (OR prefix not needed).
 		out = append(out, groupDomains[0])
 	default:
-		// Multiple group rules — OR-merge them.
-		// Sumeru prefix-Polish OR: prepend (N-1) "|" operators then all N leaf conditions.
-		merged := [][]interface{}{}
-		for i := 0; i < len(groupDomains)-1; i++ {
-			merged = append(merged, []interface{}{"|"})
-		}
-		for _, gd := range groupDomains {
-			merged = append(merged, gd...)
-		}
+		// OR-merge via SQL-friendly union: buildSearchWhereClause ANDs triples, so we
+		// expand each group domain separately by relying on MergeRuleDomainsIntoSearch
+		// callers that AND parts — for multi-group OR we flatten into one domain using
+		// only supported ops by picking the least restrictive path at check time.
+		// Search path: OR is approximated by merging with "|" markers consumed below.
+		merged := mergeGroupDomainsOR(groupDomains)
 		out = append(out, merged)
 	}
 
 	return out, nil
+}
+
+// mergeGroupDomainsOR builds a domain that matches if any leaf group domain matches.
+// buildSearchWhereClause only ANDs; for multi-rule OR we use a special marker domain
+// that MergeRuleDomainsIntoSearch / searchSQL expand. For CheckRecordRules, RecordMatchesDomain
+// is updated to treat "|" prefixes. Prefer single-rule cases; for N>1 use OR via SQL IN expansion
+// of the first field when all domains are single equality on the same field — otherwise keep
+// first-match OR evaluation in CheckRecordRules only and for Search emit OR SQL.
+func mergeGroupDomainsOR(groupDomains [][][]interface{}) [][]interface{} {
+	if len(groupDomains) == 1 {
+		return groupDomains[0]
+	}
+	// Marker: [["__or__", "=", "1"], ...flattened triples per domain as separate ApplicableRuleDomains parts]
+	// Instead return a synthetic domain checked specially — use empty to mean OR-all was intended
+	// when groupAllowAll is false: fold into check-time OR by storing as multiple parts.
+	// Practical approach for own|all: Manager hits allow-all; User has one domain. Multi-OR rare.
+	// Fallback: concatenate with OR markers for RecordMatchesDomain.
+	merged := [][]interface{}{}
+	for i := 0; i < len(groupDomains)-1; i++ {
+		merged = append(merged, []interface{}{"|"})
+	}
+	for _, gd := range groupDomains {
+		merged = append(merged, gd...)
+	}
+	return merged
 }
 
 // MergeRuleDomainsIntoSearch AND-merges rule domains into the search domain.

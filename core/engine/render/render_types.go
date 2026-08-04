@@ -52,6 +52,8 @@ type PageData struct {
 	ViewStylesheetURLs  []string
 	AppsNavActive       bool
 	SettingsNavActive   bool
+	AppsNavAllowed      bool // base.group_system
+	SettingsNavAllowed  bool // base.group_user (internal)
 	ExtraStylesheetURLs []string
 	LogoURL             string
 	// BrandLockupHref is the shell logo/name link target (default: home dashboard via EnrichShellPageData).

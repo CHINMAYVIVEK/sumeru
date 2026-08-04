@@ -21,6 +21,14 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	actionIDStr := r.URL.Query().Get("action")
 	menuIDStr := r.URL.Query().Get("menu_id")
 
+	if mid := strings.TrimSpace(menuIDStr); mid != "" {
+		if !menuAccessAllowed(r.Context(), mid) {
+			WebLogf(r.Context(), "/web", "menu_id=%s denied by access_groups", mid)
+			http.Redirect(w, r, "/web/home", http.StatusFound)
+			return
+		}
+	}
+
 	actionID := ResolveWindowActionID(r.Context(), actionIDStr, menuIDStr)
 
 	if actionID == 0 {
@@ -153,7 +161,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 			vr.Record = rec
 		}
 	case "tree", "list":
-		rows, err := orm.SearchLimit(r.Context(), targetModel, nil, 500)
+		rows, err := orm.SearchLimit(r.Context(), targetModel, actionListDomain(r.Context(), actionData), 500)
 		if err != nil {
 			WebLogf(r.Context(), "/web", "list %s: %v", targetModel, err)
 			http.Error(w, "Failed to load records", http.StatusInternalServerError)
@@ -161,7 +169,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		vr.ListRows = rows
 	case "kanban":
-		rows, err := orm.SearchLimit(r.Context(), targetModel, nil, 200)
+		rows, err := orm.SearchLimit(r.Context(), targetModel, actionListDomain(r.Context(), actionData), 200)
 		if err != nil {
 			WebLogf(r.Context(), "/web", "kanban %s: %v", targetModel, err)
 			http.Error(w, "Failed to load records", http.StatusInternalServerError)

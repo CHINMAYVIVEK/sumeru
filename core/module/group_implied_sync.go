@@ -62,3 +62,61 @@ func syncCoreGroupImpliedFromEval(ctx context.Context, moduleName string, groupI
 	}
 	return nil
 }
+
+// syncSysRuleGroupsFromEval parses groups eval [(4, ref('…'))] into sys.rule.group.rel.
+func syncSysRuleGroupsFromEval(ctx context.Context, moduleName string, ruleID int, evalStr string) error {
+	if ruleID <= 0 || strings.TrimSpace(evalStr) == "" {
+		return nil
+	}
+	refs := ExtractImpliedGroupXMLRefs(evalStr)
+	if len(refs) == 0 {
+		return fmt.Errorf("no (4, ref('…')) group link commands in %q", evalStr)
+	}
+	relTbl := orm.GetTableName("sys.rule.group.rel")
+	if _, err := orm.DB.ExecContext(ctx, `DELETE FROM `+relTbl+` WHERE rule_id = $1`, ruleID); err != nil {
+		return err
+	}
+	for _, ref := range refs {
+		gid, err := resolveXMLIDInModule(ctx, moduleName, ref)
+		if err != nil {
+			return fmt.Errorf("resolve rule group ref %q: %w", ref, err)
+		}
+		if gid <= 0 {
+			continue
+		}
+		_, err = orm.DB.ExecContext(ctx,
+			`INSERT INTO `+relTbl+` (rule_id, group_id) VALUES ($1, $2) ON CONFLICT (rule_id, group_id) DO NOTHING`,
+			ruleID, gid)
+		if err != nil {
+			return fmt.Errorf("rule %d group %d: %w", ruleID, gid, err)
+		}
+	}
+	return nil
+}
+
+// EnsureSystemImpliesManagerGroup links base.group_system → module Manager groups
+// so Settings admins inherit every installed app Manager (and thus User) ladder.
+func EnsureSystemImpliesManagerGroup(ctx context.Context, moduleName, recordXMLID string, groupID int) error {
+	if groupID <= 0 {
+		return nil
+	}
+	idLower := strings.ToLower(strings.TrimSpace(recordXMLID))
+	if !strings.Contains(idLower, "manager") {
+		return nil
+	}
+	sysGID, _, err := orm.ResolveXmlId(ctx, "base.group_system")
+	if err != nil || sysGID <= 0 {
+		return err
+	}
+	if sysGID == groupID {
+		return nil
+	}
+	implTbl := orm.GetTableName("core.group.implied")
+	_, err = orm.DB.ExecContext(ctx,
+		`INSERT INTO `+implTbl+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`,
+		sysGID, groupID)
+	if err != nil {
+		return fmt.Errorf("system implies %s.%s: %w", moduleName, recordXMLID, err)
+	}
+	return nil
+}

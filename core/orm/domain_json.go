@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -34,6 +35,38 @@ func ParseDomainJSON(raw string) ([][]interface{}, error) {
 		out = append(out, []interface{}{field, op, t[2]})
 	}
 	return out, nil
+}
+
+// ResolveDomainXMLRefs replaces many2one-style string values that look like XML ids
+// (module.name) with their resolved integer ids.
+func ResolveDomainXMLRefs(ctx context.Context, domain [][]interface{}) [][]interface{} {
+	if len(domain) == 0 {
+		return domain
+	}
+	out := make([][]interface{}, len(domain))
+	for i, d := range domain {
+		if len(d) != 3 {
+			out[i] = d
+			continue
+		}
+		s, ok := d[2].(string)
+		if !ok {
+			out[i] = d
+			continue
+		}
+		s = strings.TrimSpace(s)
+		if s == "" || !strings.Contains(s, ".") || strings.HasPrefix(s, "$") {
+			out[i] = d
+			continue
+		}
+		id, _, err := ResolveXmlId(ctx, s)
+		if err != nil || id <= 0 {
+			out[i] = d
+			continue
+		}
+		out[i] = []interface{}{d[0], d[1], id}
+	}
+	return out
 }
 
 // SubstituteDomainUID replaces string "$uid" in domain values with uid.
@@ -85,7 +118,28 @@ func SubstituteDomainContext(domain [][]interface{}, dc DomainContext) [][]inter
 }
 
 // RecordMatchesDomain evaluates AND of triples for =, !=, in (value list).
+// Prefix Polish "|" markers OR the following leaf triples (same shape as ApplicableRuleDomains).
 func RecordMatchesDomain(rec map[string]interface{}, domain [][]interface{}) bool {
+	orLeaves := 0
+	for _, d := range domain {
+		if len(d) == 1 && fmt.Sprint(d[0]) == "|" {
+			orLeaves++
+			continue
+		}
+		break
+	}
+	if orLeaves > 0 {
+		leaves := domain[orLeaves:]
+		if len(leaves) != orLeaves+1 {
+			return false
+		}
+		for _, leaf := range leaves {
+			if RecordMatchesDomain(rec, [][]interface{}{leaf}) {
+				return true
+			}
+		}
+		return false
+	}
 	for _, d := range domain {
 		if len(d) != 3 {
 			return false

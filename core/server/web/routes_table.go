@@ -37,6 +37,7 @@ func RegisterAppRoutes(mux *http.ServeMux) {
 	router.Register(http.MethodPost, "/web/module/action", router.AuthSession, ModuleActionHandler)
 	router.Register(http.MethodPost, "/web/record/save", router.AuthSession, RecordSaveHandler)
 	router.Register(http.MethodPost, "/web/record/delete", router.AuthSession, RecordDeleteHandler)
+	router.Register(http.MethodGet, "/web/rel/search", router.AuthSession, RelSearchHandler)
 	router.Register(http.MethodPost, "/web/action/reset_password", router.AuthSession, ActionResetPassword)
 	router.Register(http.MethodPost, "/web/action/create_api_key", router.AuthSession, ActionCreateAPIKey)
 	router.Register(http.MethodPost, "/web/chatter/post", router.AuthSession, ChatterPostHandler)

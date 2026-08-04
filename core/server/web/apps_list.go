@@ -12,6 +12,7 @@ import (
 	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/render"
 	"sumeru/core/module"
+	"sumeru/core/orm"
 	"sumeru/core/server/config"
 )
 
@@ -50,6 +51,10 @@ type appsPageData struct {
 // AppsHandler lists installable apps and exposes install / uninstall / activate controls.
 func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
+		return
+	}
+	if !orm.UserHasGroupXML(r.Context(), orm.SecurityUID(r.Context()), "base.group_system") {
+		http.Redirect(w, r, "/web/home", http.StatusFound)
 		return
 	}
 	msg := strings.TrimSpace(r.URL.Query().Get("msg"))

@@ -33,11 +33,6 @@ func resolveUID(ctx context.Context) int {
 	return fn(ctx)
 }
 
-// Enabled reports whether structured application logging is on (INI log_enabled).
-func Enabled() bool {
-	return logEnabled
-}
-
 func effectiveLocation() *time.Location {
 	if logLocation != nil {
 		return logLocation

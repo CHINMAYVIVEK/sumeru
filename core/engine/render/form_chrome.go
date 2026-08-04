@@ -13,17 +13,17 @@ func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, re
 	_ = ctx
 	sb.WriteString(`<div class="sum-form-statusbar">`)
 
-	sb.WriteString(`<div class="sum-statusbar-buttons">`)
-	for _, b := range h.Button {
-		class := "sum-header-btn "
-		if b.Class == "sum_highlight" {
-			class += "sum-header-btn--primary"
-		} else {
-			class += "sum-header-btn--secondary"
+	if len(h.Button) > 0 {
+		sb.WriteString(`<div class="sum-statusbar-buttons">`)
+		for _, b := range h.Button {
+			class := "sum-header-btn sum-header-btn--secondary sum-header-btn--disabled"
+			if b.Class == "sum_highlight" {
+				class = "sum-header-btn sum-header-btn--primary sum-header-btn--disabled"
+			}
+			sb.WriteString(fmt.Sprintf(`<button type="button" disabled class="%s" title="Not available yet">%s</button>`, class, template.HTMLEscapeString(b.String)))
 		}
-		sb.WriteString(fmt.Sprintf(`<button type="button" disabled class="%s sum-header-btn--disabled">%s</button>`, class, template.HTMLEscapeString(b.String)))
+		sb.WriteString(`</div>`)
 	}
-	sb.WriteString(`</div>`)
 
 	sb.WriteString(`<div class="sum-statusbar-status">`)
 	writeStatusbarChips(sb, h, record)
@@ -48,7 +48,10 @@ func writeStatusbarChips(sb *strings.Builder, h *parser.Header, record map[strin
 }
 
 func renderButtonBox(sb *strings.Builder, d parser.Div) {
-	_ = d
+	// Empty button-box: omit spacer chrome (no dead vertical gap).
+	if len(d.Field) == 0 && len(d.H1) == 0 {
+		return
+	}
 	sb.WriteString(`<div class="sum-form-toolbar-spacer" aria-hidden="true"></div>`)
 }
 

@@ -150,7 +150,17 @@ func applyCoreUserSecurityPost(r *http.Request, modelName string, userID int) {
 		return
 	}
 	if r.PostFormValue("security_groups_touched") == "1" {
+		actor := orm.SecurityUID(r.Context())
+		if !orm.UserHasGroupXML(r.Context(), actor, "base.group_system") {
+			WebLogf(r.Context(), "/web/record/save", "deny set groups for user %d: actor %d not system admin", userID, actor)
+			return
+		}
 		var gids []int
+		if ut := strings.TrimSpace(r.PostFormValue("security_user_type")); ut != "" {
+			if n, err := strconv.Atoi(ut); err == nil && n > 0 {
+				gids = append(gids, n)
+			}
+		}
 		for _, s := range r.Form["security_group_ids"] {
 			n, err := strconv.Atoi(strings.TrimSpace(s))
 			if err == nil && n > 0 {

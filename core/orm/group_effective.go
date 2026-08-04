@@ -109,3 +109,11 @@ func intSliceContains(haystack []int, needle int) bool {
 	}
 	return false
 }
+
+// InvalidateEffectiveGroups drops the cached effective group set for uid.
+func InvalidateEffectiveGroups(_ context.Context, uid int) {
+	if uid <= 0 {
+		return
+	}
+	cache.Delete(fmt.Sprintf("eff_groups:%d", uid))
+}

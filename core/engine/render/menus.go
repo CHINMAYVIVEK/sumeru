@@ -104,7 +104,7 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 
 	uid := orm.UIDFromContext(ctx)
 	menuAllowed := func(mi parser.MenuItem) bool {
-		return orm.UserHasAnyAccessGroup(ctx, uid, mi.AccessGroups)
+		return orm.UserMayAccessMenu(ctx, uid, mi.AccessGroups)
 	}
 
 	for _, m := range allMenus {

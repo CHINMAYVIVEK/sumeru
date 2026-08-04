@@ -22,11 +22,6 @@ func RegisterModelWithModule(model Model, declaringModule string) {
 	modelDeclaringModule[name] = strings.TrimSpace(declaringModule)
 }
 
-// RegisterModel registers with no explicit module (legacy); DeclaringModule falls back to a name heuristic until all call sites pass a module.
-func RegisterModel(model Model) {
-	RegisterModelWithModule(model, "")
-}
-
 func GetTableName(modelName string) string {
 	return strings.ReplaceAll(modelName, ".", "_")
 }

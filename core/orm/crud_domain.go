@@ -9,6 +9,39 @@ func buildSearchWhereClause(domain [][]interface{}) (string, []interface{}, erro
 	if len(domain) == 0 {
 		return "1=1", nil, nil
 	}
+	// Prefix Polish OR: ["|", ...] repeated (N-1) times then N leaf triples → OR of leaves.
+	orLeaves := 0
+	for _, d := range domain {
+		if len(d) == 1 && fmt.Sprint(d[0]) == "|" {
+			orLeaves++
+			continue
+		}
+		break
+	}
+	if orLeaves > 0 {
+		leaves := domain[orLeaves:]
+		if len(leaves) != orLeaves+1 {
+			return "", nil, fmt.Errorf("invalid OR domain shape")
+		}
+		var parts []string
+		var args []interface{}
+		n := 1
+		for _, leaf := range leaves {
+			frag, a, err := buildSearchWhereClause([][]interface{}{leaf})
+			if err != nil {
+				return "", nil, err
+			}
+			// Re-number placeholders
+			shifted := frag
+			for i := len(a); i >= 1; i-- {
+				shifted = strings.ReplaceAll(shifted, fmt.Sprintf("$%d", i), fmt.Sprintf("$%d", n+i-1))
+			}
+			parts = append(parts, "("+shifted+")")
+			args = append(args, a...)
+			n += len(a)
+		}
+		return strings.Join(parts, " OR "), args, nil
+	}
 	var parts []string
 	var args []interface{}
 	n := 1

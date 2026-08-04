@@ -43,10 +43,10 @@ func RenderForm(ctx context.Context, view *parser.View, vr *ViewRecordData) stri
 	} else {
 		sb.WriteString(`<div class="sum-form-sheet sum-form-sheet--solo">`)
 		for _, f := range view.Field {
-			renderField(ctx, &sb, f, record, ro)
+			renderField(ctx, &sb, f, record, ro, vr)
 		}
 		for _, g := range view.Group {
-			renderGroup(ctx, &sb, g, record, ro)
+			renderGroup(ctx, &sb, g, record, ro, vr)
 		}
 		sb.WriteString(`</div>`)
 	}

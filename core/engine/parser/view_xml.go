@@ -7,20 +7,11 @@ import (
 	"strings"
 )
 
-type ViewType string
-
-const (
-	FormView   ViewType = "form"
-	ListView   ViewType = "list"
-	KanbanView ViewType = "kanban"
-	PivotView  ViewType = "pivot"
-)
-
 type View struct {
 	XMLName xml.Name `xml:"view"`
 	ID      string   `xml:"id,attr"`
 	Model   string   `xml:"model,attr"`
-	Type    string   `xml:"type,attr"` // TODO: change to ViewType
+	Type    string   `xml:"type,attr"`
 	Title   string   `xml:"title,attr"`
 	// TreeOpenAttr is the raw <tree open="..."/> or <view type="tree" open="..."/> attribute (false/0/off disables row→form).
 	TreeOpenAttr string `xml:"open,attr"`

@@ -50,15 +50,6 @@ func Register(method, path string, auth AuthMode, h http.HandlerFunc) {
 	routes = append(routes, Route{Method: method, Path: path, Auth: auth, Handler: h})
 }
 
-// All returns a copy of registered routes.
-func All() []Route {
-	mu.RLock()
-	defer mu.RUnlock()
-	out := make([]Route, len(routes))
-	copy(out, routes)
-	return out
-}
-
 // Clear removes all registered routes (tests only).
 func Clear() {
 	mu.Lock()

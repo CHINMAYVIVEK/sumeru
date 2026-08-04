@@ -10,6 +10,7 @@ import { initAjaxFormCapture } from "./ui/ajax-form.js";
 import { initAppsModuleOpener } from "./apps/apps-module-opener.js";
 import { initFormSplit } from "./ui/form-split.js";
 import { initMessagesComposer } from "./ui/messages-composer.js";
+import { initMany2One } from "./ui/many2one.js";
 
 (function bootstrap() {
   const shell = document.getElementById("sum-shell");
@@ -23,4 +24,5 @@ import { initMessagesComposer } from "./ui/messages-composer.js";
   initAppsModuleOpener();
   initFormSplit();
   initMessagesComposer();
+  initMany2One();
 })();

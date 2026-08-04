@@ -93,6 +93,12 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 	if err != nil {
 		return 0, 0, fmt.Errorf("bootstrap sys.module.category Administration: %w", err)
 	}
+	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+		"module":  "base",
+		"name":    "module_category_administration",
+		"model":   "sys.module.category",
+		"core_id": catAdminID,
+	}, "name")
 	catUserTypesID, err := Upsert(ctx, catModel, map[string]interface{}{
 		"name":     "User types",
 		"sequence": 2,
@@ -100,6 +106,12 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 	if err != nil {
 		return 0, 0, fmt.Errorf("bootstrap sys.module.category User types: %w", err)
 	}
+	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+		"module":  "base",
+		"name":    "module_category_user_types",
+		"model":   "sys.module.category",
+		"core_id": catUserTypesID,
+	}, "name")
 
 	adminGID, err = Upsert(ctx, groupModel, map[string]interface{}{
 		"name":        "Administration / Settings",
@@ -129,6 +141,36 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 		"name":    "group_user",
 		"model":   "core.group",
 		"core_id": userGID,
+	}, "name")
+
+	portalGID, err := Upsert(ctx, groupModel, map[string]interface{}{
+		"name":        "User types / Portal",
+		"category_id": catUserTypesID,
+		"sequence":    20,
+	}, "name")
+	if err != nil {
+		return 0, 0, fmt.Errorf("bootstrap core.group portal: %w", err)
+	}
+	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+		"module":  "base",
+		"name":    "group_portal",
+		"model":   "core.group",
+		"core_id": portalGID,
+	}, "name")
+
+	publicGID, err := Upsert(ctx, groupModel, map[string]interface{}{
+		"name":        "User types / Public",
+		"category_id": catUserTypesID,
+		"sequence":    30,
+	}, "name")
+	if err != nil {
+		return 0, 0, fmt.Errorf("bootstrap core.group public: %w", err)
+	}
+	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+		"module":  "base",
+		"name":    "group_public",
+		"model":   "core.group",
+		"core_id": publicGID,
 	}, "name")
 
 	_, _ = DB.ExecContext(ctx, `INSERT INTO `+GetTableName("core.group.implied")+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`, adminGID, userGID)

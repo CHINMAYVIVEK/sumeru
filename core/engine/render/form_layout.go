@@ -57,10 +57,10 @@ func renderSheet(ctx context.Context, sb *strings.Builder, s *parser.Sheet, reco
 		renderLabel(sb, lab)
 	}
 	for _, g := range s.Group {
-		renderGroup(ctx, sb, g, record, ro)
+		renderGroup(ctx, sb, g, record, ro, vr)
 	}
 	for _, f := range s.Field {
-		renderField(ctx, sb, f, record, ro)
+		renderField(ctx, sb, f, record, ro, vr)
 	}
 	sb.WriteString(`</div>`)
 
@@ -118,10 +118,10 @@ func renderNotebook(ctx context.Context, sb *strings.Builder, nb parser.Notebook
 				renderLabel(sb, lab)
 			}
 			for _, g := range p.Group {
-				renderGroup(ctx, sb, g, record, ro)
+				renderGroup(ctx, sb, g, record, ro, vr)
 			}
 			for _, f := range p.Field {
-				renderField(ctx, sb, f, record, ro)
+				renderField(ctx, sb, f, record, ro, vr)
 			}
 			sb.WriteString(`</div>`)
 		}
@@ -156,14 +156,23 @@ func renderLabel(sb *strings.Builder, lab parser.Label) {
 	sb.WriteString(`</div>`)
 }
 
-func renderGroup(ctx context.Context, sb *strings.Builder, g parser.Group, record map[string]interface{}, ro bool) {
+func renderGroup(ctx context.Context, sb *strings.Builder, g parser.Group, record map[string]interface{}, ro bool, vr *ViewRecordData) {
+	untitled := strings.TrimSpace(g.Title) == ""
 	if ro {
-		sb.WriteString(`<section class="sum-read-section">`)
+		cls := "sum-read-section sum-read-section--full"
+		if untitled {
+			cls += " sum-read-section--plain"
+		}
+		sb.WriteString(`<section class="` + cls + `">`)
 		if g.Title != "" {
 			sb.WriteString(`<h4 class="sum-read-section-title">` + template.HTMLEscapeString(strings.ToUpper(g.Title)) + `</h4>`)
 		}
 	} else {
-		sb.WriteString(`<div class="sum-form-group">`)
+		cls := "sum-form-group sum-form-group--full"
+		if untitled {
+			cls += " sum-form-group--plain"
+		}
+		sb.WriteString(`<div class="` + cls + `">`)
 		if g.Title != "" {
 			sb.WriteString(`<h4 class="sum-form-group-title">` + template.HTMLEscapeString(g.Title) + `</h4>`)
 		}
@@ -180,10 +189,10 @@ func renderGroup(ctx context.Context, sb *strings.Builder, g parser.Group, recor
 		sb.WriteString(`<div class="sum-form-group-grid">`)
 	}
 	for _, f := range g.Field {
-		renderField(ctx, sb, f, record, ro)
+		renderField(ctx, sb, f, record, ro, vr)
 	}
 	for _, subG := range g.Group {
-		renderGroup(ctx, sb, subG, record, ro)
+		renderGroup(ctx, sb, subG, record, ro, vr)
 	}
 	sb.WriteString(`</div>`)
 	if ro {
