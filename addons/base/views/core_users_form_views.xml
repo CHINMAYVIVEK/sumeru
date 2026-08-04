@@ -24,12 +24,12 @@
                 <group>
                     <group string="Access">
                         <field name="login" string="Login"/>
-                        <field name="active" string="Active"/>
-                        <field name="user_type" string="User Type"/>
+                        <field name="active" string="Active" widget="selection"/>
+                        <field name="user_type" string="User Type" widget="selection"/>
                     </group>
                     <group string="Company">
-                        <field name="company_id" string="Company"/>
-                        <field name="company_ids" string="Allowed Companies"/>
+                        <field name="company_id" string="Company" widget="selection"/>
+                        <field name="company_ids" string="Allowed Companies" widget="selection"/>
                     </group>
                 </group>
 
@@ -37,8 +37,8 @@
                     <page string="Preferences">
                         <group>
                             <group string="Localization">
-                                <field name="lang" string="Language"/>
-                                <field name="tz" string="Timezone"/>
+                                <field name="lang" string="Language" widget="selection"/>
+                                <field name="tz" string="Timezone" widget="selection"/>
                             </group>
                             <group string="Signature">
                                 <field name="signature" string="Email signature"/>

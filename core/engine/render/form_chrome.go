@@ -55,74 +55,103 @@ func renderButtonBox(sb *strings.Builder, d parser.Div) {
 	sb.WriteString(`<div class="sum-form-toolbar-spacer" aria-hidden="true"></div>`)
 }
 
-func renderTitle(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
+// renderTitleAvatar renders only the compact profile/logo avatar for the split left rail.
+func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
 	_ = ctx
-	sb.WriteString(`<div class="sum-form-title-row sum-form-title-row--sheet">`)
+	_ = d
+	img := strings.TrimSpace(recStr(record, "image"))
+	name := strings.TrimSpace(recStr(record, "name"))
+	initials := UserInitialsFromName(name)
 
-	sb.WriteString(`<div class="sum-form-avatar">`)
-	sb.WriteString(`<div class="sum-form-avatar-box">`)
-	sb.WriteString(`<svg class="sum-form-avatar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>`)
-	sb.WriteString(`<span class="sum-form-avatar-hint">Your logo</span>`)
-	sb.WriteString(`</div></div>`)
+	hasImg := img != "" && (strings.HasPrefix(img, "http://") || strings.HasPrefix(img, "https://") || strings.HasPrefix(img, "data:"))
 
-	sb.WriteString(`<div class="sum-form-title-body">`)
+	sb.WriteString(`<div class="sum-form-avatar sum-form-avatar--compact" data-sum-avatar>`)
+	sb.WriteString(`<div class="sum-form-avatar-box sum-form-avatar-box--circle">`)
+	if hasImg {
+		sb.WriteString(fmt.Sprintf(`<img class="sum-form-avatar-img sum-form-avatar-img--visible" data-sum-avatar-preview src="%s" alt="" />`, template.HTMLEscapeString(img)))
+		sb.WriteString(`<span class="sum-form-avatar-initials" data-sum-avatar-initials hidden>` + template.HTMLEscapeString(initials) + `</span>`)
+	} else {
+		sb.WriteString(`<span class="sum-form-avatar-initials" data-sum-avatar-initials>` + template.HTMLEscapeString(initials) + `</span>`)
+		sb.WriteString(`<img class="sum-form-avatar-img" data-sum-avatar-preview alt="" hidden />`)
+	}
+	sb.WriteString(`</div>`)
+	if !ro {
+		sb.WriteString(fmt.Sprintf(`<input type="hidden" name="image" value="%s" data-sum-avatar-value />`, template.HTMLEscapeString(img)))
+		sb.WriteString(`<label class="sum-form-avatar-upload">`)
+		sb.WriteString(`<input type="file" accept="image/*" data-sum-avatar-file />`)
+		sb.WriteString(`<span>Change</span>`)
+		sb.WriteString(`</label>`)
+	}
+	sb.WriteString(`</div>`)
+}
+
+// renderTitleBody renders bold name + contact fields for the main column header.
+func renderTitleBody(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
+	_ = ctx
+	sb.WriteString(`<div class="sum-form-title-body sum-form-title-body--main">`)
 	if ro {
 		for _, h1 := range d.H1 {
 			for _, f := range h1.Field {
-				ph := strings.TrimSpace(f.Label)
-				if ph == "" {
-					ph = "Title"
-				}
 				v := recStr(record, f.Name)
-				sb.WriteString(`<div class="sum-read-hero-kicker">` + template.HTMLEscapeString(ph) + `</div>`)
-				sb.WriteString(`<div class="sum-read-hero-title">` + template.HTMLEscapeString(v) + `</div>`)
+				sb.WriteString(`<div class="sum-read-hero-title sum-read-hero-title--inline">` + template.HTMLEscapeString(v) + `</div>`)
 			}
 		}
-		sb.WriteString(`<div class="sum-read-meta-stack">`)
+		sb.WriteString(`<div class="sum-form-contact-row">`)
 		for _, f := range d.Field {
-			icon := "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-			if strings.Contains(f.Name, "phone") {
-				icon = "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-			}
-			if strings.Contains(f.Name, "tag") {
-				icon = "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
-			}
 			v := recStr(record, f.Name)
-			sb.WriteString(`<div class="sum-read-inline">`)
-			sb.WriteString(fmt.Sprintf(`<svg class="sum-read-inline-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="%s"></path></svg>`, icon))
-			sb.WriteString(`<span class="sum-read-inline-text">` + template.HTMLEscapeString(v) + `</span>`)
+			lab := strings.TrimSpace(f.Label)
+			if lab == "" {
+				lab = f.Name
+			}
+			sb.WriteString(`<div class="sum-form-contact-item">`)
+			sb.WriteString(`<span class="sum-form-contact-label">` + template.HTMLEscapeString(lab) + `</span>`)
+			sb.WriteString(`<span class="sum-form-contact-value">` + template.HTMLEscapeString(v) + `</span>`)
 			sb.WriteString(`</div>`)
 		}
 		sb.WriteString(`</div>`)
 	} else {
 		for _, h1 := range d.H1 {
 			for _, f := range h1.Field {
-				ph := template.HTMLEscapeString(f.Label)
+				ph := template.HTMLEscapeString(f.Placeholder)
+				if ph == "" {
+					ph = template.HTMLEscapeString(f.Label)
+				}
+				if ph == "" {
+					ph = "Name"
+				}
 				v := recStr(record, f.Name)
-				sb.WriteString(fmt.Sprintf(`<input class="sum-form-hero-input" placeholder="%s" name="%s" value="%s" />`,
+				sb.WriteString(fmt.Sprintf(`<input class="sum-form-hero-input sum-form-hero-input--bold" placeholder="%s" name="%s" value="%s" />`,
 					ph, template.HTMLEscapeString(f.Name), template.HTMLEscapeString(v)))
 			}
 		}
-		sb.WriteString(`<div class="sum-form-inline-fields">`)
+		sb.WriteString(`<div class="sum-form-contact-row">`)
 		for _, f := range d.Field {
-			icon := "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-			if strings.Contains(f.Name, "phone") {
-				icon = "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-			}
-			if strings.Contains(f.Name, "tag") {
-				icon = "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
-			}
 			v := recStr(record, f.Name)
-			sb.WriteString(`<div class="sum-form-inline-row">`)
-			sb.WriteString(fmt.Sprintf(`<svg class="sum-form-inline-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="%s"></path></svg>`, icon))
-			sb.WriteString(fmt.Sprintf(`<input class="sum-form-inline-input" placeholder="%s" name="%s" value="%s" />`,
-				template.HTMLEscapeString(f.Label), template.HTMLEscapeString(f.Name), template.HTMLEscapeString(v)))
+			ph := template.HTMLEscapeString(f.Label)
+			if ph == "" {
+				ph = template.HTMLEscapeString(f.Name)
+			}
+			inputType := "text"
+			if f.Widget == "email" || strings.Contains(strings.ToLower(f.Name), "email") {
+				inputType = "email"
+			} else if f.Widget == "phone" || f.Widget == "tel" || strings.Contains(strings.ToLower(f.Name), "phone") || strings.Contains(strings.ToLower(f.Name), "mobile") {
+				inputType = "tel"
+			}
+			sb.WriteString(`<div class="sum-form-contact-item">`)
+			sb.WriteString(fmt.Sprintf(`<input class="sum-form-inline-input" type="%s" placeholder="%s" name="%s" value="%s" />`,
+				inputType, ph, template.HTMLEscapeString(f.Name), template.HTMLEscapeString(v)))
 			sb.WriteString(`</div>`)
 		}
 		sb.WriteString(`</div>`)
 	}
-
 	sb.WriteString(`</div>`)
+}
+
+// renderTitle keeps a combined title row for non-split layouts.
+func renderTitle(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
+	sb.WriteString(`<div class="sum-form-title-row sum-form-title-row--sheet">`)
+	renderTitleAvatar(ctx, sb, d, record, ro)
+	renderTitleBody(ctx, sb, d, record, ro)
 	sb.WriteString(`</div>`)
 }
 

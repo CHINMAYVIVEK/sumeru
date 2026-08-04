@@ -25,6 +25,10 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 	if vr != nil {
 		resModel = strings.TrimSpace(vr.ResModel)
 	}
+	if isCoreUserSelectField(resModel, f.Name, f.Widget) {
+		renderCoreUserSelectField(ctx, sb, f, label, record, ro)
+		return
+	}
 	if fd := fieldDef(resModel, f.Name); fd != nil {
 		switch fd.Type {
 		case orm.Many2One:
@@ -36,6 +40,11 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 		case orm.Text:
 			renderTextareaField(sb, f, label, record, ro)
 			return
+		case orm.Selection:
+			if len(fd.Selection) > 0 {
+				renderModelSelectionSelect(sb, f, label, record, ro, fd.Selection)
+				return
+			}
 		}
 	}
 
@@ -132,6 +141,33 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 	}
 
 	renderTypedInput(sb, f, label, record, ro, "text")
+}
+
+func renderModelSelectionSelect(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool, opts [][]string) {
+	cur := strings.TrimSpace(recStr(record, f.Name))
+	renderSelectShell(sb, f, label, ro, false, func() {
+		if ro {
+			for _, o := range opts {
+				if len(o) >= 2 && o[0] == cur {
+					sb.WriteString(template.HTMLEscapeString(o[1]))
+					return
+				}
+			}
+			if cur == "" {
+				sb.WriteString("—")
+			} else {
+				sb.WriteString(template.HTMLEscapeString(cur))
+			}
+			return
+		}
+		writeOption(sb, "", "—", cur == "", false)
+		for _, o := range opts {
+			if len(o) < 2 {
+				continue
+			}
+			writeOption(sb, o[0], o[1], o[0] == cur, false)
+		}
+	})
 }
 
 func fieldDef(modelName, fieldName string) *orm.FieldDefinition {

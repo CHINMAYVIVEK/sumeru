@@ -158,6 +158,11 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Failed to load record", http.StatusInternalServerError)
 				return
 			}
+			if targetModel == "core.user" {
+				if cids, err := orm.UserCompanyIDsForUser(r.Context(), id); err == nil {
+					rec["company_ids"] = cids
+				}
+			}
 			vr.Record = rec
 		}
 	case "tree", "list":

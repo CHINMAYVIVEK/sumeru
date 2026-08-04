@@ -49,6 +49,21 @@ func EnsureSysViewArchText() error {
 	return err
 }
 
+// EnsureCoreUserImageText widens core.user.image so data-URL avatars can be stored
+// (Char maps to VARCHAR(255), which rejects typical base64 payloads).
+func EnsureCoreUserImageText() error {
+	if DB == nil {
+		return nil
+	}
+	tn := GetTableName("core.user")
+	ok, err := tableExists(tn)
+	if err != nil || !ok {
+		return err
+	}
+	_, err = DB.Exec(`ALTER TABLE ` + quoteIdent(tn) + ` ALTER COLUMN image TYPE TEXT USING image::text`)
+	return err
+}
+
 // EnsureMailMessageModelResIndex adds a composite index for chatter and activity queries.
 func EnsureMailMessageModelResIndex() error {
 	if DB == nil {

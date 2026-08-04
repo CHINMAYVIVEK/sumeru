@@ -97,6 +97,7 @@ func postFormToModelValues(inst orm.Model, form url.Values) (map[string]interfac
 	}
 	skipNames := map[string]struct{}{
 		"model": {}, "id": {}, "next": {}, "password_plain": {}, "security_group_ids": {}, "security_groups_touched": {},
+		"security_user_type": {}, "company_ids": {},
 	}
 	out := make(map[string]interface{})
 	for k, vv := range form {
@@ -132,6 +133,8 @@ func postFormToModelValues(inst orm.Model, form url.Values) (map[string]interfac
 				return nil, fmt.Errorf("invalid %s", k)
 			}
 			out[k] = x
+		case orm.Many2Many:
+			continue
 		default:
 			out[k] = s
 		}
@@ -148,6 +151,18 @@ func applyCoreUserSecurityPost(r *http.Request, modelName string, userID int) {
 	}
 	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), "core.user", "write"); err != nil {
 		return
+	}
+	if _, ok := r.Form["company_ids"]; ok {
+		var cids []int
+		for _, s := range r.Form["company_ids"] {
+			n, err := strconv.Atoi(strings.TrimSpace(s))
+			if err == nil && n > 0 {
+				cids = append(cids, n)
+			}
+		}
+		if err := orm.SetUserCompanyLinks(r.Context(), userID, cids); err != nil {
+			WebLogf(r.Context(), "/web/record/save", "set user %d companies: %v", userID, err)
+		}
 	}
 	if r.PostFormValue("security_groups_touched") == "1" {
 		actor := orm.SecurityUID(r.Context())
