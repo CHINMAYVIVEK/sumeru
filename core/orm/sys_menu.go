@@ -16,7 +16,7 @@ type SysMenu struct {
 func (m SysMenu) ModelName() string { return "sys.menu" }
 func (m SysMenu) Fields() []FieldDefinition {
 	return []FieldDefinition{
-		{Name: "name", Type: Char, Required: true, Unique: true},
+		{Name: "name", Type: Char, Required: true},
 		{Name: "parent_id", Type: Many2One, Relation: "sys.menu"},
 		{Name: "action_id", Type: Integer},
 		{Name: "action", Type: Char},

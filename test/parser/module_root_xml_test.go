@@ -2,6 +2,7 @@ package parser_test
 
 import (
 	"encoding/xml"
+	"strings"
 	"testing"
 
 	"sumeru/core/engine/parser"
@@ -30,5 +31,43 @@ func TestPeekModuleXMLRootName_sumeru(t *testing.T) {
 	root, err := parser.PeekModuleXMLRootName([]byte("\n  <sumeru>\n</sumeru>"))
 	if err != nil || root != "sumeru" {
 		t.Fatalf("got %q err %v", root, err)
+	}
+}
+
+func TestActionHelpNestedInnerXML(t *testing.T) {
+	in := []byte(`<sumeru><data>
+		<action id="action_contacts" type="window" model="core.partner" name="Contacts" view_mode="tree,form,kanban">
+			<help>
+				<p class="sum-view-nocontent-smiling-face">Create your first Contact!</p>
+			</help>
+		</action>
+		<menuitem id="menu_contacts" name="Contacts" action="action_contacts" sequence="1"/>
+	</data></sumeru>`)
+	var vl parser.ViewList
+	if err := xml.Unmarshal(in, &vl); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	vl.MergeViewListData()
+	if len(vl.Actions) != 1 {
+		t.Fatalf("actions=%d", len(vl.Actions))
+	}
+	rec := vl.Actions[0].ToRecord()
+	if rec.Model != "sys.action.window" || rec.ID != "action_contacts" {
+		t.Fatalf("record: %+v", rec)
+	}
+	help := ""
+	for _, f := range rec.Field {
+		if f.Name == "help" {
+			help = f.Body
+		}
+	}
+	if !strings.Contains(help, "Create your first Contact!") {
+		t.Fatalf("help body missing: %q", help)
+	}
+	if len(vl.MenuItems) != 1 || vl.MenuItems[0].ID != "menu_contacts" {
+		t.Fatalf("menus: %+v", vl.MenuItems)
+	}
+	if len(vl.Records) != 1 {
+		t.Fatalf("merged action records=%d", len(vl.Records))
 	}
 }

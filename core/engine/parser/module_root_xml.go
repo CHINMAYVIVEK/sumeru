@@ -16,15 +16,20 @@ type moduleDataWrapper struct {
 	Actions   []Action   `xml:"action"`
 }
 
+// actionHelp captures nested <help>…</help> body (HTML or text).
+type actionHelp struct {
+	Body string `xml:",innerxml"`
+}
+
 // Action represents a simplified <action> tag for actions like sys.action.window.
 type Action struct {
-	XMLName  xml.Name `xml:"action"`
-	ID       string   `xml:"id,attr"`
-	Type     string   `xml:"type,attr"`
-	Model    string   `xml:"model,attr"`
-	Name     string   `xml:"name,attr"`
-	ViewMode string   `xml:"view_mode,attr"`
-	Help     string   `xml:"help,innerxml"`
+	XMLName  xml.Name   `xml:"action"`
+	ID       string     `xml:"id,attr"`
+	Type     string     `xml:"type,attr"`
+	Model    string     `xml:"model,attr"`
+	Name     string     `xml:"name,attr"`
+	ViewMode string     `xml:"view_mode,attr"`
+	Help     actionHelp `xml:"help"`
 }
 
 // ToRecord converts an Action to a Record for backward compatibility.
@@ -34,8 +39,8 @@ func (a Action) ToRecord() Record {
 		{Name: "core_model", Body: a.Model},
 		{Name: "view_mode", Body: a.ViewMode},
 	}
-	if a.Help != "" {
-		fields = append(fields, RecordField{Name: "help", Type: "html", Body: a.Help})
+	if help := strings.TrimSpace(a.Help.Body); help != "" {
+		fields = append(fields, RecordField{Name: "help", Type: "html", Body: help})
 	}
 	return Record{
 		ID:    a.ID,
@@ -62,6 +67,7 @@ func (v *ViewList) MergeViewListData() {
 	v.NoUpdate = parseNoUpdateFlag(v.Data.NoUpdate)
 	v.Records = append(v.Data.Records, v.Records...)
 	v.Views = append(v.Data.Views, v.Views...)
+	v.MenuItems = append(v.Data.MenuItems, v.MenuItems...)
 	for _, a := range v.Data.Actions {
 		v.Records = append(v.Records, a.ToRecord())
 	}

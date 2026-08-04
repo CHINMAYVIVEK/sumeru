@@ -125,25 +125,6 @@ func ListCommentsForRecord(ctx context.Context, model string, coreID int64, limi
 	return scanMessageRows(rows)
 }
 
-// ListForRecord returns messages for a model/res_id pair, newest first.
-func ListForRecord(ctx context.Context, model string, coreID int64, limit int) ([]Row, error) {
-	if orm.DB == nil {
-		return nil, nil
-	}
-	if limit <= 0 || limit > 500 {
-		limit = 80
-	}
-	tn := orm.GetTableName("mail.message")
-	q := `SELECT body, subtype, author, create_date, model, core_id FROM ` + tn +
-		` WHERE model = $1 AND core_id = $2 ORDER BY create_date DESC, id DESC LIMIT $3`
-	rows, err := orm.DB.QueryContext(ctx, q, model, coreID, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanMessageRows(rows)
-}
-
 // QueryActivityLog returns audit-oriented lines (module events, notifications, record saves).
 // User chatter comments are excluded. Optional ctxModel/ctxID adds notifications on that record only.
 func QueryActivityLog(ctx context.Context, limit int, ctxModel string, ctxID int64) ([]Row, error) {

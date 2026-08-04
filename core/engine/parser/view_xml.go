@@ -10,13 +10,10 @@ import (
 type ViewType string
 
 const (
-	FormView      ViewType = "form"      // TODO: change to FormView
-	ListView      ViewType = "list"      // TODO: change to ListView
-	KanbanView    ViewType = "kanban"    // TODO: change to KanbanView
-	PivotView     ViewType = "pivot"     // TODO: change to PivotView
-	GraphView     ViewType = "graph"     // TODO: change to GraphView
-	DashboardView ViewType = "dashboard" // TODO: change to DashboardView
-	CalendarView  ViewType = "calendar"  // TODO: change to CalendarView
+	FormView   ViewType = "form"
+	ListView   ViewType = "list"
+	KanbanView ViewType = "kanban"
+	PivotView  ViewType = "pivot"
 )
 
 type View struct {
@@ -143,12 +140,13 @@ type MenuItem struct {
 }
 
 type ViewList struct {
-	XMLName  xml.Name           `xml:"sumeru"`
-	NoUpdate bool               `xml:"-"`
-	Data     *moduleDataWrapper `xml:"data"`
-	Records  []Record           `xml:"record"`
-	Views    []View             `xml:"view"`
-	Actions  []Action           `xml:"action"`
+	XMLName   xml.Name           `xml:"sumeru"`
+	NoUpdate  bool               `xml:"-"`
+	Data      *moduleDataWrapper `xml:"data"`
+	Records   []Record           `xml:"record"`
+	Views     []View             `xml:"view"`
+	MenuItems []MenuItem         `xml:"menuitem"`
+	Actions   []Action           `xml:"action"`
 }
 
 type MenuList struct {

@@ -84,6 +84,37 @@ func menuIDPointsToAppLogs(ctx context.Context, menuIDStr string) bool {
 	return got == want
 }
 
+// isHomeMenuTree reports whether menu_id is base.menu_home_root or a descendant.
+func isHomeMenuTree(ctx context.Context, menuIDStr string) bool {
+	menuIDStr = strings.TrimSpace(menuIDStr)
+	if menuIDStr == "" {
+		return true
+	}
+	rootID, _, err := orm.ResolveXmlId(ctx, "base.menu_home_root")
+	if err != nil || rootID == 0 {
+		return false
+	}
+	cur, err := strconv.Atoi(menuIDStr)
+	if err != nil || cur <= 0 {
+		return false
+	}
+	for i := 0; i < 64 && cur > 0; i++ {
+		if cur == rootID {
+			return true
+		}
+		row, err := orm.SearchOne(ctx, "sys.menu", map[string]interface{}{"id": cur})
+		if err != nil {
+			return false
+		}
+		pid, ok := orm.CoerceInt64(row["parent_id"])
+		if !ok || pid == 0 {
+			return false
+		}
+		cur = int(pid)
+	}
+	return false
+}
+
 // actionWindowTargetModel returns the ORM technical model for a sys.action.window row (core_model).
 func actionWindowTargetModel(actionData map[string]interface{}) string {
 	return strings.TrimSpace(orm.AsString(actionData["core_model"]))

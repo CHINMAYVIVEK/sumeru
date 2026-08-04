@@ -76,7 +76,66 @@ func syncModelSchema(ctx context.Context, model Model) error {
 		}
 		applog.L(ctx).Infow("schema_sync", "table", tableName, "field", field.Name)
 	}
+	if err := dropStaleColumnUniques(tableName, model); err != nil {
+		return err
+	}
 	return ensureModelIndexes(tableName, model)
+}
+
+// dropStaleColumnUniques removes single-column UNIQUE constraints when the field
+// definition no longer sets Unique (e.g. sys.menu.name after menu label collisions).
+func dropStaleColumnUniques(tableName string, model Model) error {
+	for _, field := range model.Fields() {
+		if field.Unique || field.Name == "id" {
+			continue
+		}
+		baseType, ok := ColumnTypeSQL(field)
+		if !ok || baseType == "" {
+			continue
+		}
+		rows, err := DB.Query(`
+			SELECT c.conname
+			FROM pg_constraint c
+			JOIN pg_class t ON c.conrelid = t.oid
+			JOIN pg_namespace n ON n.oid = t.relnamespace
+			WHERE n.nspname = 'public'
+			  AND t.relname = $1
+			  AND c.contype = 'u'
+			  AND array_length(c.conkey, 1) = 1
+			  AND EXISTS (
+			    SELECT 1 FROM pg_attribute a
+			    WHERE a.attrelid = t.oid
+			      AND a.attnum = c.conkey[1]
+			      AND NOT a.attisdropped
+			      AND a.attname = $2
+			  )
+		`, tableName, field.Name)
+		if err != nil {
+			return err
+		}
+		var names []string
+		for rows.Next() {
+			var con string
+			if err := rows.Scan(&con); err != nil {
+				rows.Close()
+				return err
+			}
+			names = append(names, con)
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return err
+		}
+		rows.Close()
+		for _, con := range names {
+			q := fmt.Sprintf(`ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s`, quoteIdent(tableName), quoteIdent(con))
+			if _, err := DB.Exec(q); err != nil {
+				return fmt.Errorf("drop unique %s.%s: %w", tableName, con, err)
+			}
+			applog.L(context.Background()).Infow("schema_sync_drop_unique", "table", tableName, "constraint", con)
+		}
+	}
+	return nil
 }
 
 func ensureModelIndexes(tableName string, model Model) error {

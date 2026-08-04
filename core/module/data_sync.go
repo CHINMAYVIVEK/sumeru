@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/parser"
 	"sumeru/core/orm"
+	"sumeru/core/sdk/platformmsg"
 )
 
 // resolveXMLIDInModule resolves module.external_id: uses full ref if it contains a dot,
@@ -58,6 +58,22 @@ func upsertSysActionWindowFromRecord(ctx context.Context, moduleName string, xml
 	}
 }
 
+func processXMLRecords(ctx context.Context, moduleName string, records []parser.Record, inheritQueue *[]parser.Record) {
+	for _, xmlRecord := range records {
+		if xmlRecord.Model == "sys.action.window" {
+			upsertSysActionWindowFromRecord(ctx, moduleName, xmlRecord)
+		}
+		if xmlRecord.Model == "sys.view" {
+			if strings.TrimSpace(parser.RecordFieldMap(xmlRecord)["inherit_id"]) != "" {
+				*inheritQueue = append(*inheritQueue, xmlRecord)
+			} else {
+				upsertSysViewFromRecord(ctx, moduleName, xmlRecord)
+			}
+		}
+		syncGenericRegistryRecord(ctx, moduleName, xmlRecord)
+	}
+}
+
 func (addon *Addon) SyncToDB(ctx context.Context) error {
 	moduleName := addon.Manifest.Name
 
@@ -87,46 +103,34 @@ func (addon *Addon) SyncToDB(ctx context.Context) error {
 			continue
 		}
 
+		// Unified path: records, views, actions, and menuitems from one parse.
 		parsedViewData, err := parser.ParseViewList(xmlPath)
-		if err == nil && (len(parsedViewData.Records) > 0 || len(parsedViewData.Views) > 0) {
-			for _, xmlRecord := range parsedViewData.Records {
-				if xmlRecord.Model == "sys.action.window" {
-					upsertSysActionWindowFromRecord(ctx, moduleName, xmlRecord)
+		if err == nil {
+			hasContent := len(parsedViewData.Records) > 0 || len(parsedViewData.Views) > 0 ||
+				len(parsedViewData.MenuItems) > 0 || len(parsedViewData.Actions) > 0
+			if hasContent {
+				processXMLRecords(ctx, moduleName, parsedViewData.Records, &inheritQueue)
+				for _, viewDef := range parsedViewData.Views {
+					upsertInlineViewDef(ctx, moduleName, &viewDef)
 				}
-				if xmlRecord.Model == "sys.view" {
-					if strings.TrimSpace(parser.RecordFieldMap(xmlRecord)["inherit_id"]) != "" {
-						inheritQueue = append(inheritQueue, xmlRecord)
-					} else {
-						upsertSysViewFromRecord(ctx, moduleName, xmlRecord)
-					}
+				if len(parsedViewData.MenuItems) > 0 {
+					syncMenusFromItems(ctx, moduleName, parsedViewData.MenuItems)
 				}
-				syncGenericRegistryRecord(ctx, moduleName, xmlRecord)
+				continue
 			}
-
-			for _, viewDef := range parsedViewData.Views {
-				upsertInlineViewDef(ctx, moduleName, &viewDef)
-			}
-			continue
+		} else {
+			fmt.Printf("Warning: ParseViewList %s (module %s): %v\n", xmlFile, moduleName, err)
 		}
 
+		// Fallback for menus-only / legacy shapes if ViewList yielded nothing.
 		menuList, err := parser.ParseMenuList(xmlPath)
 		if err == nil {
 			if len(menuList.MenuItems) > 0 {
 				syncMenusFromItems(ctx, moduleName, menuList.MenuItems)
 			}
-			for _, xmlRecord := range menuList.Records {
-				if xmlRecord.Model == "sys.action.window" {
-					upsertSysActionWindowFromRecord(ctx, moduleName, xmlRecord)
-				}
-				if xmlRecord.Model == "sys.view" {
-					if strings.TrimSpace(parser.RecordFieldMap(xmlRecord)["inherit_id"]) != "" {
-						inheritQueue = append(inheritQueue, xmlRecord)
-					} else {
-						upsertSysViewFromRecord(ctx, moduleName, xmlRecord)
-					}
-				}
-				syncGenericRegistryRecord(ctx, moduleName, xmlRecord)
-			}
+			processXMLRecords(ctx, moduleName, menuList.Records, &inheritQueue)
+		} else if err != nil {
+			fmt.Printf("Warning: ParseMenuList %s (module %s): %v\n", xmlFile, moduleName, err)
 		}
 	}
 

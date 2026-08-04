@@ -10,73 +10,114 @@ import (
 )
 
 func syncMenusFromItems(ctx context.Context, moduleName string, menus []parser.MenuItem) {
-	for _, menu := range menus {
-		if strings.TrimSpace(menu.ID) == "" {
-			continue
-		}
+	buildValues := func(menu parser.MenuItem) map[string]interface{} {
 		menuValues := map[string]interface{}{
 			"name":          menu.Name,
 			"sequence":      menu.Sequence,
 			"module":        moduleName,
 			"access_groups": strings.TrimSpace(menu.AccessGroups),
 		}
-
 		if menu.Action != "" {
 			actionID, err := resolveXMLIDInModule(ctx, moduleName, menu.Action)
 			if err == nil && actionID != 0 {
 				menuValues["action_id"] = actionID
+			} else {
+				fmt.Printf("Warning: sys.menu %s.%s action %q unresolved: %v\n", moduleName, menu.ID, menu.Action, err)
 			}
 		}
-
 		if sanitizedIcon := sanitizeWebIcon(menu.WebIcon); sanitizedIcon != "" {
 			menuValues["web_icon"] = sanitizedIcon
 		}
-
-		// Root menuitems have no parent in XML. Always persist NULL for parent_id so a later
-		// update clears any stale value (e.g. self-referential parent_id == row id), which would
-		// otherwise hide the menu from the top bar (roots are parent_id IS NULL / empty ParentID).
-		if pid := strings.TrimSpace(menu.ParentID); pid != "" {
-			parentID, err := resolveXMLIDInModule(ctx, moduleName, pid)
-			if err == nil && parentID != 0 {
-				menuValues["parent_id"] = parentID
-			}
-		} else {
-			menuValues["parent_id"] = nil
-		}
-
-		// Prefer stable identity via sys.model_data (XML id), not Upsert on display name:
-		// sys.menu.name is globally unique in the schema; name-based upsert corrupts sibling items.
-		var rowID int
-		if md, err := orm.SearchOne(ctx, "sys.model_data", map[string]interface{}{
-			"module": moduleName,
-			"model":  "sys.menu",
-			"name":   menu.ID,
-		}); err == nil {
-			if cid, ok := orm.CoerceInt64(md["core_id"]); ok && cid > 0 {
-				rowID = int(cid)
-			}
-		}
-		if rowID > 0 {
-			if err := orm.UpdateRecordByID(ctx, "sys.menu", rowID, menuValues); err != nil {
-				fmt.Printf("Warning: sys.menu update %s.%s id=%d: %v\n", moduleName, menu.ID, rowID, err)
-				continue
-			}
-		} else {
-			id, err := orm.Create(ctx, orm.SysMenu{}, menuValues)
-			if err != nil {
-				fmt.Printf("Warning: sys.menu create %s.%s: %v\n", moduleName, menu.ID, err)
-				continue
-			}
-			rowID = id
-		}
-
-		_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-			"module":  moduleName,
-			"name":    menu.ID,
-			"model":   "sys.menu",
-			"core_id": rowID,
-		}, "name")
+		return menuValues
 	}
+
+	// Pass 1: application / section roots only (no parent in XML) → top bar candidates.
+	for _, menu := range menus {
+		if strings.TrimSpace(menu.ID) == "" || strings.TrimSpace(menu.ParentID) != "" {
+			continue
+		}
+		menuValues := buildValues(menu)
+		menuValues["parent_id"] = nil
+		if _, err := upsertMenuRow(ctx, moduleName, menu.ID, menuValues); err != nil {
+			fmt.Printf("Warning: sys.menu root %s.%s: %v\n", moduleName, menu.ID, err)
+		}
+	}
+
+	// Pass 2+: children. Fail closed — never persist a child with NULL parent_id (fake top-bar root).
+	// Repeat until no progress so grandparents → parents → leaves work in one sync.
+	pending := make([]parser.MenuItem, 0, len(menus))
+	for _, menu := range menus {
+		if strings.TrimSpace(menu.ID) == "" || strings.TrimSpace(menu.ParentID) == "" {
+			continue
+		}
+		pending = append(pending, menu)
+	}
+	for round := 0; round < 16 && len(pending) > 0; round++ {
+		var next []parser.MenuItem
+		progress := 0
+		for _, menu := range pending {
+			pid := strings.TrimSpace(menu.ParentID)
+			parentID, err := resolveXMLIDInModule(ctx, moduleName, pid)
+			if err != nil || parentID == 0 {
+				next = append(next, menu)
+				continue
+			}
+			menuValues := buildValues(menu)
+			menuValues["parent_id"] = parentID
+			if _, err := upsertMenuRow(ctx, moduleName, menu.ID, menuValues); err != nil {
+				fmt.Printf("Warning: sys.menu child %s.%s: %v\n", moduleName, menu.ID, err)
+				next = append(next, menu)
+				continue
+			}
+			progress++
+		}
+		pending = next
+		if progress == 0 {
+			break
+		}
+	}
+	for _, menu := range pending {
+		fmt.Printf("Warning: sys.menu %s.%s parent %q unresolved — skipped (not creating top-bar orphan)\n",
+			moduleName, menu.ID, strings.TrimSpace(menu.ParentID))
+	}
+}
+
+func upsertMenuRow(ctx context.Context, moduleName, xmlID string, menuValues map[string]interface{}) (int, error) {
+	rowID, _ := menuRowID(ctx, moduleName, xmlID)
+	if rowID > 0 {
+		if err := orm.UpdateRecordByID(ctx, "sys.menu", rowID, menuValues); err != nil {
+			return 0, err
+		}
+	} else {
+		id, err := orm.Create(ctx, orm.SysMenu{}, menuValues)
+		if err != nil {
+			return 0, err
+		}
+		rowID = id
+	}
+	_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
+		"module":  moduleName,
+		"name":    xmlID,
+		"model":   "sys.menu",
+		"core_id": rowID,
+	}, "name")
+	return rowID, nil
+}
+
+func menuRowID(ctx context.Context, moduleName, xmlID string) (int, error) {
+	md, err := orm.SearchOne(ctx, "sys.model_data", map[string]interface{}{
+		"module": moduleName,
+		"model":  "sys.menu",
+		"name":   xmlID,
+	})
+	if err != nil {
+		return 0, err
+	}
+	cid, ok := orm.CoerceInt64(md["core_id"])
+	if !ok || cid <= 0 {
+		return 0, fmt.Errorf("no core_id")
+	}
+	return int(cid), nil
 }
 
 func sanitizeWebIcon(iconString string) string {

@@ -59,8 +59,8 @@ func UpdateModuleData(ctx context.Context, name string) error {
 }
 
 // RunModuleCLI runs -i (install) and -u (update) lists. Install runs before update.
-// For -u, the token "all" (case-insensitive) means every module with sys.module.state = installed,
-// in dependency order when manifests are on disk.
+// For -u, the token "all" (case-insensitive) means every installed (or to_upgrade) module
+// present on disk, in dependency order. Uninstalled modules are never updated.
 func RunModuleCLI(installCSV, updateCSV string) error {
 	ctx := orm.ContextWithBypass(context.Background(), true)
 
@@ -81,6 +81,9 @@ func RunModuleCLI(installCSV, updateCSV string) error {
 	if err != nil {
 		return err
 	}
+	if len(updateList) > 0 {
+		fmt.Printf("Updating %d installed module(s): %s\n", len(updateList), strings.Join(updateList, ", "))
+	}
 	for _, name := range updateList {
 		if err := UpdateModuleData(ctx, name); err != nil {
 			return fmt.Errorf("update %q: %w", name, err)
@@ -90,8 +93,9 @@ func RunModuleCLI(installCSV, updateCSV string) error {
 }
 
 func listInstalledModuleNames(ctx context.Context) ([]string, error) {
-	q := `SELECT name FROM ` + orm.GetTableName("sys.module") + ` WHERE state = $1 ORDER BY name`
-	rows, err := orm.DB.QueryContext(ctx, q, "installed")
+	q := `SELECT name FROM ` + orm.GetTableName("sys.module") +
+		` WHERE state IN ('installed', 'to_upgrade') ORDER BY name`
+	rows, err := orm.DB.QueryContext(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("list installed modules: %w", err)
 	}

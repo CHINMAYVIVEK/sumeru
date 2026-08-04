@@ -33,9 +33,18 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/web/settings", http.StatusFound)
 			return
 		}
-		// Avoid picking an arbitrary window action (often the lowest id); that misroutes e.g. Sales/CRM roots.
-		WebLogf(r.Context(), "/web", "no action for query action=%q menu_id=%q; redirecting to home", actionIDStr, menuIDStr)
-		http.Redirect(w, r, "/web/home", http.StatusFound)
+		// Home root / overview without a window action → home dashboard (preserve menu_id).
+		if isHomeMenuTree(r.Context(), menuIDStr) {
+			dest := "/web/home"
+			if mid := strings.TrimSpace(menuIDStr); mid != "" {
+				dest = "/web/home?menu_id=" + mid
+			}
+			http.Redirect(w, r, dest, http.StatusFound)
+			return
+		}
+		// Other apps with no resolvable action: do not silently land on Home (menu_id=1).
+		WebLogf(r.Context(), "/web", "no action for query action=%q menu_id=%q; redirecting to apps", actionIDStr, menuIDStr)
+		http.Redirect(w, r, "/web/apps", http.StatusFound)
 		return
 	}
 
