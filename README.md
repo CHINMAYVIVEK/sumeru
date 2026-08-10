@@ -75,7 +75,7 @@ cd ../sumeru_addons && git pull
 cd ../sumeru_custom_addons && make generate && make run
 ```
 
-Full workspace details: sibling **[`sumeru_custom_addons/README.md`](../sumeru_custom_addons/README.md)**.
+Full workspace details: sibling **[`sumeru_custom_addons/README.md`](https://github.com/ProjectMeru/sumeru_custom_addons/blob/main/README.md)**.
 
 ### Optional: core-only run
 
@@ -232,8 +232,8 @@ Per-addon optional `static/css/theme-overrides.css` is served as `/static/addon-
 | Resource | Contents |
 | -------- | -------- |
 | This README | Setup, config, CLI, Makefile, CSS |
-| [`sumeru_addons/README.md`](../sumeru_addons/README.md) | Standard business addon module |
-| [`sumeru_custom_addons/README.md`](../sumeru_custom_addons/README.md) | Workspace runner, `make generate`, custom addons |
+| [`sumeru_addons/README.md`](https://github.com/ProjectMeru/sumeru_addons/blob/main/README.md) | Standard business addon module |
+| [`sumeru_custom_addons/README.md`](https://github.com/ProjectMeru/sumeru_custom_addons/blob/main/README.md) | Workspace runner, `make generate`, custom addons |
 | Sibling `docs/` (local workspace) | Developer guides and how-tos when checked out next to this repo (e.g. `../docs/developer/`) — not shipped inside this git tree |
 
 ---
