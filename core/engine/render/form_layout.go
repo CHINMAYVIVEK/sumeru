@@ -26,23 +26,23 @@ func renderSheet(ctx context.Context, sb *strings.Builder, s *parser.Sheet, reco
 		}
 	}
 
-	if hasSumTitle {
-		sb.WriteString(`<div class="sum-form-split-layout" data-sum-form-split>`)
-		sb.WriteString(`<aside class="sum-form-split-left" aria-label="Record summary">`)
-		for _, d := range s.Div {
-			if strings.Contains(d.Class, "sum_title") {
-				renderTitle(ctx, sb, d, record, ro)
-			}
+	var titleDiv *parser.Div
+	for i := range s.Div {
+		if strings.Contains(s.Div[i].Class, "sum_title") {
+			titleDiv = &s.Div[i]
+			break
 		}
+	}
+
+	if hasSumTitle && titleDiv != nil {
+		sb.WriteString(`<div class="sum-form-split-layout sum-form-split-layout--compact" data-sum-form-split>`)
+		sb.WriteString(`<aside class="sum-form-split-left sum-form-split-left--avatar" aria-label="Profile picture">`)
+		renderTitleAvatar(ctx, sb, *titleDiv, record, ro)
 		sb.WriteString(`</aside>`)
-		sb.WriteString(`<div class="sum-form-split-resizer" role="separator" aria-orientation="vertical" aria-label="Resize columns" tabindex="0"></div>`)
 		sb.WriteString(`<div class="sum-form-split-main">`)
-	} else {
-		for _, d := range s.Div {
-			if strings.Contains(d.Class, "sum_title") {
-				renderTitle(ctx, sb, d, record, ro)
-			}
-		}
+		renderTitleBody(ctx, sb, *titleDiv, record, ro)
+	} else if titleDiv != nil {
+		renderTitle(ctx, sb, *titleDiv, record, ro)
 	}
 
 	if ro {

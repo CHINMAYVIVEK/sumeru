@@ -7,6 +7,7 @@ type CoreUser struct {
 	Login     string `db:"login"`
 	Password  string `db:"password"` // bcrypt hash; never list in UI
 	Name      string `db:"name"`
+	Image     string `db:"image"` // URL or data-URL avatar
 	Active    bool   `db:"active"`
 	Email     string `db:"email"`
 	Phone     string `db:"phone"`
@@ -29,13 +30,14 @@ func (CoreUser) Fields() []sdk.FieldDefinition {
 		{Name: "login", Type: sdk.Char, Required: true, Unique: true, String: "Login", Index: true},
 		{Name: "password", Type: sdk.Char, String: "Password"},
 		{Name: "name", Type: sdk.Char, String: "Name"},
+		{Name: "image", Type: sdk.Text, String: "Image"},
 		{Name: "active", Type: sdk.Boolean, String: "Active", DefaultVal: true},
 		{Name: "email", Type: sdk.Char, String: "Email"},
 		{Name: "phone", Type: sdk.Char, String: "Work Phone"},
 		{Name: "mobile", Type: sdk.Char, String: "Mobile"},
 		{Name: "company_id", Type: sdk.Many2One, Relation: "core.company", String: "Company", Index: true},
 		{Name: "company_ids", Type: sdk.Many2Many, Relation: "core.company", RelationTable: "core_user_company_rel", Column1: "user_id", Column2: "company_id", String: "Companies"},
-		{Name: "lang", Type: sdk.Selection, String: "Language", DefaultVal: "en_US"},
+		{Name: "lang", Type: sdk.Char, String: "Language", DefaultVal: "en_US"},
 		{Name: "tz", Type: sdk.Char, String: "Timezone"},
 		{Name: "signature", Type: sdk.Text, String: "Email Signature"},
 		{Name: "user_type", Type: sdk.Selection, String: "User Type", DefaultVal: "internal",

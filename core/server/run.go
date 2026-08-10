@@ -106,6 +106,9 @@ func Run() {
 	if err := orm.EnsureSysViewArchText(); err != nil {
 		log.Printf("Note: sys.view.arch column: %v", err)
 	}
+	if err := orm.EnsureCoreUserImageText(); err != nil {
+		log.Printf("Note: core.user.image column: %v", err)
+	}
 	if err := orm.EnsureMailMessageModelResIndex(); err != nil {
 		log.Fatalf("Schema migrate (mail.message index): %v", err)
 	}
