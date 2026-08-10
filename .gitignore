@@ -200,3 +200,4 @@ log/
 log/*
 logs.log
 log.log
+*.conf
