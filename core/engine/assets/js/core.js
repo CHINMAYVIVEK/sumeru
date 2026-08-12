@@ -12,6 +12,7 @@ import { initFormSplit } from "./ui/form-split.js";
 import { initMessagesComposer } from "./ui/messages-composer.js";
 import { initMany2One } from "./ui/many2one.js";
 import { initMany2OneSelect } from "./ui/many2one-select.js";
+import { initMultiSelect } from "./ui/multi-select.js";
 import { initAvatarUpload } from "./ui/avatar-upload.js";
 
 (function bootstrap() {
@@ -28,5 +29,6 @@ import { initAvatarUpload } from "./ui/avatar-upload.js";
   initMessagesComposer();
   initMany2One();
   initMany2OneSelect();
+  initMultiSelect();
   initAvatarUpload();
 })();

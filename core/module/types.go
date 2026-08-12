@@ -2,7 +2,6 @@ package module
 
 import (
 	"sumeru/core/engine/parser"
-	"sumeru/core/orm"
 )
 
 const KernelModule = "base"
@@ -29,9 +28,4 @@ type Addon struct {
 	Manifest Manifest
 	Path     string
 	Menus    []parser.MenuItem
-}
-
-// IsPlatformModule reports whether name is part of the always-on platform spine.
-func IsPlatformModule(name string) bool {
-	return orm.IsPlatformModule(name)
 }

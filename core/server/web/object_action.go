@@ -11,8 +11,7 @@ import (
 // ActionObjectHandler POST /web/action/object — runs a registered object button handler.
 // Form fields: model, id, method, next (optional redirect fallback).
 func ActionObjectHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	if !RequirePOST(w, r) {
 		return
 	}
 	if err := r.ParseForm(); err != nil {

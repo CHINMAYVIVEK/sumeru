@@ -85,6 +85,44 @@ func TestSmoke_registerAppRoutesWebAppsTrailingSlashRedirect(t *testing.T) {
 	}
 }
 
+func TestSmoke_settingsAppLogsNotCaughtByPrefixRedirect(t *testing.T) {
+	mux := http.NewServeMux()
+	web.RegisterAppRoutes(mux)
+	h := web.SecurityMiddleware(mux)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/web/settings/app-logs", nil)
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Fatalf("GET /web/settings/app-logs: status %d; want %d", rr.Code, http.StatusFound)
+	}
+	loc := rr.Header().Get("Location")
+	if strings.Contains(loc, "/web/settings") && !strings.Contains(loc, "/web/settings/app-logs") && !strings.Contains(loc, "/web/login") {
+		t.Fatalf("Location %q: must not redirect to settings hub (/web/settings)", loc)
+	}
+	if !strings.Contains(loc, "/web/login") {
+		t.Fatalf("Location %q: unauthenticated request should redirect to login", loc)
+	}
+}
+
+func TestSmoke_settingsLegacyAliasRedirectsToHub(t *testing.T) {
+	mux := http.NewServeMux()
+	web.RegisterAppRoutes(mux)
+	h := web.SecurityMiddleware(mux)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/web/settings/home", nil)
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Fatalf("GET /web/settings/home: status %d; want %d", rr.Code, http.StatusFound)
+	}
+	if g, w := rr.Header().Get("Location"), "/web/settings"; g != w {
+		t.Fatalf("Location %q; want %q", g, w)
+	}
+}
+
 func TestSmoke_apiHealth(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", web.APIHealthHandler)

@@ -20,7 +20,19 @@ func init() {
 }
 
 // RegisterAppRoutes registers HTTP handlers for /web and related paths after DB init.
-// Built-in routes go through the router registry so addons can override/extend.
+//
+// Registry routes (router.Register → router.Apply; addon-overridable):
+//   - Auth: GET/POST /web/login, GET /web/logout
+//   - Session: GET /web/home (app hub), GET /web (workspace views), GET /web/apps
+//   - Session: GET /web/settings, GET /web/settings/app-logs, GET /web/rel/search
+//   - Session POST: /web/company/switch, /web/module/action, /web/record/save|delete
+//   - Session POST: /web/action/{reset_password,create_api_key,object}, /web/chatter/post, /web/import/csv
+//   - API: GET /api/health (none), POST /api/rpc (handler enforces session or API key)
+//
+// Alias redirects (direct mux; legacy/trailing-slash normalization):
+//   - /web/apps/ → /web/apps
+//   - /web/settings/… → /web/settings (prefix; /web/settings/app-logs stays exact via registry)
+//   - / → /web/home
 func RegisterAppRoutes(mux *http.ServeMux) {
 	reg := mux
 	if reg == nil {
@@ -45,29 +57,31 @@ func RegisterAppRoutes(mux *http.ServeMux) {
 	router.Register(http.MethodGet, "/web/settings", router.AuthSession, SettingsHubHandler)
 	router.Register(http.MethodGet, "/web/settings/app-logs", router.AuthSession, AppLogsHandler)
 	router.Register(http.MethodGet, "/api/health", router.AuthNone, APIHealthHandler)
-	router.Register(http.MethodPost, "/api/rpc", router.AuthAPIKey, RPCJSONHandler)
+	router.Register(http.MethodPost, "/api/rpc", router.AuthNone, RPCJSONHandler)
 	router.Register(http.MethodPost, "/web/import/csv", router.AuthSession, ImportCSVHandler)
 
 	router.Apply(reg)
+	registerAppAliases(reg)
+}
 
-	reg.HandleFunc("/web/apps/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/web/apps", http.StatusFound)
-	})
-	// Thin aliases → canonical Settings hub.
-	redirectSettingsHub := func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/web/settings", http.StatusFound)
+func redirectTo(target string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target, http.StatusFound)
 	}
-	reg.HandleFunc("/web/settings/", redirectSettingsHub)
-	reg.HandleFunc("/web/settings/home", redirectSettingsHub)
-	reg.HandleFunc("/web/settings/dashboard", redirectSettingsHub)
-	reg.HandleFunc("/web/settings/Dashboard", redirectSettingsHub)
-	reg.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		http.Redirect(w, r, "/web/home", http.StatusFound)
-	})
+}
+
+func rootRedirectApp(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	http.Redirect(w, r, "/web/home", http.StatusFound)
+}
+
+func registerAppAliases(mux *http.ServeMux) {
+	mux.HandleFunc("/web/apps/", redirectTo("/web/apps"))
+	mux.HandleFunc("/web/settings/", redirectTo("/web/settings"))
+	mux.HandleFunc("/", rootRedirectApp)
 }
 
 // RegisterSetupRoutes registers first-run setup handlers (DB not ready).

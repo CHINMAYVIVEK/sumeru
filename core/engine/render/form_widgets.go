@@ -73,13 +73,6 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 	}
 	if f.Widget == "many2many_tags" {
 		txt := recStr(record, f.Name)
-		if ro {
-			sb.WriteString(`<div class="sum-read-field sum-read-field--row">`)
-			sb.WriteString(`<div class="sum-read-label">` + template.HTMLEscapeString(label) + `</div>`)
-			sb.WriteString(`<div class="sum-read-value">` + template.HTMLEscapeString(txt) + `</div>`)
-			sb.WriteString(`</div>`)
-			return
-		}
 		sb.WriteString(`<div class="sum-field-widget">`)
 		sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
 		sb.WriteString(`<div class="sum-field-tags">`)
@@ -112,36 +105,33 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 func renderBooleanField(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool) {
 	raw, hasRaw := rawField(record, f.Name)
 	truthy := hasRaw && isTruthyDB(raw)
-	if ro {
-		val := "No"
-		if truthy {
-			val = "Yes"
-		}
-		sb.WriteString(`<div class="sum-read-field sum-read-field--row">`)
-		sb.WriteString(`<div class="sum-read-label">` + template.HTMLEscapeString(label) + `</div>`)
-		sb.WriteString(`<div class="sum-read-value sum-read-value--bool">` + template.HTMLEscapeString(val) + `</div>`)
-		sb.WriteString(`</div>`)
-		return
-	}
 	if strings.EqualFold(f.Widget, "radio") {
-		renderBooleanRadio(sb, f, label, truthy)
+		renderBooleanRadio(sb, f, label, truthy, ro)
 		return
 	}
-	renderBooleanSelect(sb, f, label, truthy)
+	renderBooleanSelect(sb, f, label, truthy, ro)
 }
 
-func renderBooleanSelect(sb *strings.Builder, f parser.Field, label string, truthy bool) {
+func renderBooleanSelect(sb *strings.Builder, f parser.Field, label string, truthy, ro bool) {
 	trueLabel, falseLabel := "Yes", "No"
 	if f.Name == "active" {
 		trueLabel, falseLabel = "Active", "Inactive"
 	}
-	renderSelectShell(sb, f, label, false, false, func() {
-		writeOption(sb, "true", trueLabel, truthy, false)
-		writeOption(sb, "false", falseLabel, !truthy, false)
+	if ro {
+		display := falseLabel
+		if truthy {
+			display = trueLabel
+		}
+		renderReadonlyFieldValue(sb, f, label, display)
+		return
+	}
+	renderSelectShell(sb, f, label, false, func() {
+		writeOption(sb, "true", trueLabel, truthy)
+		writeOption(sb, "false", falseLabel, !truthy)
 	})
 }
 
-func renderBooleanRadio(sb *strings.Builder, f parser.Field, label string, truthy bool) {
+func renderBooleanRadio(sb *strings.Builder, f parser.Field, label string, truthy, ro bool) {
 	name := template.HTMLEscapeString(f.Name)
 	sb.WriteString(`<div class="sum-field-widget">`)
 	sb.WriteString(`<span class="sum-field-label">` + template.HTMLEscapeString(label) + `</span>`)
@@ -152,34 +142,35 @@ func renderBooleanRadio(sb *strings.Builder, f parser.Field, label string, truth
 	} else {
 		noChecked = ` checked`
 	}
-	sb.WriteString(fmt.Sprintf(`<label class="sum-field-radio"><input type="radio" name="%s" value="true"%s /><span>Yes</span></label>`, name, yesChecked))
-	sb.WriteString(fmt.Sprintf(`<label class="sum-field-radio"><input type="radio" name="%s" value="false"%s /><span>No</span></label>`, name, noChecked))
+	roAttr := ""
+	if ro {
+		roAttr = ` disabled`
+	}
+	sb.WriteString(fmt.Sprintf(`<label class="sum-field-radio"><input type="radio" name="%s" value="true"%s%s /><span>Yes</span></label>`, name, yesChecked, roAttr))
+	sb.WriteString(fmt.Sprintf(`<label class="sum-field-radio"><input type="radio" name="%s" value="false"%s%s /><span>No</span></label>`, name, noChecked, roAttr))
 	sb.WriteString(`</div></div>`)
 }
 
 func renderModelSelectionSelect(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool, opts [][]string) {
 	cur := strings.TrimSpace(recStr(record, f.Name))
-	renderSelectShell(sb, f, label, ro, false, func() {
-		if ro {
-			for _, o := range opts {
-				if len(o) >= 2 && o[0] == cur {
-					sb.WriteString(template.HTMLEscapeString(o[1]))
-					return
-				}
+	if ro {
+		display := cur
+		for _, o := range opts {
+			if len(o) >= 2 && o[0] == cur {
+				display = o[1]
+				break
 			}
-			if cur == "" {
-				sb.WriteString("—")
-			} else {
-				sb.WriteString(template.HTMLEscapeString(cur))
-			}
-			return
 		}
-		writeOption(sb, "", "—", cur == "", false)
+		renderReadonlyFieldValue(sb, f, label, display)
+		return
+	}
+	renderSelectShell(sb, f, label, false, func() {
+		writeOption(sb, "", "—", cur == "")
 		for _, o := range opts {
 			if len(o) < 2 {
 				continue
 			}
-			writeOption(sb, o[0], o[1], o[0] == cur, false)
+			writeOption(sb, o[0], o[1], o[0] == cur)
 		}
 	})
 }
@@ -190,18 +181,6 @@ func imageSrcOK(src string) bool {
 
 func renderImageField(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool) {
 	src := strings.TrimSpace(recStr(record, f.Name))
-	if ro {
-		sb.WriteString(`<div class="sum-read-field sum-read-field--row">`)
-		sb.WriteString(`<div class="sum-read-label">` + template.HTMLEscapeString(label) + `</div>`)
-		sb.WriteString(`<div class="sum-read-value">`)
-		if imageSrcOK(src) {
-			sb.WriteString(fmt.Sprintf(`<img src="%s" alt="" class="sum-read-image" />`, template.HTMLEscapeString(src)))
-		} else {
-			sb.WriteString(`<span class="sum-read-empty">—</span>`)
-		}
-		sb.WriteString(`</div></div>`)
-		return
-	}
 	sb.WriteString(`<div class="sum-field-widget" data-sum-image>`)
 	sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
 	if imageSrcOK(src) {
@@ -212,16 +191,20 @@ func renderImageField(sb *strings.Builder, f parser.Field, label string, record 
 		sb.WriteString(`<div class="sum-image-placeholder" data-sum-image-placeholder>`)
 		sb.WriteString(`<svg class="sum-image-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>`)
 		sb.WriteString(`</div>`)
-		sb.WriteString(`<div class="sum-image-thumb" hidden>`)
-		sb.WriteString(`<img src="" alt="" class="sum-image-thumb-img" data-sum-image-preview hidden />`)
-		sb.WriteString(`</div>`)
+		if !ro {
+			sb.WriteString(`<div class="sum-image-thumb" hidden>`)
+			sb.WriteString(`<img src="" alt="" class="sum-image-thumb-img" data-sum-image-preview hidden />`)
+			sb.WriteString(`</div>`)
+		}
 	}
 	sb.WriteString(fmt.Sprintf(`<input type="hidden" id="%s" name="%s" value="%s" data-sum-image-value />`,
 		template.HTMLEscapeString(f.Name), template.HTMLEscapeString(f.Name), template.HTMLEscapeString(src)))
-	sb.WriteString(`<label class="sum-form-avatar-upload sum-image-upload">`)
-	sb.WriteString(`<input type="file" accept="image/*" data-sum-image-file />`)
-	sb.WriteString(`<span>Change</span>`)
-	sb.WriteString(`</label>`)
+	if !ro {
+		sb.WriteString(`<label class="sum-form-avatar-upload sum-image-upload">`)
+		sb.WriteString(`<input type="file" accept="image/*" data-sum-image-file />`)
+		sb.WriteString(`<span>Change</span>`)
+		sb.WriteString(`</label>`)
+	}
 	sb.WriteString(`</div>`)
 }
 
@@ -245,45 +228,31 @@ func fieldDef(modelName, fieldName string) *orm.FieldDefinition {
 func renderTypedInput(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool, inputType string) {
 	placeholder := f.Placeholder
 	val := recStr(record, f.Name)
+	roAttr := ""
 	if ro {
-		display := val
-		if display == "" {
-			display = "—"
-		}
-		sb.WriteString(`<div class="sum-read-field sum-read-field--row">`)
-		sb.WriteString(`<div class="sum-read-label">` + template.HTMLEscapeString(label) + `</div>`)
-		sb.WriteString(`<div class="sum-read-value">` + template.HTMLEscapeString(display) + `</div>`)
-		sb.WriteString(`</div>`)
-		return
+		roAttr = ` readonly`
 	}
 	sb.WriteString(`<div class="sum-field-widget">`)
 	sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
-	sb.WriteString(fmt.Sprintf(`<input class="sum-field-input" id="%s" name="%s" type="%s" placeholder="%s" value="%s" />`,
+	sb.WriteString(fmt.Sprintf(`<input class="sum-field-input" id="%s" name="%s" type="%s" placeholder="%s" value="%s"%s />`,
 		template.HTMLEscapeString(f.Name), template.HTMLEscapeString(f.Name),
 		template.HTMLEscapeString(inputType),
-		template.HTMLEscapeString(placeholder), template.HTMLEscapeString(val)))
+		template.HTMLEscapeString(placeholder), template.HTMLEscapeString(val), roAttr))
 	sb.WriteString(`</div>`)
 }
 
 func renderTextareaField(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool) {
 	val := recStr(record, f.Name)
-	if ro {
-		display := val
-		if display == "" {
-			display = "—"
-		}
-		sb.WriteString(`<div class="sum-read-field sum-read-field--row sum-read-field--full">`)
-		sb.WriteString(`<div class="sum-read-label">` + template.HTMLEscapeString(label) + `</div>`)
-		sb.WriteString(`<div class="sum-read-value sum-read-value--pre">` + template.HTMLEscapeString(display) + `</div>`)
-		sb.WriteString(`</div>`)
-		return
-	}
 	placeholder := f.Placeholder
+	roAttr := ""
+	if ro {
+		roAttr = ` readonly`
+	}
 	sb.WriteString(`<div class="sum-field-widget sum-field-widget--full">`)
 	sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
-	sb.WriteString(fmt.Sprintf(`<textarea class="sum-field-input sum-field-textarea" id="%s" name="%s" rows="4" placeholder="%s">%s</textarea>`,
+	sb.WriteString(fmt.Sprintf(`<textarea class="sum-field-input sum-field-textarea" id="%s" name="%s" rows="4" placeholder="%s"%s>%s</textarea>`,
 		template.HTMLEscapeString(f.Name), template.HTMLEscapeString(f.Name),
-		template.HTMLEscapeString(placeholder), template.HTMLEscapeString(val)))
+		template.HTMLEscapeString(placeholder), roAttr, template.HTMLEscapeString(val)))
 	sb.WriteString(`</div>`)
 }
 
@@ -299,12 +268,10 @@ func renderMany2OneField(ctx context.Context, sb *strings.Builder, f parser.Fiel
 		display = orm.DisplayNameForID(ctx, comodel, id)
 	}
 	if ro {
-		if display == "" {
-			display = "—"
-		}
-		sb.WriteString(`<div class="sum-read-field sum-read-field--row">`)
-		sb.WriteString(`<div class="sum-read-label">` + template.HTMLEscapeString(label) + `</div>`)
-		sb.WriteString(`<div class="sum-read-value">` + template.HTMLEscapeString(display) + `</div>`)
+		sb.WriteString(`<div class="sum-field-widget">`)
+		sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
+		sb.WriteString(fmt.Sprintf(`<input class="sum-field-input" id="%s" type="text" value="%s" readonly />`,
+			template.HTMLEscapeString(f.Name), template.HTMLEscapeString(display)))
 		sb.WriteString(`</div>`)
 		return
 	}
@@ -345,13 +312,7 @@ func renderMany2OneSelectField(ctx context.Context, sb *strings.Builder, f parse
 		display = orm.DisplayNameForID(ctx, comodel, id)
 	}
 	if ro {
-		if display == "" {
-			display = "—"
-		}
-		sb.WriteString(`<div class="sum-read-field sum-read-field--row">`)
-		sb.WriteString(`<div class="sum-read-label">` + template.HTMLEscapeString(label) + `</div>`)
-		sb.WriteString(`<div class="sum-read-value">` + template.HTMLEscapeString(display) + `</div>`)
-		sb.WriteString(`</div>`)
+		renderReadonlyFieldValue(sb, f, label, display)
 		return
 	}
 
@@ -409,12 +370,14 @@ func renderMany2OneSelectField(ctx context.Context, sb *strings.Builder, f parse
 	sb.WriteString(fmt.Sprintf(`<select class="sum-field-input sum-field-select" name="%s" id="%s" data-sum-m2o-select-el>`,
 		template.HTMLEscapeString(f.Name), template.HTMLEscapeString(f.Name)))
 	sb.WriteString(`<option value="">—</option>`)
+	found := false
 	for _, row := range rows {
 		rid, _ := orm.CoerceInt64(row["id"])
 		name := strings.TrimSpace(orm.AsString(row["name"]))
 		sel := ""
 		if int(rid) == id {
 			sel = " selected"
+			found = true
 		}
 		extra := ""
 		if comodel == "core.country" {
@@ -423,6 +386,9 @@ func renderMany2OneSelectField(ctx context.Context, sb *strings.Builder, f parse
 			}
 		}
 		sb.WriteString(fmt.Sprintf(`<option value="%d"%s%s>%s</option>`, rid, sel, extra, template.HTMLEscapeString(name)))
+	}
+	if id > 0 && !found && display != "" {
+		sb.WriteString(fmt.Sprintf(`<option value="%d" selected>%s</option>`, id, template.HTMLEscapeString(display)))
 	}
 	sb.WriteString(`</select></div>`)
 	_ = resModel

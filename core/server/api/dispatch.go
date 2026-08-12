@@ -30,34 +30,39 @@ type rpcRequest struct {
 	Params json.RawMessage `json:"params"`
 }
 
-// DispatchRPC executes a model method call with the same security context as the web UI (uid in ctx).
-// Supported methods: search, search_read, read, create, write, unlink.
-func DispatchRPC(ctx context.Context, body []byte) (interface{}, error) {
+// dispatchRPC executes a model method call with the same security context as the web UI (uid in ctx).
+func dispatchRPC(ctx context.Context, body []byte) (interface{}, error) {
+	if len(body) == 0 {
+		return nil, newRPCError(CodeInvalidJSON, "empty body", nil)
+	}
 	var in rpcRequest
 	if err := json.Unmarshal(body, &in); err != nil {
-		return nil, fmt.Errorf("invalid json: %w", err)
+		return nil, newRPCError(CodeInvalidJSON, fmt.Sprintf("invalid json: %v", err), nil)
 	}
 	if strings.TrimSpace(in.Model) == "" && len(in.Params) > 0 {
 		if err := json.Unmarshal(in.Params, &in); err != nil {
-			return nil, fmt.Errorf("invalid params: %w", err)
+			return nil, newRPCError(CodeInvalidJSON, fmt.Sprintf("invalid params: %v", err), nil)
 		}
+	}
+	if err := validateKwargs(in.Kwargs); err != nil {
+		return nil, err
 	}
 	model := strings.TrimSpace(in.Model)
 	method := strings.TrimSpace(in.Method)
 	if model == "" {
-		return nil, fmt.Errorf("model is required")
+		return nil, newRPCError(CodeValidationError, "model is required", map[string]interface{}{"field": "model"})
 	}
 	if method == "" {
-		return nil, fmt.Errorf("method is required")
+		return nil, newRPCError(CodeValidationError, "method is required", map[string]interface{}{"field": "method"})
 	}
 	if !PublicMethods[method] {
-		return nil, fmt.Errorf("method %q is not a public RPC method", method)
+		return nil, newRPCError(CodeMethodNotAllowed, fmt.Sprintf("method %q is not a public RPC method", method), map[string]interface{}{"method": method})
 	}
 	if _, ok := orm.Registry[model]; !ok {
-		return nil, fmt.Errorf("unknown model %q", model)
+		return nil, newRPCError(CodeModelNotFound, fmt.Sprintf("unknown model %q", model), map[string]interface{}{"model": model})
 	}
 	if orm.UIDFromContext(ctx) <= 0 {
-		return nil, fmt.Errorf("authentication required")
+		return nil, newRPCError(CodeUnauthorized, "authentication required", nil)
 	}
 
 	switch method {
@@ -74,6 +79,20 @@ func DispatchRPC(ctx context.Context, body []byte) (interface{}, error) {
 	case "unlink":
 		return rpcUnlink(ctx, model, in.Args)
 	default:
-		return nil, fmt.Errorf("unsupported method %q", method)
+		return nil, newRPCError(CodeMethodNotAllowed, fmt.Sprintf("unsupported method %q", method), map[string]interface{}{"method": method})
 	}
+}
+
+func validateKwargs(raw json.RawMessage) error {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	var probe interface{}
+	if err := json.Unmarshal(raw, &probe); err != nil {
+		return newRPCError(CodeInvalidArgs, fmt.Sprintf("kwargs: %v", err), nil)
+	}
+	if _, ok := probe.(map[string]interface{}); !ok {
+		return newRPCError(CodeInvalidArgs, "kwargs must be a JSON object", nil)
+	}
+	return nil
 }

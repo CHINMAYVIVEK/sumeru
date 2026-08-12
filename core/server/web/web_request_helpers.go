@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"sumeru/core/applog"
+	"sumeru/core/orm"
 )
 
 func WebLogf(ctx context.Context, route, format string, args ...interface{}) {
@@ -48,4 +49,18 @@ func ParsePostForm(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return true
+}
+
+// requireLoginAndPOST checks login, method, and parses the form.
+func requireLoginAndPOST(w http.ResponseWriter, r *http.Request) bool {
+	return requireLogin(w, r) && RequirePOST(w, r) && ParsePostForm(w, r)
+}
+
+func requireRegisteredModel(w http.ResponseWriter, modelName string) (orm.Model, bool) {
+	inst, ok := orm.Registry[modelName]
+	if !ok || inst == nil {
+		http.Error(w, "Unknown model", http.StatusBadRequest)
+		return nil, false
+	}
+	return inst, true
 }

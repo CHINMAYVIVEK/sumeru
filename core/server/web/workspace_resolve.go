@@ -34,8 +34,8 @@ func actionIDFromMenu(ctx context.Context, menuID int) int {
 	if err != nil {
 		return 0
 	}
-	if aID, ok := intFromDB(menuData["action_id"]); ok && aID != 0 {
-		return aID
+	if aID64, ok := orm.CoerceInt64(menuData["action_id"]); ok && aID64 != 0 {
+		return int(aID64)
 	}
 	return firstDescendantActionID(ctx, menuID)
 }

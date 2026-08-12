@@ -44,7 +44,7 @@ func effectiveGroupIDsUncached(ctx context.Context, uid int) ([]int, error) {
 		return all, rows.Err()
 	}
 	rows, err := DB.QueryContext(ctx,
-		`SELECT group_id FROM `+GetTableName("core.group.user.rel")+` WHERE user_id = $1`,
+		`SELECT group_id FROM `+GetTableName(tableGroupUserRel)+` WHERE user_id = $1`,
 		uid,
 	)
 	if err != nil {
@@ -69,7 +69,7 @@ func effectiveGroupIDsUncached(ctx context.Context, uid int) ([]int, error) {
 		out[g] = struct{}{}
 		queue = append(queue, g)
 	}
-	implTbl := GetTableName("core.group.implied")
+	implTbl := GetTableName(tableGroupImplied)
 	for len(queue) > 0 {
 		gid := queue[0]
 		queue = queue[1:]

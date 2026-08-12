@@ -85,7 +85,13 @@
                 {{if .ShellUser}}
                 <details class="sum-dropdown sum-dropdown--user">
                     <summary class="sum-dropdown-trigger sum-dropdown-trigger--user">
+                        {{if .ShellUserImage}}
+                        <span class="sum-topbar-avatar sum-topbar-avatar--photo" aria-hidden="true">
+                            <img class="sum-topbar-avatar-img" src="{{.ShellUserImage}}" alt="" />
+                        </span>
+                        {{else}}
                         <span class="sum-topbar-avatar" aria-hidden="true">{{.ShellUserInitials}}</span>
+                        {{end}}
                         <span class="sum-dropdown-user-name">{{.ShellUser}}</span>
                         <svg class="sum-dropdown-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
                     </summary>

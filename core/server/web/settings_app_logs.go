@@ -44,7 +44,9 @@ func AppLogsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	menuIDStr := ""
+	var appLogsMenuID int
 	if mid, _, err := orm.ResolveXmlId(ctxBypass, "base.menu_app_logs"); err == nil && mid > 0 {
+		appLogsMenuID = mid
 		menuIDStr = fmt.Sprintf("%d", mid)
 	}
 
@@ -62,8 +64,8 @@ func AppLogsHandler(w http.ResponseWriter, r *http.Request) {
 		ExtraStylesheetURLs: render.ExtraStylesheetURLs,
 		SettingsNavActive:   true,
 	}
-	if mid, _, err := orm.ResolveXmlId(ctxBypass, "base.menu_app_logs"); err == nil && mid > 0 {
-		page.BreadcrumbItems = render.BuildAppLogsBreadcrumbs(reqCtx, mid)
+	if appLogsMenuID > 0 {
+		page.BreadcrumbItems = render.BuildAppLogsBreadcrumbs(reqCtx, appLogsMenuID)
 	}
 
 	html, err := render.RenderPage(reqCtx, config.AppConfig.TemplatesPath, page)

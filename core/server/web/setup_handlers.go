@@ -31,8 +31,7 @@ type setupInitRequest struct {
 
 // SetupInitHandler runs database sync, installs base, bootstraps security from the JSON wizard payload, then restarts.
 func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodPost {
-		http.Error(responseWriter, "Method not allowed", http.StatusMethodNotAllowed)
+	if !RequirePOST(responseWriter, request) {
 		return
 	}
 

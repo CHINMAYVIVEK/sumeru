@@ -24,7 +24,7 @@ func ApplicableRuleDomains(ctx context.Context, uid int, model string, op string
 		return nil, err
 	}
 	ruleTbl := GetTableName("sys.rule")
-	relTbl := GetTableName("sys.rule.group.rel")
+	relTbl := GetTableName(tableRuleGroupRel)
 	q := `SELECT r.id, r.domain_force, r.active, r.` + col + ` FROM ` + ruleTbl + ` r WHERE r.model = $1 AND r.active = true AND r.` + col + ` = true`
 	rows, err := DB.QueryContext(ctx, q, model)
 	if err != nil {

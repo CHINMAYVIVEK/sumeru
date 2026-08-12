@@ -194,7 +194,7 @@ func valuesEqual(dbVal interface{}, want interface{}) bool {
 		}
 		return float64(cv) == w
 	case bool:
-		return cellTruthy(dbVal) == w
+		return AsBool(dbVal) == w
 	case string:
 		return strings.TrimSpace(AsString(dbVal)) == strings.TrimSpace(w)
 	default:
@@ -207,7 +207,8 @@ func valuesEqual(dbVal interface{}, want interface{}) bool {
 	}
 }
 
-func cellTruthy(v interface{}) bool {
+// AsBool coerces a database cell value to bool.
+func AsBool(v interface{}) bool {
 	switch t := v.(type) {
 	case bool:
 		return t

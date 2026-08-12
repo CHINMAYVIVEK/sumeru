@@ -1,46 +1,17 @@
 package applog
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
-	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 
 	"sumeru/core/server/config"
 )
 
 var root *zap.Logger
-
-func parseLogTimezone(s string) (*time.Location, string) {
-	s = strings.TrimSpace(s)
-	if s == "" || strings.EqualFold(s, "local") {
-		return time.Local, "Local"
-	}
-	if strings.EqualFold(s, "utc") {
-		return time.UTC, "UTC"
-	}
-	loc, err := time.LoadLocation(s)
-	if err != nil {
-		return time.UTC, "UTC"
-	}
-	return loc, s
-}
-
-func newJSONEncoder() zapcore.Encoder {
-	encCfg := zap.NewProductionEncoderConfig()
-	loc := effectiveLocation()
-	encCfg.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString(t.In(loc).Format(time.RFC3339Nano))
-	}
-	return zapcore.NewJSONEncoder(encCfg)
-}
 
 // SetupFromConfig builds the global Zap logger and redirects the standard library log package.
 // Call after config.LoadConfig and config.AbsPaths so log_file paths are absolute.
@@ -68,63 +39,17 @@ func SetupFromConfig(c *config.Config) error {
 	}
 	log.SetOutput(os.Stderr)
 
-	logPath := strings.TrimSpace(c.LogFile)
-	if c.LogRolling && logPath == "" {
-		return fmt.Errorf("log_rolling=true requires log_file")
-	}
-
 	level := zapcore.InfoLevel
 	if c.DevMode {
 		level = zapcore.DebugLevel
 	}
 
-	maxSize := c.LogMaxSizeMB
-	if maxSize <= 0 {
-		maxSize = 100
-	}
-	maxBackups := c.LogMaxBackups
-	if maxBackups < 0 {
-		maxBackups = 0
-	}
-	maxAge := c.LogMaxAgeDays
-	if maxAge < 0 {
-		maxAge = 0
+	sinks, err := buildCores(c, level)
+	if err != nil {
+		return err
 	}
 
-	var cores []zapcore.Core
-
-	if c.LogStdout {
-		cores = append(cores, zapcore.NewCore(newJSONEncoder(), zapcore.Lock(os.Stdout), level))
-	}
-
-	if logPath != "" {
-		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
-			return fmt.Errorf("mkdir log dir: %w", err)
-		}
-		var sync zapcore.WriteSyncer
-		if c.LogRolling {
-			sync = zapcore.AddSync(&lumberjack.Logger{
-				Filename:   logPath,
-				MaxSize:    maxSize,
-				MaxBackups: maxBackups,
-				MaxAge:     maxAge,
-				LocalTime:  true,
-			})
-		} else {
-			f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-			if err != nil {
-				return fmt.Errorf("open log file %q: %w", logPath, err)
-			}
-			sync = zapcore.AddSync(f)
-		}
-		cores = append(cores, zapcore.NewCore(newJSONEncoder(), sync, level))
-	}
-
-	if len(cores) == 0 {
-		cores = append(cores, zapcore.NewCore(newJSONEncoder(), zapcore.Lock(os.Stderr), level))
-	}
-
-	core := zapcore.NewTee(cores...)
+	core := zapcore.NewTee(sinks.cores...)
 	root = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 	zap.ReplaceGlobals(root)
 
@@ -135,10 +60,10 @@ func SetupFromConfig(c *config.Config) error {
 		"log_timezone", logTzName,
 		"log_stdout", c.LogStdout,
 		"log_rolling", c.LogRolling,
-		"log_file", logPath,
-		"log_max_size_mb", maxSize,
-		"log_max_backups", maxBackups,
-		"log_max_age_days", maxAge,
+		"log_file", sinks.logPath,
+		"log_max_size_mb", sinks.maxSize,
+		"log_max_backups", sinks.maxBackups,
+		"log_max_age_days", sinks.maxAge,
 	)
 	return nil
 }

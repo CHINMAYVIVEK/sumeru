@@ -86,7 +86,7 @@ func UninstallModuleByName(context context.Context, moduleName string) error {
 	installMu.Lock()
 	defer installMu.Unlock()
 
-	if IsPlatformModule(moduleName) {
+	if orm.IsPlatformModule(moduleName) {
 		return fmt.Errorf("cannot uninstall platform module %q", moduleName)
 	}
 	if _, ok := DiscoveredAddons[moduleName]; !ok {

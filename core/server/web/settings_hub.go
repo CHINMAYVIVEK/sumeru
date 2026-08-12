@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"sumeru/core/engine/render"
-	"sumeru/core/module"
 	"sumeru/core/orm"
 	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/server/config"
@@ -86,44 +85,19 @@ func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	raw, err := module.ListModules(ctx)
+	raw, err := loadInstalledAppTiles(ctx, "")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to list modules: %v", err), http.StatusInternalServerError)
 		return
 	}
 	var appTiles []settingsHubAppTile
-	for _, row := range raw {
-		name := stringField(row["name"])
-		if name == "" {
-			continue
-		}
-		if !boolField(row["application"]) {
-			continue
-		}
-		if stringField(row["state"]) != "installed" {
-			continue
-		}
-		if !boolField(row["active"]) {
-			continue
-		}
-		dn := stringField(row["display_name"])
-		if dn == "" {
-			dn = name
-		}
-		letter := "?"
-		if ru := []rune(strings.TrimSpace(dn)); len(ru) > 0 {
-			letter = strings.ToUpper(string(ru[0]))
-		}
-		openHref := "/web/apps"
-		if mid := rootMenuIDForModule(ctx, name); mid > 0 {
-			openHref = fmt.Sprintf("/web?menu_id=%d", mid)
-		}
+	for _, t := range raw {
 		appTiles = append(appTiles, settingsHubAppTile{
-			Name:         name,
-			DisplayName:  dn,
-			IconLetter:   letter,
-			IconHue:      iconHueFromString(name),
-			OpenMenuHref: openHref,
+			Name:         t.Name,
+			DisplayName:  t.DisplayName,
+			IconLetter:   t.IconLetter,
+			IconHue:      t.IconHue,
+			OpenMenuHref: t.OpenMenuHref,
 		})
 	}
 

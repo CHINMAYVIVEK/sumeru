@@ -1,33 +1,10 @@
 package web
 
 import (
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
 )
-
-func intFromDB(v interface{}) (int, bool) {
-	switch t := v.(type) {
-	case int64:
-		return int(t), true
-	case int32:
-		return int(t), true
-	case int:
-		return t, true
-	case float64:
-		return int(t), true
-	case string:
-		n, err := strconv.Atoi(strings.TrimSpace(t))
-		return n, err == nil
-	case []byte:
-		var n int
-		_, err := fmt.Sscanf(string(t), "%d", &n)
-		return n, err == nil
-	default:
-		return 0, false
-	}
-}
 
 func splitViewModes(viewMode string) []string {
 	var out []string
@@ -40,44 +17,17 @@ func splitViewModes(viewMode string) []string {
 }
 
 func splitComma(s string) []string {
-	var parts []string
-	for _, raw := range splitByChar(s, ',') {
-		if t := trimSpace(raw); t != "" {
-			parts = append(parts, t)
-		}
-	}
-	return parts
-}
-
-func splitByChar(s string, sep rune) []string {
-	var cur []rune
 	var out []string
-	for _, r := range s {
-		if r == sep {
-			out = append(out, string(cur))
-			cur = nil
-			continue
+	for _, p := range strings.Split(s, ",") {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
 		}
-		cur = append(cur, r)
 	}
-	out = append(out, string(cur))
 	return out
 }
 
-func trimSpace(s string) string {
-	start := 0
-	end := len(s)
-	for start < end && (s[start] == ' ' || s[start] == '\t') {
-		start++
-	}
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t') {
-		end--
-	}
-	return s[start:end]
-}
-
 func normalizeViewMode(mode string) string {
-	m := strings.ToLower(trimSpace(mode))
+	m := strings.ToLower(strings.TrimSpace(mode))
 	if m == "" {
 		return m
 	}

@@ -33,13 +33,6 @@ func resolveUID(ctx context.Context) int {
 	return fn(ctx)
 }
 
-func effectiveLocation() *time.Location {
-	if logLocation != nil {
-		return logLocation
-	}
-	return time.Local
-}
-
 // L returns a sugared logger with enforced fields: user_id, log_ts (RFC3339Nano in configured TZ), log_tz.
 // When logging is disabled or Zap is not initialized, returns a no-op sugared logger.
 func L(ctx context.Context) *zap.SugaredLogger {

@@ -83,20 +83,20 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 
 	var mods []appsModule
 	for _, row := range raw {
-		name := stringField(row["name"])
+		name := orm.AsString(row["name"])
 		if name == "" {
 			continue
 		}
-		state := stringField(row["state"])
-		active := boolField(row["active"])
-		app := boolField(row["application"])
+		state := orm.AsString(row["state"])
+		active := orm.AsBool(row["active"])
+		app := orm.AsBool(row["application"])
 
 		am := appsModule{
 			Name:          name,
-			DisplayName:   stringField(row["display_name"]),
-			Author:        stringField(row["author"]),
-			Version:       stringField(row["version"]),
-			Description:   stringField(row["description"]),
+			DisplayName:   orm.AsString(row["display_name"]),
+			Author:        orm.AsString(row["author"]),
+			Version:       orm.AsString(row["version"]),
+			Description:   orm.AsString(row["description"]),
 			State:         state,
 			Application:   app,
 			Active:        active,
@@ -109,11 +109,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		if am.DisplayName == "" {
 			am.DisplayName = am.Name
 		}
-		if r := []rune(strings.TrimSpace(am.DisplayName)); len(r) > 0 {
-			am.IconLetter = strings.ToUpper(string(r[0]))
-		} else {
-			am.IconLetter = "?"
-		}
+		am.IconLetter = iconLetterFromName(am.DisplayName)
 		mods = append(mods, am)
 	}
 

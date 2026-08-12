@@ -94,62 +94,43 @@ func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, r
 func renderTitleBody(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
 	_ = ctx
 	sb.WriteString(`<div class="sum-form-title-body sum-form-title-body--main">`)
+	roAttr := ""
 	if ro {
-		for _, h1 := range d.H1 {
-			for _, f := range h1.Field {
-				v := recStr(record, f.Name)
-				sb.WriteString(`<div class="sum-read-hero-title sum-read-hero-title--inline">` + template.HTMLEscapeString(v) + `</div>`)
-			}
-		}
-		sb.WriteString(`<div class="sum-form-contact-row">`)
-		for _, f := range d.Field {
-			v := recStr(record, f.Name)
-			lab := strings.TrimSpace(f.Label)
-			if lab == "" {
-				lab = f.Name
-			}
-			sb.WriteString(`<div class="sum-form-contact-item">`)
-			sb.WriteString(`<span class="sum-form-contact-label">` + template.HTMLEscapeString(lab) + `</span>`)
-			sb.WriteString(`<span class="sum-form-contact-value">` + template.HTMLEscapeString(v) + `</span>`)
-			sb.WriteString(`</div>`)
-		}
-		sb.WriteString(`</div>`)
-	} else {
-		for _, h1 := range d.H1 {
-			for _, f := range h1.Field {
-				ph := template.HTMLEscapeString(f.Placeholder)
-				if ph == "" {
-					ph = template.HTMLEscapeString(f.Label)
-				}
-				if ph == "" {
-					ph = "Name"
-				}
-				v := recStr(record, f.Name)
-				sb.WriteString(fmt.Sprintf(`<input class="sum-form-hero-input sum-form-hero-input--bold" placeholder="%s" name="%s" value="%s" />`,
-					ph, template.HTMLEscapeString(f.Name), template.HTMLEscapeString(v)))
-			}
-		}
-		sb.WriteString(`<div class="sum-form-contact-row">`)
-		for _, f := range d.Field {
-			v := recStr(record, f.Name)
-			ph := template.HTMLEscapeString(f.Label)
+		roAttr = ` readonly`
+	}
+	for _, h1 := range d.H1 {
+		for _, f := range h1.Field {
+			ph := template.HTMLEscapeString(f.Placeholder)
 			if ph == "" {
-				ph = template.HTMLEscapeString(f.Name)
+				ph = template.HTMLEscapeString(f.Label)
 			}
-			inputType := "text"
-			if f.Widget == "email" || strings.Contains(strings.ToLower(f.Name), "email") {
-				inputType = "email"
-			} else if f.Widget == "phone" || f.Widget == "tel" || strings.Contains(strings.ToLower(f.Name), "phone") || strings.Contains(strings.ToLower(f.Name), "mobile") {
-				inputType = "tel"
+			if ph == "" {
+				ph = "Name"
 			}
-			sb.WriteString(`<div class="sum-form-contact-item">`)
-			sb.WriteString(fmt.Sprintf(`<input class="sum-form-inline-input" type="%s" placeholder="%s" name="%s" value="%s" />`,
-				inputType, ph, template.HTMLEscapeString(f.Name), template.HTMLEscapeString(v)))
-			sb.WriteString(`</div>`)
+			v := recStr(record, f.Name)
+			sb.WriteString(fmt.Sprintf(`<input class="sum-form-hero-input sum-form-hero-input--bold" placeholder="%s" name="%s" value="%s"%s />`,
+				ph, template.HTMLEscapeString(f.Name), template.HTMLEscapeString(v), roAttr))
 		}
+	}
+	sb.WriteString(`<div class="sum-form-contact-row">`)
+	for _, f := range d.Field {
+		v := recStr(record, f.Name)
+		ph := template.HTMLEscapeString(f.Label)
+		if ph == "" {
+			ph = template.HTMLEscapeString(f.Name)
+		}
+		inputType := "text"
+		if f.Widget == "email" || strings.Contains(strings.ToLower(f.Name), "email") {
+			inputType = "email"
+		} else if f.Widget == "phone" || f.Widget == "tel" || strings.Contains(strings.ToLower(f.Name), "phone") || strings.Contains(strings.ToLower(f.Name), "mobile") {
+			inputType = "tel"
+		}
+		sb.WriteString(`<div class="sum-form-contact-item">`)
+		sb.WriteString(fmt.Sprintf(`<input class="sum-form-inline-input" type="%s" placeholder="%s" name="%s" value="%s"%s />`,
+			inputType, ph, template.HTMLEscapeString(f.Name), template.HTMLEscapeString(v), roAttr))
 		sb.WriteString(`</div>`)
 	}
-	sb.WriteString(`</div>`)
+	sb.WriteString(`</div></div>`)
 }
 
 func renderTitle(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool, resModel string) {

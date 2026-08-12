@@ -137,7 +137,87 @@ Copy **`sumeru.conf.example`** → **`sumeru.conf`**.
 | Endpoint              | Use case                                                                                                                                                                             |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **`GET /api/health`** | Liveness; `{"ok":true}` (no auth)                                                                                                                                                    |
-| **`POST /api/rpc`**   | JSON body `{"model","method","args","kwargs"}` with the session cookie. Methods: `search`, `search_read`, `read`, `create`, `write`, `unlink`. Optional Odoo-style `params` wrapper. |
+| **`POST /api/rpc`**   | Model RPC with session cookie or API key (see below)                                                                                                                                 |
+
+#### `POST /api/rpc`
+
+**Authentication:** session cookie (`sumeru_session`) from `/web/login`, or `X-API-Key: sk_…` / `Authorization: Bearer sk_…`.
+
+**Request** (`Content-Type: application/json`):
+
+Sumeru flat shape:
+
+```json
+{
+  "model": "core.user",
+  "method": "search_read",
+  "args": [[["active", "=", true]], ["id", "login"]],
+  "kwargs": { "limit": 50, "offset": 0 }
+}
+```
+
+Odoo-style wrapper (also supported):
+
+```json
+{
+  "params": {
+    "model": "core.user",
+    "method": "search",
+    "args": [[]],
+    "kwargs": {}
+  }
+}
+```
+
+**Response envelope** (always JSON; HTTP status reflects success or error class):
+
+```json
+{ "ok": true, "result": <method-specific>, "error": null }
+```
+
+```json
+{
+  "ok": false,
+  "result": null,
+  "error": {
+    "code": "ACCESS_DENIED",
+    "message": "access denied on core.user for operation read",
+    "details": {}
+  }
+}
+```
+
+Legacy clients may ignore `ok` and continue checking `error == null`.
+
+**Public methods**
+
+| Method        | `args`             | `kwargs`          | `result`                         |
+| ------------- | ------------------ | ----------------- | -------------------------------- |
+| `search`      | `[domain?]`        | `limit`, `offset` | `[{record}, …]`                  |
+| `search_read` | `[domain, fields]` | `limit`, `offset` | `[{record}, …]` (field projection) |
+| `read`        | `[ids, fields?]`   | —                 | `[{record}, …]`; missing ids → `NOT_FOUND` with `details.missing_ids` |
+| `create`      | `[values]`         | —                 | `int` (new id)                   |
+| `write`       | `[ids, values]`    | —                 | `true`                           |
+| `unlink`      | `[ids]`            | —                 | `true`                           |
+
+Default `kwargs.limit` is **500**. `offset` skips rows after the ORM fetch (in-memory slice).
+
+**Error codes** (representative HTTP status)
+
+| `error.code`             | HTTP | Typical cause                          |
+| ------------------------ | ---- | -------------------------------------- |
+| `INVALID_JSON`           | 400  | Malformed JSON, empty body             |
+| `INVALID_ARGS`           | 400  | Bad `args`/`kwargs` shape or arity     |
+| `VALIDATION_ERROR`       | 400  | Missing `model` or `method`            |
+| `INVALID_BODY`           | 400  | Request body could not be read         |
+| `UNSUPPORTED_MEDIA_TYPE` | 415  | `Content-Type` is not JSON             |
+| `PAYLOAD_TOO_LARGE`      | 413  | Body exceeds 4 MiB                     |
+| `UNAUTHORIZED`           | 401  | No session or API key                  |
+| `METHOD_NOT_ALLOWED`     | 403/405 | Unknown RPC method / wrong HTTP verb |
+| `MODEL_NOT_FOUND`        | 404  | Model not in registry                  |
+| `NOT_FOUND`              | 404  | Record id(s) not found on `read`       |
+| `ACCESS_DENIED`          | 403  | ORM security rule                      |
+| `INTERNAL_ERROR`         | 500  | Unexpected server failure              |
 
 ---
 
