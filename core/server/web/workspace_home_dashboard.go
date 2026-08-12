@@ -17,7 +17,6 @@ import (
 	"sumeru/core/server/config"
 )
 
-// dashAppTile is one installed application module on the Home dashboard.
 type dashAppTile struct {
 	Name         string
 	DisplayName  string

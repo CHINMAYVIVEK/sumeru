@@ -76,7 +76,6 @@ func AppLogsHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(html))
 }
 
-// ModuleEvent is one row for the app logs table template.
 type ModuleEvent struct {
 	CreatedAt string
 	Module    string

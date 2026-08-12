@@ -7,8 +7,6 @@ import (
 	"sumeru/core/orm"
 )
 
-// RecordDeleteHandler handles DELETE /web/record/save (via POST with _method=DELETE or similar, but we'll just use POST with ?id=...)
-// Actually, let's just make it a dedicated route /web/record/delete
 func RecordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
@@ -36,7 +34,6 @@ func RecordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Redirect back to list view
 	actionID := r.URL.Query().Get("action")
 	menuID := r.URL.Query().Get("menu_id")
 	redirectURL := fmt.Sprintf("/web?action=%s&menu_id=%s", actionID, menuID)
