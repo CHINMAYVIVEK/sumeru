@@ -61,8 +61,6 @@ func renderButtonBox(sb *strings.Builder, d parser.Div) {
 	sb.WriteString(`<div class="sum-form-toolbar-spacer" aria-hidden="true"></div>`)
 }
 
-// renderTitleAvatar renders only the compact profile/logo avatar for the split left rail.
-// Upload controls are shown only when the model defines an "image" field.
 func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool, resModel string) {
 	_ = ctx
 	_ = d
@@ -93,7 +91,6 @@ func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, r
 	sb.WriteString(`</div>`)
 }
 
-// renderTitleBody renders bold name + contact fields for the main column header.
 func renderTitleBody(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
 	_ = ctx
 	sb.WriteString(`<div class="sum-form-title-body sum-form-title-body--main">`)
@@ -155,7 +152,6 @@ func renderTitleBody(ctx context.Context, sb *strings.Builder, d parser.Div, rec
 	sb.WriteString(`</div>`)
 }
 
-// renderTitle keeps a combined title row for non-split layouts.
 func renderTitle(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool, resModel string) {
 	sb.WriteString(`<div class="sum-form-title-row sum-form-title-row--sheet">`)
 	renderTitleAvatar(ctx, sb, d, record, ro, resModel)

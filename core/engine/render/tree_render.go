@@ -11,7 +11,6 @@ import (
 	"sumeru/core/orm"
 )
 
-// RenderTree renders list/tree HTML for workspace views.
 func RenderTree(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string) string {
 	if rows == nil {
 		rows = []map[string]interface{}{}

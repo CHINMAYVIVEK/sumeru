@@ -10,7 +10,6 @@ import (
 	"sumeru/core/orm"
 )
 
-// BreadcrumbItem is one segment in the shell breadcrumb trail.
 type BreadcrumbItem struct {
 	Label string
 	Href  string // empty = current page (no link)

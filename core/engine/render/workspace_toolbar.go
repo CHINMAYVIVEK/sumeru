@@ -9,7 +9,6 @@ import (
 	"sumeru/core/orm"
 )
 
-// ViewSwitchTab is one entry in the workspace view switcher (list / kanban / form).
 type ViewSwitchTab struct {
 	Label  string
 	Href   string

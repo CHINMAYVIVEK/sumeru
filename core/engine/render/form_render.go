@@ -7,7 +7,6 @@ import (
 	"sumeru/core/engine/parser"
 )
 
-// RenderForm renders a parsed form view into HTML (sheet, header, fields, notebooks).
 func RenderForm(ctx context.Context, view *parser.View, vr *ViewRecordData) string {
 	if vr == nil {
 		vr = &ViewRecordData{}

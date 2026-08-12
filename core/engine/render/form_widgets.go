@@ -188,7 +188,6 @@ func imageSrcOK(src string) bool {
 	return src != "" && (strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "data:"))
 }
 
-// renderImageField renders widget="image" with upload controls (data-URL via JS).
 func renderImageField(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool) {
 	src := strings.TrimSpace(recStr(record, f.Name))
 	if ro {
@@ -245,9 +244,6 @@ func fieldDef(modelName, fieldName string) *orm.FieldDefinition {
 
 func renderTypedInput(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool, inputType string) {
 	placeholder := f.Placeholder
-	if placeholder == "" {
-		placeholder = "Enter " + strings.ToLower(label) + "..."
-	}
 	val := recStr(record, f.Name)
 	if ro {
 		display := val
@@ -283,9 +279,6 @@ func renderTextareaField(sb *strings.Builder, f parser.Field, label string, reco
 		return
 	}
 	placeholder := f.Placeholder
-	if placeholder == "" {
-		placeholder = "Enter " + strings.ToLower(label) + "..."
-	}
 	sb.WriteString(`<div class="sum-field-widget sum-field-widget--full">`)
 	sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
 	sb.WriteString(fmt.Sprintf(`<textarea class="sum-field-input sum-field-textarea" id="%s" name="%s" rows="4" placeholder="%s">%s</textarea>`,
@@ -329,7 +322,6 @@ func renderMany2OneField(ctx context.Context, sb *strings.Builder, f parser.Fiel
 	sb.WriteString(`</div>`)
 }
 
-// cascadeParentForField returns the parent field name used to filter dropdown options.
 func cascadeParentForField(fieldName string) (parent string, fallback string) {
 	switch fieldName {
 	case "state_id":

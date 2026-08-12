@@ -7,8 +7,7 @@ import (
 	"sumeru/core/engine/parser"
 )
 
-// RenderPivot renders a placeholder for pivot views.
-// WIP: full pivot analytics rendering is not implemented.
+// TODO: pivot view
 func RenderPivot(_ context.Context, _ *parser.View) string {
 	var sb strings.Builder
 	sb.WriteString(`<div class="sum-pivot-placeholder">`)

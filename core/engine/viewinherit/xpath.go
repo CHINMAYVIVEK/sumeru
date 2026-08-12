@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// xpathOp is one xpath directive from an inherit arch fragment.
 type xpathOp struct {
 	Expr     string
 	Position string

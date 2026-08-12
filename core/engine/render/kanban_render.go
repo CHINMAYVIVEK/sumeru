@@ -50,7 +50,6 @@ func formatKanbanFieldValue(ctx context.Context, model, name string, row map[str
 	}
 }
 
-// RenderKanban renders a simple kanban board for workspace views.
 func RenderKanban(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string) string {
 	if rows == nil {
 		rows = []map[string]interface{}{}

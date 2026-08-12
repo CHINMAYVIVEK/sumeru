@@ -24,12 +24,6 @@ func sanitizeMenuIcon(s string) string {
 	return ""
 }
 
-// LoadShellMenus loads sys.menu rows for installed modules and derives top bar + sidebar structure.
-// Top bar: one entry per installed application module (sys.module.application = true), ordered by each
-// root menuitem's sequence (then name), like Sumeru XML. A root named "Settings" is omitted here because
-// base.html always renders a pinned link to /web/settings (second-to-last); Apps is always last.
-// Sidebar: menus under the active app root (may span modules, e.g. Settings).
-// shellModuleTitle is the active root menu label for breadcrumbs (works even when that root is not in TopMenus).
 func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser.MenuItem, sidebarMenus []SidebarMenu, activeModuleID, shellModuleTitle string) {
 	shellModuleTitle = AppDisplayName
 	modTbl := orm.GetTableName("sys.module")

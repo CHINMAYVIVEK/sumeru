@@ -32,7 +32,6 @@ func RegisterNotebookHook(model, pageTitle string, hook UIHook) {
 	NotebookHooks[model][strings.ToLower(pageTitle)] = hook
 }
 
-// ShellCompanyOption is one row in the shell company switcher.
 type ShellCompanyOption struct {
 	ID   int
 	Name string
@@ -91,7 +90,6 @@ type PageData struct {
 	ActivityChatterHTML     template.HTML
 }
 
-// ActivityItem is one line in the shell activity feed.
 type ActivityItem struct {
 	Meta string // author · relative time
 	Body string
