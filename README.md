@@ -2,6 +2,18 @@
 
 [![Go](https://img.shields.io/badge/Go-1.26.2+-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Pre-Alpha](https://img.shields.io/badge/Status-Pre--Alpha-critical?style=for-the-badge)](https://github.com/ProjectMeru/sumeru)
+
+> [!CAUTION]
+> ### 🚧 Pre-Alpha Software
+>
+> Sumeru is **pre-alpha software**. It is under active development and is **not ready for production or commercial use**.
+>
+> - **No production use.** Do not deploy to production or run live business workloads. Stability, security, and data integrity are not guaranteed.
+> - **Not for sale.** Do not offer, resell, license, or deploy Sumeru to customers. This is not a commercial product.
+> - **Evaluation only.** Use for local development, testing, and feedback at your own risk.
+>
+> APIs, data models, and behavior may change without notice. There is no migration guarantee and no production support.
 
 **Sumeru** is an experimental ERP-style web application written in **Go**. It provides a PostgreSQL-backed ORM, installable **addons** (module XML under `<sumeru>` + manifests), model sync on startup, and a web UI (XML views, plain CSS, shell with sidebar and activity panel).
 
@@ -29,19 +41,19 @@ sumeru_custom_addons  ──replace + make generate──►  sumeru (core)
                 └── also loads  sumeru_addons (standard business apps)
 ```
 
-| Repository | Role | Remote |
-| ---------- | ---- | ------ |
-| **`sumeru`** | Core engine + kernel addons (`base`, `mail`, `sumeru_ai`, …). Pull-only for most teams. | `git@github.com:ProjectMeru/sumeru.git` |
-| **`sumeru_addons`** | Standard business apps (CRM, Sales, Inventory, …). Pull-only. | `git@github.com:ProjectMeru/sumeru_addons.git` |
-| **`sumeru_custom_addons`** | Your workspace: custom addons, local INI, generated imports, and the process you run. | `git@github.com:ProjectMeru/sumeru_custom_addons.git` |
+| Repository                 | Role                                                                                    | Remote                                                |
+| -------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **`sumeru`**               | Core engine + kernel addons (`base`, `mail`, `sumeru_ai`, …). Pull-only for most teams. | `git@github.com:ProjectMeru/sumeru.git`               |
+| **`sumeru_addons`**        | Standard business apps (CRM, Sales, Inventory, …). Pull-only.                           | `git@github.com:ProjectMeru/sumeru_addons.git`        |
+| **`sumeru_custom_addons`** | Your workspace: custom addons, local INI, generated imports, and the process you run.   | `git@github.com:ProjectMeru/sumeru_custom_addons.git` |
 
 **Entry binary (this repo):** `cmd/sumeru/main.go` → `sumeru/core/server` (`server.Run`). Library code under `core/` has no `main`.
 
 ## Prerequisites
 
-| Requirement | Notes |
-| ----------- | ----- |
-| [Go](https://go.dev/dl/) **1.26.2+** | See `go.mod` |
+| Requirement                               | Notes                |
+| ----------------------------------------- | -------------------- |
+| [Go](https://go.dev/dl/) **1.26.2+**      | See `go.mod`         |
 | [PostgreSQL](https://www.postgresql.org/) | Application database |
 
 ## Quick start (recommended)
@@ -103,29 +115,29 @@ INI format: `key = value` under **`[options]`**. Lines starting with `#` or `;` 
 
 Copy **`sumeru.conf.example`** → **`sumeru.conf`**.
 
-| Key | Use case |
-| --- | -------- |
-| `db_host`, `db_port` | PostgreSQL host and port |
-| `db_user`, `db_password` | Database credentials |
-| `db_name` | Database name (overridable with **`-d`** / **`--database`**) |
-| `db_sslmode` | PostgreSQL SSL mode (e.g. `disable` for local dev) |
-| `http_port` | HTTP listen port (default **8080**; overridable with **`-p`** / **`--http-port`**) |
-| `addons_path` | Comma-separated addon roots. Later roots **override** duplicate module names. Relative segments resolve from the INI directory. |
-| `sumeru_home` | Optional path to the standard **`sumeru`** checkout; default assets/templates when those keys are omitted |
-| `assets_path`, `templates_path` | Static files and HTML templates (defaults under `core/engine/…`) |
-| `logo_path` | Optional image; served at **`/static/app-logo`** |
-| `company_display_name`, `user_display_name` | Optional header labels |
-| `brand_css` | Optional extra CSS; linked as **`/static/brand.css`** |
-| `dev_mode` | Default **false**. When **true**, debug-level logs and dev-only behavior |
+| Key                                         | Use case                                                                                                                        |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `db_host`, `db_port`                        | PostgreSQL host and port                                                                                                        |
+| `db_user`, `db_password`                    | Database credentials                                                                                                            |
+| `db_name`                                   | Database name (overridable with **`-d`** / **`--database`**)                                                                    |
+| `db_sslmode`                                | PostgreSQL SSL mode (e.g. `disable` for local dev)                                                                              |
+| `http_port`                                 | HTTP listen port (default **8080**; overridable with **`-p`** / **`--http-port`**)                                              |
+| `addons_path`                               | Comma-separated addon roots. Later roots **override** duplicate module names. Relative segments resolve from the INI directory. |
+| `sumeru_home`                               | Optional path to the standard **`sumeru`** checkout; default assets/templates when those keys are omitted                       |
+| `assets_path`, `templates_path`             | Static files and HTML templates (defaults under `core/engine/…`)                                                                |
+| `logo_path`                                 | Optional image; served at **`/static/app-logo`**                                                                                |
+| `company_display_name`, `user_display_name` | Optional header labels                                                                                                          |
+| `brand_css`                                 | Optional extra CSS; linked as **`/static/brand.css`**                                                                           |
+| `dev_mode`                                  | Default **false**. When **true**, debug-level logs and dev-only behavior                                                        |
 
 **Logging:** `log_enabled`, `log_timezone`, `log_stdout`, `log_file`, `log_rolling`, and related rotation keys are documented in **`sumeru.conf.example`**.
 
 ### HTTP API
 
-| Endpoint | Use case |
-| -------- | -------- |
-| **`GET /api/health`** | Liveness; `{"ok":true}` (no auth) |
-| **`POST /api/rpc`** | JSON body `{"model","method","args","kwargs"}` with the session cookie. Methods: `search`, `search_read`, `read`, `create`, `write`, `unlink`. Optional Odoo-style `params` wrapper. |
+| Endpoint              | Use case                                                                                                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`GET /api/health`** | Liveness; `{"ok":true}` (no auth)                                                                                                                                                    |
+| **`POST /api/rpc`**   | JSON body `{"model","method","args","kwargs"}` with the session cookie. Methods: `search`, `search_read`, `read`, `create`, `write`, `unlink`. Optional Odoo-style `params` wrapper. |
 
 ---
 
@@ -133,14 +145,14 @@ Copy **`sumeru.conf.example`** → **`sumeru.conf`**.
 
 All entrypoints (`go run ./cmd/sumeru --`, `./sumeru.sh`, `./sumeru`, and the custom-workspace `go run . --`) accept:
 
-| Flag | Use case |
-| ---- | -------- |
-| `-c <file>` | INI config path |
-| `-d <name>` / `--database <name>` | Override `db_name` (`--database` wins if both set) |
-| `-p <port>` / `--http-port <port>` | Override `http_port` (`-p` wins if both set) |
-| `-i mod1,mod2` | **Install** listed modules |
-| `-u mod1,mod2` or `-u all` | **Update** from disk; `all` = every installed module |
-| `--stop-after-init` | After `-i` / `-u`, exit without starting HTTP |
+| Flag                               | Use case                                             |
+| ---------------------------------- | ---------------------------------------------------- |
+| `-c <file>`                        | INI config path                                      |
+| `-d <name>` / `--database <name>`  | Override `db_name` (`--database` wins if both set)   |
+| `-p <port>` / `--http-port <port>` | Override `http_port` (`-p` wins if both set)         |
+| `-i mod1,mod2`                     | **Install** listed modules                           |
+| `-u mod1,mod2` or `-u all`         | **Update** from disk; `all` = every installed module |
+| `--stop-after-init`                | After `-i` / `-u`, exit without starting HTTP        |
 
 Examples:
 
@@ -157,47 +169,47 @@ Use **`-u`** after changing `views/*.xml`, `menus.xml`, or `manifest.json` data 
 
 ## Makefile (this repo)
 
-| Target | Use case |
-| ------ | -------- |
-| `make generate` | `go generate ./cmd/sumeru` — refresh `cmd/sumeru/zimports.go` from `sumeru.conf.example` |
-| `make run` | Generate, then `go run ./cmd/sumeru -- -c sumeru.conf` (optional `EXTRA_RUN_FLAGS`) |
-| `make build` | Generate, then `go build -o sumeru ./cmd/sumeru` |
-| `make bp NAME=my_module` | Scaffold a core-tree addon (`WITH_MODELS=1` optional) |
-| `make css` | Reminder: plain CSS under `core/engine/assets/css/` (no Sass build) |
-| `make help` | List targets |
+| Target                   | Use case                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------- |
+| `make generate`          | `go generate ./cmd/sumeru`: refresh `cmd/sumeru/zimports.go` from `sumeru.conf.example` |
+| `make run`               | Generate, then `go run ./cmd/sumeru -- -c sumeru.conf` (optional `EXTRA_RUN_FLAGS`)      |
+| `make build`             | Generate, then `go build -o sumeru ./cmd/sumeru`                                         |
+| `make bp NAME=my_module` | Scaffold a core-tree addon (`WITH_MODELS=1` optional)                                    |
+| `make css`               | Reminder: plain CSS under `core/engine/assets/css/` (no Sass build)                      |
+| `make help`              | List targets                                                                             |
 
 In **`sumeru_custom_addons`**, use that repo’s Makefile (`make generate`, `make run`, `make replace-sumeru`, …) so imports are written under `addonimports/`, not into this tree.
 
 **`sumeru-import-gen`** (used by `go generate` / workspace `make generate`):
 
-| Flag | Default | Use case |
-| ---- | ------- | -------- |
-| `-root` | cwd walk-up | Standard `sumeru` repo root |
-| `-config` | `sumeru.conf.example` (via `go generate` in `cmd/sumeru`) | INI path |
-| `-out` | `cmd/sumeru/zimports.go` | Output file (absolute path when writing under custom workspace) |
-| `-package` | `main` | e.g. `addonimports` for the workspace |
+| Flag       | Default                                                   | Use case                                                        |
+| ---------- | --------------------------------------------------------- | --------------------------------------------------------------- |
+| `-root`    | cwd walk-up                                               | Standard `sumeru` repo root                                     |
+| `-config`  | `sumeru.conf.example` (via `go generate` in `cmd/sumeru`) | INI path                                                        |
+| `-out`     | `cmd/sumeru/zimports.go`                                  | Output file (absolute path when writing under custom workspace) |
+| `-package` | `main`                                                    | e.g. `addonimports` for the workspace                           |
 
 ---
 
 ## Project layout
 
-| Path | Use case |
-| ---- | -------- |
-| `core/orm/` | PostgreSQL-backed models, CRUD, registry |
-| `core/engine/` | Module XML, view inherit, HTML render, `templates/`, `assets/` |
-| `core/server/` | INI config, `run.go`, HTTP web handlers |
-| `core/module/` | Addon discovery, install/update, XML sync |
-| `core/sdk/` | **Stable Go API** for addons |
-| `core/server/router/` | Addon-extensible HTTP route registry |
-| `core/module/addon_template/` | Authoring reference for new addons |
-| `cmd/sumeru/` | Server `main` + generated `zimports.go` |
-| `cmd/sumeru-import-gen/` | Blank-import generator |
-| `cmd/sumeru-bp/` | Addon scaffold tool |
-| `addons/` | Kernel apps shipped with this repo |
-| `test/` | Unit and smoke tests (`go test ./...`) |
-| `sumeru.conf.example` | Tracked template + import-gen input |
-| `sumeru.sh` | Bash wrapper forwarding CLI flags |
-| `Makefile` | `generate`, `run`, `build`, `bp`, `help` |
+| Path                          | Use case                                                       |
+| ----------------------------- | -------------------------------------------------------------- |
+| `core/orm/`                   | PostgreSQL-backed models, CRUD, registry                       |
+| `core/engine/`                | Module XML, view inherit, HTML render, `templates/`, `assets/` |
+| `core/server/`                | INI config, `run.go`, HTTP web handlers                        |
+| `core/module/`                | Addon discovery, install/update, XML sync                      |
+| `core/sdk/`                   | **Stable Go API** for addons                                   |
+| `core/server/router/`         | Addon-extensible HTTP route registry                           |
+| `core/module/addon_template/` | Authoring reference for new addons                             |
+| `cmd/sumeru/`                 | Server `main` + generated `zimports.go`                        |
+| `cmd/sumeru-import-gen/`      | Blank-import generator                                         |
+| `cmd/sumeru-bp/`              | Addon scaffold tool                                            |
+| `addons/`                     | Kernel apps shipped with this repo                             |
+| `test/`                       | Unit and smoke tests (`go test ./...`)                         |
+| `sumeru.conf.example`         | Tracked template + import-gen input                            |
+| `sumeru.sh`                   | Bash wrapper forwarding CLI flags                              |
+| `Makefile`                    | `generate`, `run`, `build`, `bp`, `help`                       |
 
 ---
 
@@ -207,21 +219,21 @@ Styles are **plain CSS** under `core/engine/assets/css/` (layout uses `sum-*` cl
 
 **Canonical reference:** keep the global CSS file table below only in this README. Other docs should link here instead of duplicating the list.
 
-| File | Responsibility |
-| ---- | -------------- |
-| `sumeru-theme.css` | Branding tokens (`:root` colors, typography, radii, shadows) |
-| `sumeru-base.css` | Document defaults, scrollbars, `.sr-only`, etc. |
-| `sumeru-shell.css` | Top bar, sidebar, workspace grid, activity dock chrome |
-| `sumeru-messages.css` | Activity panel Messages tab |
-| `sumeru-views.css` | Form sheets, list tables, notebooks, field chrome |
-| `sumeru-compat.css` | Legacy `.field` blocks for login/setup templates |
-| `sumeru-ai.css` | Optional AI shell widget (`sumeru_ai`) |
-| `sumeru-login.css` | Standalone login card |
-| `sumeru-pages.css` | Standalone pages (e.g. app logs) |
-| `sumeru-apps.css` | `/web/apps` catalog (per-page) |
-| `sumeru-home.css` | `/web/home` (per-page) |
-| `sumeru-settings-hub.css` | `/web/settings` (per-page) |
-| `sumeru-workspace.css` | `/web` workspace extras |
+| File                      | Responsibility                                               |
+| ------------------------- | ------------------------------------------------------------ |
+| `sumeru-theme.css`        | Branding tokens (`:root` colors, typography, radii, shadows) |
+| `sumeru-base.css`         | Document defaults, scrollbars, `.sr-only`, etc.              |
+| `sumeru-shell.css`        | Top bar, sidebar, workspace grid, activity dock chrome       |
+| `sumeru-messages.css`     | Activity panel Messages tab                                  |
+| `sumeru-views.css`        | Form sheets, list tables, notebooks, field chrome            |
+| `sumeru-compat.css`       | Legacy `.field` blocks for login/setup templates             |
+| `sumeru-ai.css`           | Optional AI shell widget (`sumeru_ai`)                       |
+| `sumeru-login.css`        | Standalone login card                                        |
+| `sumeru-pages.css`        | Standalone pages (e.g. app logs)                             |
+| `sumeru-apps.css`         | `/web/apps` catalog (per-page)                               |
+| `sumeru-home.css`         | `/web/home` (per-page)                                       |
+| `sumeru-settings-hub.css` | `/web/settings` (per-page)                                   |
+| `sumeru-workspace.css`    | `/web` workspace extras                                      |
 
 Per-addon optional `static/css/theme-overrides.css` is served as `/static/addon-css/<module>.css`. Optional `brand_css` loads after those. Workspace HTML lives under `core/engine/render/`; templates under `core/engine/templates/`; client entry `core/engine/assets/js/core.js`.
 
@@ -229,12 +241,12 @@ Per-addon optional `static/css/theme-overrides.css` is served as `/static/addon-
 
 ## Documentation
 
-| Resource | Contents |
-| -------- | -------- |
-| This README | Setup, config, CLI, Makefile, CSS |
-| [`sumeru_addons/README.md`](https://github.com/ProjectMeru/sumeru_addons/blob/main/README.md) | Standard business addon module |
-| [`sumeru_custom_addons/README.md`](https://github.com/ProjectMeru/sumeru_custom_addons/blob/main/README.md) | Workspace runner, `make generate`, custom addons |
-| Sibling `docs/` (local workspace) | Developer guides and how-tos when checked out next to this repo (e.g. `../docs/developer/`) — not shipped inside this git tree |
+| Resource                                                                                                    | Contents                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| This README                                                                                                 | Setup, config, CLI, Makefile, CSS                                                                                              |
+| [`sumeru_addons/README.md`](https://github.com/ProjectMeru/sumeru_addons/blob/main/README.md)               | Standard business addon module                                                                                                 |
+| [`sumeru_custom_addons/README.md`](https://github.com/ProjectMeru/sumeru_custom_addons/blob/main/README.md) | Workspace runner, `make generate`, custom addons                                                                               |
+| Sibling `docs/` (local workspace)                                                                           | Developer guides and how-tos when checked out next to this repo (e.g. `../docs/developer/`). Not shipped inside this git tree |
 
 ---
 
@@ -246,7 +258,7 @@ Please follow the **[Code of Conduct](CODE_OF_CONDUCT.md)**.
 
 ## Security
 
-Report vulnerabilities privately — see **[SECURITY.md](SECURITY.md)**. Do not open public issues for undisclosed security problems.
+Report vulnerabilities privately. See **[SECURITY.md](SECURITY.md)**. Do not open public issues for undisclosed security problems.
 
 ## License
 
