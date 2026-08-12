@@ -38,6 +38,10 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 			renderOne2ManyField(ctx, sb, f, label, record, ro, resModel, fd.Relation, vr)
 			return
 		case orm.Text:
+			if f.Widget == "image" || f.Name == "image" {
+				renderImageField(sb, f, label, record, ro)
+				return
+			}
 			renderTextareaField(sb, f, label, record, ro)
 			return
 		case orm.Selection:
@@ -45,64 +49,20 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 				renderModelSelectionSelect(sb, f, label, record, ro, fd.Selection)
 				return
 			}
+		case orm.Boolean:
+			renderBooleanSelect(sb, f, label, record, ro)
+			return
 		}
 	}
 
-	raw, hasRaw := rawField(record, f.Name)
-	isBoolish := f.Widget == "boolean" || strings.HasSuffix(f.Name, "_active")
+	isBoolish := f.Widget == "boolean" || f.Widget == "boolean_toggle" || strings.HasSuffix(f.Name, "_active")
 	if isBoolish {
-		checked := ""
-		if hasRaw && isTruthyDB(raw) {
-			checked = ` checked`
-		}
-		dis := ""
-		if ro {
-			dis = ` disabled`
-		}
-		if ro {
-			val := "No"
-			if hasRaw && isTruthyDB(raw) {
-				val = "Yes"
-			}
-			sb.WriteString(`<div class="sum-read-field sum-read-field--row">`)
-			sb.WriteString(`<div class="sum-read-label">` + template.HTMLEscapeString(label) + `</div>`)
-			sb.WriteString(`<div class="sum-read-value sum-read-value--bool">` + template.HTMLEscapeString(val) + `</div>`)
-			sb.WriteString(`</div>`)
-			return
-		}
-		sb.WriteString(`<div class="sum-field-widget">`)
-		sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
-		sb.WriteString(fmt.Sprintf(`<input class="sum-field-checkbox" id="%s" name="%s" type="checkbox"%s%s />`,
-			template.HTMLEscapeString(f.Name), template.HTMLEscapeString(f.Name), checked, dis))
-		sb.WriteString(`</div>`)
+		renderBooleanSelect(sb, f, label, record, ro)
 		return
 	}
 
 	if f.Widget == "image" {
-		src := recStr(record, f.Name)
-		if ro {
-			sb.WriteString(`<div class="sum-read-field sum-read-field--row">`)
-			sb.WriteString(`<div class="sum-read-label">` + template.HTMLEscapeString(label) + `</div>`)
-			sb.WriteString(`<div class="sum-read-value">`)
-			if src != "" && (strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "data:")) {
-				sb.WriteString(fmt.Sprintf(`<img src="%s" alt="" class="sum-read-image" />`, template.HTMLEscapeString(src)))
-			} else {
-				sb.WriteString(`<span class="sum-read-empty">—</span>`)
-			}
-			sb.WriteString(`</div></div>`)
-			return
-		}
-		sb.WriteString(`<div class="sum-field-widget">`)
-		if src != "" && (strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "data:")) {
-			sb.WriteString(`<div class="sum-image-thumb">`)
-			sb.WriteString(fmt.Sprintf(`<img src="%s" alt="" class="sum-image-thumb-img" />`, template.HTMLEscapeString(src)))
-			sb.WriteString(`</div>`)
-		} else {
-			sb.WriteString(`<div class="sum-image-placeholder">`)
-			sb.WriteString(`<svg class="sum-image-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>`)
-			sb.WriteString(`</div>`)
-		}
-		sb.WriteString(`</div>`)
+		renderImageField(sb, f, label, record, ro)
 		return
 	}
 	if f.Widget == "many2many_tags" {
@@ -168,6 +128,76 @@ func renderModelSelectionSelect(sb *strings.Builder, f parser.Field, label strin
 			writeOption(sb, o[0], o[1], o[0] == cur, false)
 		}
 	})
+}
+
+// renderBooleanSelect renders Boolean fields as a Yes/No (or Active/Inactive) dropdown.
+func renderBooleanSelect(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool) {
+	raw, hasRaw := rawField(record, f.Name)
+	truthy := hasRaw && isTruthyDB(raw)
+	// New records with no value: honor common DefaultVal-like UX for active-style fields.
+	if !hasRaw && f.Name == "active" {
+		truthy = true
+	}
+
+	trueLabel, falseLabel := "Yes", "No"
+	if f.Name == "active" {
+		trueLabel, falseLabel = "Active", "Inactive"
+	}
+
+	renderSelectShell(sb, f, label, ro, false, func() {
+		if ro {
+			if truthy {
+				sb.WriteString(template.HTMLEscapeString(trueLabel))
+			} else {
+				sb.WriteString(template.HTMLEscapeString(falseLabel))
+			}
+			return
+		}
+		writeOption(sb, "true", trueLabel, truthy, false)
+		writeOption(sb, "false", falseLabel, !truthy, false)
+	})
+}
+
+func imageSrcOK(src string) bool {
+	return src != "" && (strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "data:"))
+}
+
+// renderImageField renders widget="image" with upload controls (data-URL via JS).
+func renderImageField(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool) {
+	src := strings.TrimSpace(recStr(record, f.Name))
+	if ro {
+		sb.WriteString(`<div class="sum-read-field sum-read-field--row">`)
+		sb.WriteString(`<div class="sum-read-label">` + template.HTMLEscapeString(label) + `</div>`)
+		sb.WriteString(`<div class="sum-read-value">`)
+		if imageSrcOK(src) {
+			sb.WriteString(fmt.Sprintf(`<img src="%s" alt="" class="sum-read-image" />`, template.HTMLEscapeString(src)))
+		} else {
+			sb.WriteString(`<span class="sum-read-empty">—</span>`)
+		}
+		sb.WriteString(`</div></div>`)
+		return
+	}
+	sb.WriteString(`<div class="sum-field-widget" data-sum-image>`)
+	sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
+	if imageSrcOK(src) {
+		sb.WriteString(`<div class="sum-image-thumb">`)
+		sb.WriteString(fmt.Sprintf(`<img src="%s" alt="" class="sum-image-thumb-img" data-sum-image-preview />`, template.HTMLEscapeString(src)))
+		sb.WriteString(`</div>`)
+	} else {
+		sb.WriteString(`<div class="sum-image-placeholder" data-sum-image-placeholder>`)
+		sb.WriteString(`<svg class="sum-image-placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>`)
+		sb.WriteString(`</div>`)
+		sb.WriteString(`<div class="sum-image-thumb" hidden>`)
+		sb.WriteString(`<img src="" alt="" class="sum-image-thumb-img" data-sum-image-preview hidden />`)
+		sb.WriteString(`</div>`)
+	}
+	sb.WriteString(fmt.Sprintf(`<input type="hidden" id="%s" name="%s" value="%s" data-sum-image-value />`,
+		template.HTMLEscapeString(f.Name), template.HTMLEscapeString(f.Name), template.HTMLEscapeString(src)))
+	sb.WriteString(`<label class="sum-form-avatar-upload sum-image-upload">`)
+	sb.WriteString(`<input type="file" accept="image/*" data-sum-image-file />`)
+	sb.WriteString(`<span>Change</span>`)
+	sb.WriteString(`</label>`)
+	sb.WriteString(`</div>`)
 }
 
 func fieldDef(modelName, fieldName string) *orm.FieldDefinition {
