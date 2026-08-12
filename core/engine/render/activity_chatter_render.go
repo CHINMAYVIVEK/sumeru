@@ -12,7 +12,6 @@ import (
 	"sumeru/addons/mail"
 )
 
-// writeActivityChatterPanel renders thread + composer for the right activity panel (comments only).
 func writeActivityChatterPanel(ctx context.Context, sb *strings.Builder, c *parser.Chatter, vr *ViewRecordData, viewModel string) {
 	_ = c
 	if !mail.CompanyChatterEnabled(ctx) || vr == nil || vr.RecordID <= 0 {
