@@ -37,12 +37,20 @@ func renderSheet(ctx context.Context, sb *strings.Builder, s *parser.Sheet, reco
 	if hasSumTitle && titleDiv != nil {
 		sb.WriteString(`<div class="sum-form-split-layout sum-form-split-layout--compact" data-sum-form-split>`)
 		sb.WriteString(`<aside class="sum-form-split-left sum-form-split-left--avatar" aria-label="Profile picture">`)
-		renderTitleAvatar(ctx, sb, *titleDiv, record, ro)
+		resModel := ""
+		if vr != nil {
+			resModel = strings.TrimSpace(vr.ResModel)
+		}
+		renderTitleAvatar(ctx, sb, *titleDiv, record, ro, resModel)
 		sb.WriteString(`</aside>`)
 		sb.WriteString(`<div class="sum-form-split-main">`)
 		renderTitleBody(ctx, sb, *titleDiv, record, ro)
 	} else if titleDiv != nil {
-		renderTitle(ctx, sb, *titleDiv, record, ro)
+		resModel := ""
+		if vr != nil {
+			resModel = strings.TrimSpace(vr.ResModel)
+		}
+		renderTitle(ctx, sb, *titleDiv, record, ro, resModel)
 	}
 
 	if ro {

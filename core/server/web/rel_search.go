@@ -10,6 +10,7 @@ import (
 )
 
 // RelSearchHandler GET /web/rel/search?model=core.partner&q=acme
+// Optional: filter_field=country_id&filter_id=12 for cascade dropdowns.
 func RelSearchHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
@@ -22,7 +23,14 @@ func RelSearchHandler(w http.ResponseWriter, r *http.Request) {
 			limit = n
 		}
 	}
-	rows, err := orm.RelNameSearch(r.Context(), model, q, limit)
+	filterField := strings.TrimSpace(r.URL.Query().Get("filter_field"))
+	var filterID int64
+	if s := strings.TrimSpace(r.URL.Query().Get("filter_id")); s != "" {
+		if n, err := strconv.ParseInt(s, 10, 64); err == nil {
+			filterID = n
+		}
+	}
+	rows, err := orm.RelNameSearchFiltered(r.Context(), model, q, limit, filterField, filterID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

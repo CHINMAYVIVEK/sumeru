@@ -328,7 +328,7 @@ func ensureBootstrapACLs(ctx context.Context, adminGID, userGID int) {
 		}
 	}
 
-	globalReads := []string{"sys.model_data", "sys.menu", "sys.action.window", "sys.view", "sys.module", "sys.module.category"}
+	globalReads := []string{"sys.model_data", "sys.menu", "sys.action.window", "sys.view", "sys.module", "sys.module.category", "core.country", "core.country.state", "core.city"}
 	for _, m := range globalReads {
 		accName := fmt.Sprintf("access_%s_global_read", strings.ReplaceAll(m, ".", "_"))
 		_, _ = Upsert(ctx, SysAccess{}, map[string]interface{}{

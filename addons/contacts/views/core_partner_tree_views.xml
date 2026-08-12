@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <view id="view_core_partner_tree" model="core.partner" type="tree">
+            <field name="name" string="Name"/>
+            <field name="email" string="Email"/>
+            <field name="phone" string="Phone"/>
+            <field name="city_id" string="City"/>
+            <field name="country_id" string="Country"/>
+            <field name="is_company" string="Company" widget="boolean_toggle"/>
+        </view>
+    </data>
+</sumeru>

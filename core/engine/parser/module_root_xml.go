@@ -29,6 +29,7 @@ type Action struct {
 	Model    string     `xml:"model,attr"`
 	Name     string     `xml:"name,attr"`
 	ViewMode string     `xml:"view_mode,attr"`
+	Domain   string     `xml:"domain,attr"`
 	Help     actionHelp `xml:"help"`
 }
 
@@ -38,6 +39,9 @@ func (a Action) ToRecord() Record {
 		{Name: "name", Body: a.Name},
 		{Name: "core_model", Body: a.Model},
 		{Name: "view_mode", Body: a.ViewMode},
+	}
+	if d := strings.TrimSpace(a.Domain); d != "" {
+		fields = append(fields, RecordField{Name: "domain", Body: d})
 	}
 	if help := strings.TrimSpace(a.Help.Body); help != "" {
 		fields = append(fields, RecordField{Name: "help", Type: "html", Body: help})

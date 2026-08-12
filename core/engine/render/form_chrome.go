@@ -56,12 +56,14 @@ func renderButtonBox(sb *strings.Builder, d parser.Div) {
 }
 
 // renderTitleAvatar renders only the compact profile/logo avatar for the split left rail.
-func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
+// Upload controls are shown only when the model defines an "image" field.
+func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool, resModel string) {
 	_ = ctx
 	_ = d
 	img := strings.TrimSpace(recStr(record, "image"))
 	name := strings.TrimSpace(recStr(record, "name"))
 	initials := UserInitialsFromName(name)
+	canUpload := fieldDef(resModel, "image") != nil
 
 	hasImg := img != "" && (strings.HasPrefix(img, "http://") || strings.HasPrefix(img, "https://") || strings.HasPrefix(img, "data:"))
 
@@ -75,7 +77,7 @@ func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, r
 		sb.WriteString(`<img class="sum-form-avatar-img" data-sum-avatar-preview alt="" hidden />`)
 	}
 	sb.WriteString(`</div>`)
-	if !ro {
+	if !ro && canUpload {
 		sb.WriteString(fmt.Sprintf(`<input type="hidden" name="image" value="%s" data-sum-avatar-value />`, template.HTMLEscapeString(img)))
 		sb.WriteString(`<label class="sum-form-avatar-upload">`)
 		sb.WriteString(`<input type="file" accept="image/*" data-sum-avatar-file />`)
@@ -148,9 +150,9 @@ func renderTitleBody(ctx context.Context, sb *strings.Builder, d parser.Div, rec
 }
 
 // renderTitle keeps a combined title row for non-split layouts.
-func renderTitle(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
+func renderTitle(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool, resModel string) {
 	sb.WriteString(`<div class="sum-form-title-row sum-form-title-row--sheet">`)
-	renderTitleAvatar(ctx, sb, d, record, ro)
+	renderTitleAvatar(ctx, sb, d, record, ro, resModel)
 	renderTitleBody(ctx, sb, d, record, ro)
 	sb.WriteString(`</div>`)
 }

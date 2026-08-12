@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <!-- Countries -->
+        <record id="country_in" model="core.country"><field name="name">India</field><field name="code">IN</field><field name="phone_code">91</field><field name="active">True</field></record>
+        <record id="country_us" model="core.country"><field name="name">United States</field><field name="code">US</field><field name="phone_code">1</field><field name="active">True</field></record>
+        <record id="country_gb" model="core.country"><field name="name">United Kingdom</field><field name="code">GB</field><field name="phone_code">44</field><field name="active">True</field></record>
+        <record id="country_ae" model="core.country"><field name="name">United Arab Emirates</field><field name="code">AE</field><field name="phone_code">971</field><field name="active">True</field></record>
+        <record id="country_sg" model="core.country"><field name="name">Singapore</field><field name="code">SG</field><field name="phone_code">65</field><field name="active">True</field></record>
+        <record id="country_au" model="core.country"><field name="name">Australia</field><field name="code">AU</field><field name="phone_code">61</field><field name="active">True</field></record>
+        <record id="country_ca" model="core.country"><field name="name">Canada</field><field name="code">CA</field><field name="phone_code">1</field><field name="active">True</field></record>
+        <record id="country_de" model="core.country"><field name="name">Germany</field><field name="code">DE</field><field name="phone_code">49</field><field name="active">True</field></record>
+        <record id="country_fr" model="core.country"><field name="name">France</field><field name="code">FR</field><field name="phone_code">33</field><field name="active">True</field></record>
+        <record id="country_jp" model="core.country"><field name="name">Japan</field><field name="code">JP</field><field name="phone_code">81</field><field name="active">True</field></record>
+        <record id="country_cn" model="core.country"><field name="name">China</field><field name="code">CN</field><field name="phone_code">86</field><field name="active">True</field></record>
+        <record id="country_br" model="core.country"><field name="name">Brazil</field><field name="code">BR</field><field name="phone_code">55</field><field name="active">True</field></record>
+        <record id="country_za" model="core.country"><field name="name">South Africa</field><field name="code">ZA</field><field name="phone_code">27</field><field name="active">True</field></record>
+        <record id="country_nz" model="core.country"><field name="name">New Zealand</field><field name="code">NZ</field><field name="phone_code">64</field><field name="active">True</field></record>
+        <record id="country_nl" model="core.country"><field name="name">Netherlands</field><field name="code">NL</field><field name="phone_code">31</field><field name="active">True</field></record>
+        <record id="country_se" model="core.country"><field name="name">Sweden</field><field name="code">SE</field><field name="phone_code">46</field><field name="active">True</field></record>
+        <record id="country_ch" model="core.country"><field name="name">Switzerland</field><field name="code">CH</field><field name="phone_code">41</field><field name="active">True</field></record>
+        <record id="country_sa" model="core.country"><field name="name">Saudi Arabia</field><field name="code">SA</field><field name="phone_code">966</field><field name="active">True</field></record>
+        <record id="country_kr" model="core.country"><field name="name">South Korea</field><field name="code">KR</field><field name="phone_code">82</field><field name="active">True</field></record>
+        <record id="country_ie" model="core.country"><field name="name">Ireland</field><field name="code">IE</field><field name="phone_code">353</field><field name="active">True</field></record>
+
+        <!-- India states / UTs -->
+        <record id="state_in_an" model="core.country.state"><field name="name">Andaman and Nicobar Islands</field><field name="code">AN</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_ap" model="core.country.state"><field name="name">Andhra Pradesh</field><field name="code">AP</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_ar" model="core.country.state"><field name="name">Arunachal Pradesh</field><field name="code">AR</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_as" model="core.country.state"><field name="name">Assam</field><field name="code">AS</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_br" model="core.country.state"><field name="name">Bihar</field><field name="code">BR</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_ch" model="core.country.state"><field name="name">Chandigarh</field><field name="code">CH</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_ct" model="core.country.state"><field name="name">Chhattisgarh</field><field name="code">CT</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_dh" model="core.country.state"><field name="name">Dadra and Nagar Haveli and Daman and Diu</field><field name="code">DH</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_dl" model="core.country.state"><field name="name">Delhi</field><field name="code">DL</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_ga" model="core.country.state"><field name="name">Goa</field><field name="code">GA</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_gj" model="core.country.state"><field name="name">Gujarat</field><field name="code">GJ</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_hr" model="core.country.state"><field name="name">Haryana</field><field name="code">HR</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_hp" model="core.country.state"><field name="name">Himachal Pradesh</field><field name="code">HP</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_jk" model="core.country.state"><field name="name">Jammu and Kashmir</field><field name="code">JK</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_jh" model="core.country.state"><field name="name">Jharkhand</field><field name="code">JH</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_ka" model="core.country.state"><field name="name">Karnataka</field><field name="code">KA</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_kl" model="core.country.state"><field name="name">Kerala</field><field name="code">KL</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_la" model="core.country.state"><field name="name">Ladakh</field><field name="code">LA</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_ld" model="core.country.state"><field name="name">Lakshadweep</field><field name="code">LD</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_mp" model="core.country.state"><field name="name">Madhya Pradesh</field><field name="code">MP</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_mh" model="core.country.state"><field name="name">Maharashtra</field><field name="code">MH</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_mn" model="core.country.state"><field name="name">Manipur</field><field name="code">MN</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_ml" model="core.country.state"><field name="name">Meghalaya</field><field name="code">ML</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_mz" model="core.country.state"><field name="name">Mizoram</field><field name="code">MZ</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_nl" model="core.country.state"><field name="name">Nagaland</field><field name="code">NL</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_or" model="core.country.state"><field name="name">Odisha</field><field name="code">OR</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_py" model="core.country.state"><field name="name">Puducherry</field><field name="code">PY</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_pb" model="core.country.state"><field name="name">Punjab</field><field name="code">PB</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_rj" model="core.country.state"><field name="name">Rajasthan</field><field name="code">RJ</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_sk" model="core.country.state"><field name="name">Sikkim</field><field name="code">SK</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_tn" model="core.country.state"><field name="name">Tamil Nadu</field><field name="code">TN</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_tg" model="core.country.state"><field name="name">Telangana</field><field name="code">TG</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_tr" model="core.country.state"><field name="name">Tripura</field><field name="code">TR</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_up" model="core.country.state"><field name="name">Uttar Pradesh</field><field name="code">UP</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_ut" model="core.country.state"><field name="name">Uttarakhand</field><field name="code">UT</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="state_in_wb" model="core.country.state"><field name="name">West Bengal</field><field name="code">WB</field><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+
+        <!-- US sample states -->
+        <record id="state_us_ca" model="core.country.state"><field name="name">California</field><field name="code">CA</field><field name="country_id" ref="base.country_us"/><field name="active">True</field></record>
+        <record id="state_us_ny" model="core.country.state"><field name="name">New York</field><field name="code">NY</field><field name="country_id" ref="base.country_us"/><field name="active">True</field></record>
+        <record id="state_us_tx" model="core.country.state"><field name="name">Texas</field><field name="code">TX</field><field name="country_id" ref="base.country_us"/><field name="active">True</field></record>
+        <record id="state_us_wa" model="core.country.state"><field name="name">Washington</field><field name="code">WA</field><field name="country_id" ref="base.country_us"/><field name="active">True</field></record>
+        <record id="state_us_il" model="core.country.state"><field name="name">Illinois</field><field name="code">IL</field><field name="country_id" ref="base.country_us"/><field name="active">True</field></record>
+
+        <!-- Sample cities -->
+        <record id="city_in_mumbai" model="core.city"><field name="name">Mumbai</field><field name="state_id" ref="base.state_in_mh"/><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="city_in_pune" model="core.city"><field name="name">Pune</field><field name="state_id" ref="base.state_in_mh"/><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="city_in_delhi" model="core.city"><field name="name">New Delhi</field><field name="state_id" ref="base.state_in_dl"/><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="city_in_bengaluru" model="core.city"><field name="name">Bengaluru</field><field name="state_id" ref="base.state_in_ka"/><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="city_in_chennai" model="core.city"><field name="name">Chennai</field><field name="state_id" ref="base.state_in_tn"/><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="city_in_hyderabad" model="core.city"><field name="name">Hyderabad</field><field name="state_id" ref="base.state_in_tg"/><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="city_in_kolkata" model="core.city"><field name="name">Kolkata</field><field name="state_id" ref="base.state_in_wb"/><field name="country_id" ref="base.country_in"/><field name="active">True</field></record>
+        <record id="city_us_nyc" model="core.city"><field name="name">New York City</field><field name="state_id" ref="base.state_us_ny"/><field name="country_id" ref="base.country_us"/><field name="active">True</field></record>
+        <record id="city_us_sf" model="core.city"><field name="name">San Francisco</field><field name="state_id" ref="base.state_us_ca"/><field name="country_id" ref="base.country_us"/><field name="active">True</field></record>
+        <record id="city_us_la" model="core.city"><field name="name">Los Angeles</field><field name="state_id" ref="base.state_us_ca"/><field name="country_id" ref="base.country_us"/><field name="active">True</field></record>
+        <record id="city_us_chicago" model="core.city"><field name="name">Chicago</field><field name="state_id" ref="base.state_us_il"/><field name="country_id" ref="base.country_us"/><field name="active">True</field></record>
+        <record id="city_gb_london" model="core.city"><field name="name">London</field><field name="country_id" ref="base.country_gb"/><field name="active">True</field></record>
+        <record id="city_ae_dubai" model="core.city"><field name="name">Dubai</field><field name="country_id" ref="base.country_ae"/><field name="active">True</field></record>
+        <record id="city_sg_singapore" model="core.city"><field name="name">Singapore</field><field name="country_id" ref="base.country_sg"/><field name="active">True</field></record>
+    </data>
+</sumeru>
