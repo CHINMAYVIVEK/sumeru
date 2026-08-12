@@ -1,5 +1,5 @@
 /**
- * Profile avatar file → resized data-URL into hidden image field + live preview.
+ * Profile avatar / image widget file → resized data-URL into hidden field + live preview.
  */
 const AVATAR_MAX_EDGE = 512;
 const AVATAR_MIME = "image/jpeg";
@@ -57,7 +57,7 @@ async function resizeToDataURL(file) {
   }
 }
 
-export function initAvatarUpload() {
+function bindAvatarRoots() {
   document.querySelectorAll("[data-sum-avatar]").forEach((root) => {
     const file = root.querySelector("[data-sum-avatar-file]");
     const hidden = root.querySelector("[data-sum-avatar-value]");
@@ -77,4 +77,44 @@ export function initAvatarUpload() {
       }
     });
   });
+}
+
+function bindImageWidgetRoots() {
+  document.querySelectorAll("[data-sum-image]").forEach((root) => {
+    const file = root.querySelector("[data-sum-image-file]");
+    const hidden = root.querySelector("[data-sum-image-value]");
+    const preview = root.querySelector("[data-sum-image-preview]");
+    const placeholder = root.querySelector("[data-sum-image-placeholder]");
+    const thumb = preview && preview.closest(".sum-image-thumb");
+    if (!file || !hidden) return;
+
+    file.addEventListener("change", async () => {
+      const f = file.files && file.files[0];
+      if (!f || !f.type.startsWith("image/")) return;
+      try {
+        const url = await resizeToDataURL(f);
+        hidden.value = url;
+        if (preview) {
+          preview.src = url;
+          preview.removeAttribute("hidden");
+          preview.hidden = false;
+        }
+        if (thumb) {
+          thumb.hidden = false;
+          thumb.removeAttribute("hidden");
+        }
+        if (placeholder) {
+          placeholder.hidden = true;
+          placeholder.setAttribute("hidden", "");
+        }
+      } catch (err) {
+        console.warn("image upload failed", err);
+      }
+    });
+  });
+}
+
+export function initAvatarUpload() {
+  bindAvatarRoots();
+  bindImageWidgetRoots();
 }
