@@ -23,6 +23,8 @@ type View struct {
 	Chatter       *Chatter `xml:"chatter"`
 	Field         []Field  `xml:"field"`
 	Group         []Group  `xml:"group"`
+	// Form is an Odoo-style nested <form> under <view>; promoted onto View then cleared.
+	Form *archFormRoot `xml:"form"`
 }
 
 type Header struct {
@@ -166,6 +168,9 @@ func ParseViewList(filePath string) (*ViewList, error) {
 		return nil, err
 	}
 	viewList.MergeViewListData()
+	for i := range viewList.Views {
+		promoteNestedForm(&viewList.Views[i])
+	}
 	return &viewList, nil
 }
 
