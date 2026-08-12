@@ -9,18 +9,24 @@ import (
 	"sumeru/core/engine/parser"
 )
 
-func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, record map[string]interface{}) {
+func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, record map[string]interface{}, vr *ViewRecordData) {
 	_ = ctx
 	sb.WriteString(`<div class="sum-form-statusbar">`)
 
 	if len(h.Button) > 0 {
 		sb.WriteString(`<div class="sum-statusbar-buttons">`)
-		for _, b := range h.Button {
-			class := "sum-header-btn sum-header-btn--secondary sum-header-btn--disabled"
-			if b.Class == "sum_highlight" {
-				class = "sum-header-btn sum-header-btn--primary sum-header-btn--disabled"
+		model := ""
+		id := 0
+		next := ""
+		if vr != nil {
+			model = strings.TrimSpace(vr.ResModel)
+			id = vr.RecordID
+			if q := strings.TrimSpace(vr.FormBaseQuery); q != "" {
+				next = "/web?" + q
 			}
-			sb.WriteString(fmt.Sprintf(`<button type="button" disabled class="%s" title="Not available yet">%s</button>`, class, template.HTMLEscapeString(b.String)))
+		}
+		for _, b := range h.Button {
+			writeObjectActionButton(sb, b, model, id, next, false)
 		}
 		sb.WriteString(`</div>`)
 	}
@@ -55,8 +61,6 @@ func renderButtonBox(sb *strings.Builder, d parser.Div) {
 	sb.WriteString(`<div class="sum-form-toolbar-spacer" aria-hidden="true"></div>`)
 }
 
-// renderTitleAvatar renders only the compact profile/logo avatar for the split left rail.
-// Upload controls are shown only when the model defines an "image" field.
 func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool, resModel string) {
 	_ = ctx
 	_ = d
@@ -87,7 +91,6 @@ func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, r
 	sb.WriteString(`</div>`)
 }
 
-// renderTitleBody renders bold name + contact fields for the main column header.
 func renderTitleBody(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool) {
 	_ = ctx
 	sb.WriteString(`<div class="sum-form-title-body sum-form-title-body--main">`)
@@ -149,30 +152,32 @@ func renderTitleBody(ctx context.Context, sb *strings.Builder, d parser.Div, rec
 	sb.WriteString(`</div>`)
 }
 
-// renderTitle keeps a combined title row for non-split layouts.
 func renderTitle(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool, resModel string) {
 	sb.WriteString(`<div class="sum-form-title-row sum-form-title-row--sheet">`)
-	renderTitleAvatar(ctx, sb, d, record, ro, resModel)
+	if fieldDef(resModel, "image") != nil {
+		renderTitleAvatar(ctx, sb, d, record, ro, resModel)
+	}
 	renderTitleBody(ctx, sb, d, record, ro)
 	sb.WriteString(`</div>`)
 }
 
-func renderFormFooter(sb *strings.Builder, ft *parser.Footer) {
+func renderFormFooter(sb *strings.Builder, ft *parser.Footer, vr *ViewRecordData) {
 	if ft == nil || len(ft.Button) == 0 {
 		return
 	}
+	model := ""
+	id := 0
+	next := ""
+	if vr != nil {
+		model = strings.TrimSpace(vr.ResModel)
+		id = vr.RecordID
+		if q := strings.TrimSpace(vr.FormBaseQuery); q != "" {
+			next = "/web?" + q
+		}
+	}
 	sb.WriteString(`<div class="sum-form-footer" role="group" aria-label="Form actions">`)
 	for _, b := range ft.Button {
-		btnClass := "sum-form-footer-btn"
-		if strings.Contains(b.Class, "sum_highlight") || strings.Contains(b.Class, "btn-primary") {
-			btnClass += " sum-form-footer-btn--primary"
-		}
-		label := template.HTMLEscapeString(b.String)
-		if label == "" {
-			label = template.HTMLEscapeString(b.Name)
-		}
-		sb.WriteString(fmt.Sprintf(`<button type="button" disabled name="%s" class="%s" aria-disabled="true">%s</button>`,
-			template.HTMLEscapeString(b.Name), btnClass, label))
+		writeObjectActionButton(sb, b, model, id, next, true)
 	}
 	sb.WriteString(`</div>`)
 }

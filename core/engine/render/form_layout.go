@@ -34,22 +34,26 @@ func renderSheet(ctx context.Context, sb *strings.Builder, s *parser.Sheet, reco
 		}
 	}
 
+	resModel := ""
+	if vr != nil {
+		resModel = strings.TrimSpace(vr.ResModel)
+	}
+	showAvatar := fieldDef(resModel, "image") != nil
+	usedSplit := false
+
 	if hasSumTitle && titleDiv != nil {
-		sb.WriteString(`<div class="sum-form-split-layout sum-form-split-layout--compact" data-sum-form-split>`)
-		sb.WriteString(`<aside class="sum-form-split-left sum-form-split-left--avatar" aria-label="Profile picture">`)
-		resModel := ""
-		if vr != nil {
-			resModel = strings.TrimSpace(vr.ResModel)
+		if showAvatar {
+			usedSplit = true
+			sb.WriteString(`<div class="sum-form-split-layout sum-form-split-layout--compact" data-sum-form-split>`)
+			sb.WriteString(`<aside class="sum-form-split-left sum-form-split-left--avatar" aria-label="Profile picture">`)
+			renderTitleAvatar(ctx, sb, *titleDiv, record, ro, resModel)
+			sb.WriteString(`</aside>`)
+			sb.WriteString(`<div class="sum-form-split-main">`)
+			renderTitleBody(ctx, sb, *titleDiv, record, ro)
+		} else {
+			renderTitleBody(ctx, sb, *titleDiv, record, ro)
 		}
-		renderTitleAvatar(ctx, sb, *titleDiv, record, ro, resModel)
-		sb.WriteString(`</aside>`)
-		sb.WriteString(`<div class="sum-form-split-main">`)
-		renderTitleBody(ctx, sb, *titleDiv, record, ro)
 	} else if titleDiv != nil {
-		resModel := ""
-		if vr != nil {
-			resModel = strings.TrimSpace(vr.ResModel)
-		}
 		renderTitle(ctx, sb, *titleDiv, record, ro, resModel)
 	}
 
@@ -76,7 +80,7 @@ func renderSheet(ctx context.Context, sb *strings.Builder, s *parser.Sheet, reco
 		renderNotebook(ctx, sb, nb, record, ro, vr)
 	}
 
-	if hasSumTitle {
+	if usedSplit {
 		sb.WriteString(`</div></div>`)
 	}
 

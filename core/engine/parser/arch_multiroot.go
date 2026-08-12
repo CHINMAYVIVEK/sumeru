@@ -30,7 +30,7 @@ type archKanbanRoot struct {
 	Field   []Field  `xml:"field"`
 }
 
-// promoteNestedForm lifts children of an Odoo-style nested <form> onto View so
+// promoteNestedForm lifts children of a nested <form> under <view> onto View so
 // sheet/header/fields are not lost when XML is <view><form><sheet>…</sheet></form></view>.
 func promoteNestedForm(v *View) {
 	if v == nil || !formArchHasContent(v.Form) {

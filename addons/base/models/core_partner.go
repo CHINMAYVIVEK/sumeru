@@ -25,6 +25,8 @@ func (p Partner) Fields() []sdk.FieldDefinition {
 		{Name: "comment", Type: sdk.Text, String: "Notes"},
 		{Name: "is_company", Type: sdk.Boolean, String: "Is a Company"},
 		{Name: "active", Type: sdk.Boolean, String: "Active", DefaultVal: true},
+		{Name: "property_account_receivable_id", Type: sdk.Many2One, Relation: "account.account", String: "Receivable Account"},
+		{Name: "property_account_payable_id", Type: sdk.Many2One, Relation: "account.account", String: "Payable Account"},
 	}
 }
 

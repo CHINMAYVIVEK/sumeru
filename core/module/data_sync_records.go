@@ -56,22 +56,38 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 	switch xmlRecord.Model {
 	case "core.user":
 		conflictColumn = "login"
-	case "core.country", "core.lang":
+	case "core.country", "core.lang", "account.account":
 		conflictColumn = "code"
-	case "core.country.state", "core.city":
+	case "core.country.state", "core.city", "account.tax", "account.payment.term",
+		"account.move", "account.move.line", "core.partner", "account.journal":
 		conflictColumn = ""
 	}
 
-	// States/cities: match existing row by name + country (and state for cities) so -u
-	// after deleteModuleMetadata does not insert duplicates.
-	if xmlRecord.Model == "core.country.state" || xmlRecord.Model == "core.city" {
-		criteria := map[string]interface{}{"name": fieldValues["name"]}
-		if cid, ok := fieldValues["country_id"]; ok && cid != nil {
-			criteria["country_id"] = cid
-		}
-		if xmlRecord.Model == "core.city" {
-			if sid, ok := fieldValues["state_id"]; ok && sid != nil {
-				criteria["state_id"] = sid
+	// Match existing by natural keys when Upsert cannot use a UNIQUE column.
+	if xmlRecord.Model == "core.country.state" || xmlRecord.Model == "core.city" ||
+		xmlRecord.Model == "account.tax" || xmlRecord.Model == "account.payment.term" ||
+		xmlRecord.Model == "account.move" || xmlRecord.Model == "core.partner" ||
+		xmlRecord.Model == "account.journal" || xmlRecord.Model == "account.move.line" {
+		criteria := map[string]interface{}{}
+		switch xmlRecord.Model {
+		case "core.country.state", "core.city":
+			criteria["name"] = fieldValues["name"]
+			if cid, ok := fieldValues["country_id"]; ok && cid != nil {
+				criteria["country_id"] = cid
+			}
+			if xmlRecord.Model == "core.city" {
+				if sid, ok := fieldValues["state_id"]; ok && sid != nil {
+					criteria["state_id"] = sid
+				}
+			}
+		case "account.tax", "account.payment.term", "core.partner", "account.move":
+			criteria["name"] = fieldValues["name"]
+		case "account.journal":
+			criteria["code"] = fieldValues["code"]
+		case "account.move.line":
+			criteria["name"] = fieldValues["name"]
+			if mid, ok := fieldValues["move_id"]; ok && mid != nil {
+				criteria["move_id"] = mid
 			}
 		}
 		if existing, err := orm.SearchOne(ctx, xmlRecord.Model, criteria); err == nil {
@@ -163,6 +179,13 @@ func ConvertRecordScalar(ctx context.Context, moduleName, model, column, rawValu
 			return boolValue
 		}
 		return strings.EqualFold(trimmedValue, "true") || trimmedValue == "1"
+	}
+	// Numeric / integer literals from eval="…"
+	if n, err := strconv.ParseInt(trimmedValue, 10, 64); err == nil && !strings.Contains(trimmedValue, ".") {
+		return n
+	}
+	if f, err := strconv.ParseFloat(trimmedValue, 64); err == nil {
+		return f
 	}
 	return trimmedValue
 }

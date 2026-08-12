@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// SysAttachment stores file metadata (content as base64/text or path).
 type SysAttachment struct {
 	sdk.BaseModel
 	Name       string `db:"name"`

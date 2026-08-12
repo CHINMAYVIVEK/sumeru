@@ -23,7 +23,7 @@ type View struct {
 	Chatter       *Chatter `xml:"chatter"`
 	Field         []Field  `xml:"field"`
 	Group         []Group  `xml:"group"`
-	// Form is an Odoo-style nested <form> under <view>; promoted onto View then cleared.
+	// Form is a nested <form> under <view>; promoted onto View then cleared.
 	Form *archFormRoot `xml:"form"`
 }
 

@@ -16,7 +16,7 @@ func init() {
 	event.Subscribe("cron.tick", runServerActionsForEvent)
 }
 
-// WIP: server-action code execution is not implemented; matching rows are logged only.
+// TODO: run server actions (log matches for now)
 func runServerActionsForEvent(ctx context.Context, ev event.Event) error {
 	if orm.DB == nil {
 		return nil

@@ -56,9 +56,6 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 				renderModelSelectionSelect(sb, f, label, record, ro, fd.Selection)
 				return
 			}
-		case orm.Boolean:
-			renderBooleanSelect(sb, f, label, record, ro)
-			return
 		}
 	}
 
@@ -134,9 +131,13 @@ func renderBooleanField(sb *strings.Builder, f parser.Field, label string, recor
 }
 
 func renderBooleanSelect(sb *strings.Builder, f parser.Field, label string, truthy bool) {
+	trueLabel, falseLabel := "Yes", "No"
+	if f.Name == "active" {
+		trueLabel, falseLabel = "Active", "Inactive"
+	}
 	renderSelectShell(sb, f, label, false, false, func() {
-		writeOption(sb, "true", "Yes", truthy, false)
-		writeOption(sb, "false", "No", !truthy, false)
+		writeOption(sb, "true", trueLabel, truthy, false)
+		writeOption(sb, "false", falseLabel, !truthy, false)
 	})
 }
 
@@ -183,39 +184,10 @@ func renderModelSelectionSelect(sb *strings.Builder, f parser.Field, label strin
 	})
 }
 
-// renderBooleanSelect renders Boolean fields as a Yes/No (or Active/Inactive) dropdown.
-func renderBooleanSelect(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool) {
-	raw, hasRaw := rawField(record, f.Name)
-	truthy := hasRaw && isTruthyDB(raw)
-	// New records with no value: honor common DefaultVal-like UX for active-style fields.
-	if !hasRaw && f.Name == "active" {
-		truthy = true
-	}
-
-	trueLabel, falseLabel := "Yes", "No"
-	if f.Name == "active" {
-		trueLabel, falseLabel = "Active", "Inactive"
-	}
-
-	renderSelectShell(sb, f, label, ro, false, func() {
-		if ro {
-			if truthy {
-				sb.WriteString(template.HTMLEscapeString(trueLabel))
-			} else {
-				sb.WriteString(template.HTMLEscapeString(falseLabel))
-			}
-			return
-		}
-		writeOption(sb, "true", trueLabel, truthy, false)
-		writeOption(sb, "false", falseLabel, !truthy, false)
-	})
-}
-
 func imageSrcOK(src string) bool {
 	return src != "" && (strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "data:"))
 }
 
-// renderImageField renders widget="image" with upload controls (data-URL via JS).
 func renderImageField(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool) {
 	src := strings.TrimSpace(recStr(record, f.Name))
 	if ro {
@@ -272,9 +244,6 @@ func fieldDef(modelName, fieldName string) *orm.FieldDefinition {
 
 func renderTypedInput(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool, inputType string) {
 	placeholder := f.Placeholder
-	if placeholder == "" {
-		placeholder = "Enter " + strings.ToLower(label) + "..."
-	}
 	val := recStr(record, f.Name)
 	if ro {
 		display := val
@@ -310,9 +279,6 @@ func renderTextareaField(sb *strings.Builder, f parser.Field, label string, reco
 		return
 	}
 	placeholder := f.Placeholder
-	if placeholder == "" {
-		placeholder = "Enter " + strings.ToLower(label) + "..."
-	}
 	sb.WriteString(`<div class="sum-field-widget sum-field-widget--full">`)
 	sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
 	sb.WriteString(fmt.Sprintf(`<textarea class="sum-field-input sum-field-textarea" id="%s" name="%s" rows="4" placeholder="%s">%s</textarea>`,
@@ -356,7 +322,6 @@ func renderMany2OneField(ctx context.Context, sb *strings.Builder, f parser.Fiel
 	sb.WriteString(`</div>`)
 }
 
-// cascadeParentForField returns the parent field name used to filter dropdown options.
 func cascadeParentForField(fieldName string) (parent string, fallback string) {
 	switch fieldName {
 	case "state_id":

@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// CoreUserLog records successful (and optionally failed) logins.
 type CoreUserLog struct {
 	sdk.BaseModel
 	UserID     int    `db:"user_id"`

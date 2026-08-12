@@ -16,7 +16,6 @@ import (
 	"sumeru/core/server/config"
 )
 
-// settingsHubLink is one entry under a settings section.
 type settingsHubLink struct {
 	Name string
 	Href string

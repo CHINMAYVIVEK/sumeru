@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// SysConfigParameter is a key/value system setting.
 type SysConfigParameter struct {
 	sdk.BaseModel
 	Key   string `db:"key"`

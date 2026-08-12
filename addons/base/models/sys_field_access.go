@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// SysFieldAccess is optional field-level security (read/write per group).
 type SysFieldAccess struct {
 	sdk.BaseModel
 	Name      string `db:"name"`

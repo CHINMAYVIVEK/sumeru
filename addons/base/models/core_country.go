@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// CoreCountry is a geographic country with calling code.
 type CoreCountry struct {
 	sdk.BaseModel
 }

@@ -18,7 +18,6 @@ const (
 	SubtypeModule       = "module"
 )
 
-// Row is one persisted message (subset of columns used by UI and hooks).
 type Row struct {
 	Body       string
 	Subtype    string

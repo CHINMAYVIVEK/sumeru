@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// CoreCountryState is a state/province/region within a country.
 type CoreCountryState struct {
 	sdk.BaseModel
 }

@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/assets"
 	"sumeru/core/engine/render"
 	"sumeru/core/orm"
+	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/server/config"
 
 	"golang.org/x/crypto/bcrypt"
@@ -165,8 +165,7 @@ func LogoutGet(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/web/login", http.StatusFound)
 }
 
-// ActionResetPassword is a stub for the "Send reset instructions" button on the user form.
-// WIP: email delivery is not yet wired; this handler logs the attempt and redirects.
+// TODO: send reset email
 func ActionResetPassword(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
@@ -180,7 +179,6 @@ func ActionResetPassword(w http.ResponseWriter, r *http.Request) {
 	userID := strings.TrimSpace(r.PostFormValue("id"))
 	login := strings.TrimSpace(r.PostFormValue("login"))
 	WebLogf(r.Context(), "/web/action/reset_password", "requested for user id=%s login=%q (email not yet wired)", userID, login)
-	// Redirect back with a flash-style query param so the UI can surface it.
 	next := SafeWebNext(r.PostFormValue("next"), "/web/home")
 	http.Redirect(w, r, next+"&msg=reset_requested", http.StatusSeeOther)
 }

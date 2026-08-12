@@ -16,7 +16,6 @@ const (
 	AuthAPIKey  AuthMode = "apikey" // session or API key (uid > 0)
 )
 
-// Route is one registered HTTP endpoint.
 type Route struct {
 	Method  string
 	Path    string

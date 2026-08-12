@@ -21,7 +21,7 @@ var PublicMethods = map[string]bool{
 }
 
 // rpcRequest is the JSON body for POST /api/rpc.
-// If model is empty and params is set, params is unmarshalled again (Odoo-style wrapper).
+// If model is empty and params is set, params is unmarshalled again (JSON-RPC wrapper).
 type rpcRequest struct {
 	Model  string          `json:"model"`
 	Method string          `json:"method"`

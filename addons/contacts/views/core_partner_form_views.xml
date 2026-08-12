@@ -5,26 +5,27 @@
             <sheet>
                 <div class="sum_title">
                     <h1>
-                        <field name="name" placeholder="Contact or Company Name..."/>
+                        <field name="name" placeholder="Contact or Company Name..." />
                     </h1>
                 </div>
                 <group>
                     <group string="Contact">
-                        <field name="email" string="Email"/>
-                        <field name="phone" string="Phone"/>
-                        <field name="is_company" string="Is a Company"/>
-                        <field name="active" string="Active"/>
+                        <field name="email" string="Email" />
+                        <field name="phone" string="Phone" />
+                        <field name="is_company" string="Is a Company" />
+                        <field name="active" string="Active" />
                     </group>
                     <group string="Address">
-                        <field name="street" string="Street"/>
-                        <field name="country_id" string="Country" widget="selection"/>
-                        <field name="state_id" string="State" widget="selection"/>
-                        <field name="city_id" string="City" widget="selection"/>
+                        <field name="street" string="Street" />
+                        <field name="country_id" string="Country" widget="selection" />
+                        <field name="state_id" string="State" widget="selection" />
+                        <field name="city_id" string="City" widget="selection" />
                     </group>
                 </group>
                 <notebook>
                     <page string="Notes" name="notes">
-                        <field name="comment" string="Internal Notes" placeholder="Internal notes..."/>
+                        <field name="comment" string="Internal Notes"
+                            placeholder="Internal notes..." />
                     </page>
                 </notebook>
             </sheet>
