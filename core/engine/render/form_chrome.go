@@ -154,7 +154,9 @@ func renderTitleBody(ctx context.Context, sb *strings.Builder, d parser.Div, rec
 
 func renderTitle(ctx context.Context, sb *strings.Builder, d parser.Div, record map[string]interface{}, ro bool, resModel string) {
 	sb.WriteString(`<div class="sum-form-title-row sum-form-title-row--sheet">`)
-	renderTitleAvatar(ctx, sb, d, record, ro, resModel)
+	if fieldDef(resModel, "image") != nil {
+		renderTitleAvatar(ctx, sb, d, record, ro, resModel)
+	}
 	renderTitleBody(ctx, sb, d, record, ro)
 	sb.WriteString(`</div>`)
 }
