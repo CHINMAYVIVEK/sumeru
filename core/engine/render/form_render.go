@@ -35,7 +35,7 @@ func RenderForm(ctx context.Context, view *parser.View, vr *ViewRecordData) stri
 	if chrome {
 		renderWorkspaceFormToolbar(&sb, vr, view.Header, record)
 	} else if view.Header != nil {
-		renderHeader(ctx, &sb, view.Header, record)
+		renderHeader(ctx, &sb, view.Header, record, vr)
 	}
 
 	if view.Sheet != nil {
@@ -52,7 +52,7 @@ func RenderForm(ctx context.Context, view *parser.View, vr *ViewRecordData) stri
 	}
 
 	if view.Footer != nil {
-		renderFormFooter(&sb, view.Footer)
+		renderFormFooter(&sb, view.Footer, vr)
 	}
 
 	if chrome {

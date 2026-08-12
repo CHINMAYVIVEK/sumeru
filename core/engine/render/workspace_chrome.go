@@ -56,15 +56,7 @@ func renderWorkspaceFormToolbar(sb *strings.Builder, vr *ViewRecordData, header 
 	}
 
 	if header != nil {
-		for _, b := range header.Button {
-			class := "sum-header-btn "
-			if b.Class == "sum_highlight" {
-				class += "sum-header-btn--primary"
-			} else {
-				class += "sum-header-btn--secondary"
-			}
-			sb.WriteString(fmt.Sprintf(`<button type="button" disabled class="%s sum-header-btn--disabled">%s</button>`, class, template.HTMLEscapeString(b.String)))
-		}
+		writeObjectActionButtons(sb, header, vr, cancelURL)
 	}
 
 	sb.WriteString(`</div>`)
