@@ -43,14 +43,64 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 		}
 		fieldValues[key] = ConvertRecordScalar(ctx, moduleName, xmlRecord.Model, key, val)
 	}
+
+	// Prefer external id when already synced (states/cities have no natural unique key).
+	if existingID, _, err := orm.ResolveXmlId(ctx, moduleName+"."+xmlRecord.ID); err == nil && existingID > 0 {
+		if err := orm.UpdateRecordByID(ctx, xmlRecord.Model, existingID, fieldValues); err == nil {
+			return
+		}
+		// Stale xml id — fall through to create and refresh model_data.
+	}
+
 	conflictColumn := "name"
-	if xmlRecord.Model == "core.user" {
+	switch xmlRecord.Model {
+	case "core.user":
 		conflictColumn = "login"
+	case "core.country", "core.lang":
+		conflictColumn = "code"
+	case "core.country.state", "core.city":
+		conflictColumn = ""
 	}
-	if _, ok := fieldValues[conflictColumn]; !ok {
-		return
+
+	// States/cities: match existing row by name + country (and state for cities) so -u
+	// after deleteModuleMetadata does not insert duplicates.
+	if xmlRecord.Model == "core.country.state" || xmlRecord.Model == "core.city" {
+		criteria := map[string]interface{}{"name": fieldValues["name"]}
+		if cid, ok := fieldValues["country_id"]; ok && cid != nil {
+			criteria["country_id"] = cid
+		}
+		if xmlRecord.Model == "core.city" {
+			if sid, ok := fieldValues["state_id"]; ok && sid != nil {
+				criteria["state_id"] = sid
+			}
+		}
+		if existing, err := orm.SearchOne(ctx, xmlRecord.Model, criteria); err == nil {
+			if eid, ok := orm.CoerceInt64(existing["id"]); ok && eid > 0 {
+				if err := orm.UpdateRecordByID(ctx, xmlRecord.Model, int(eid), fieldValues); err != nil {
+					fmt.Printf(platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
+					return
+				}
+				_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
+					"module":  moduleName,
+					"name":    xmlRecord.ID,
+					"model":   xmlRecord.Model,
+					"core_id": int(eid),
+				}, "name")
+				return
+			}
+		}
 	}
-	id, err := orm.Upsert(ctx, modelInstance, fieldValues, conflictColumn)
+
+	var id int
+	var err error
+	if conflictColumn == "" {
+		id, err = orm.Create(ctx, modelInstance, fieldValues)
+	} else {
+		if _, ok := fieldValues[conflictColumn]; !ok {
+			return
+		}
+		id, err = orm.Upsert(ctx, modelInstance, fieldValues, conflictColumn)
+	}
 	if err != nil {
 		fmt.Printf(platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
 		return
@@ -89,7 +139,7 @@ func ConvertRecordScalar(ctx context.Context, moduleName, model, column, rawValu
 		}
 		return strings.EqualFold(trimmedValue, "true") || trimmedValue == "1"
 	}
-	if column == "group_id" || column == "user_id" || column == "rule_id" || column == "implied_group_id" || column == "parent_id" || column == "category_id" {
+	if column == "group_id" || column == "user_id" || column == "rule_id" || column == "implied_group_id" || column == "parent_id" || column == "category_id" || column == "country_id" || column == "state_id" || column == "city_id" || strings.HasSuffix(column, "_id") {
 		if trimmedValue == "" || strings.EqualFold(trimmedValue, "false") || trimmedValue == "0" {
 			return nil
 		}
@@ -103,6 +153,10 @@ func ConvertRecordScalar(ctx context.Context, moduleName, model, column, rawValu
 				return id
 			}
 		}
+		if n, err := strconv.ParseInt(trimmedValue, 10, 64); err == nil {
+			return n
+		}
+		return nil
 	}
 	if column == "active" || strings.HasSuffix(column, "_active") {
 		if boolValue, err := strconv.ParseBool(trimmedValue); err == nil {

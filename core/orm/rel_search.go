@@ -2,13 +2,17 @@ package orm
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 )
 
 // RelNameSearch returns up to limit id/name pairs for a comodel (name or login ILIKE).
 func RelNameSearch(ctx context.Context, modelName, query string, limit int) ([]map[string]interface{}, error) {
+	return RelNameSearchFiltered(ctx, modelName, query, limit, "", 0)
+}
+
+// RelNameSearchFiltered is RelNameSearch with an optional equality filter (filterField = filterID).
+func RelNameSearchFiltered(ctx context.Context, modelName, query string, limit int, filterField string, filterID int64) ([]map[string]interface{}, error) {
 	modelName = strings.TrimSpace(modelName)
 	if modelName == "" {
 		return nil, fmt.Errorf("model required")
@@ -21,41 +25,72 @@ func RelNameSearch(ctx context.Context, modelName, query string, limit int) ([]m
 	if err := CheckModelAccess(ctx, uid, modelName, "read"); err != nil {
 		return nil, err
 	}
-	if limit <= 0 || limit > 50 {
+	if limit <= 0 {
 		limit = 20
 	}
+	if limit > 500 {
+		limit = 500
+	}
 	nameCol := "name"
-	hasName, hasLogin := false, false
+	hasName, hasLogin, hasPhoneCode := false, false, false
+	validFilter := false
 	for _, f := range m.Fields() {
 		switch f.Name {
 		case "name":
 			hasName = true
 		case "login":
 			hasLogin = true
+		case "phone_code":
+			hasPhoneCode = true
 		}
+		if filterField != "" && f.Name == filterField {
+			validFilter = true
+		}
+	}
+	if filterField != "" && !validFilter {
+		return nil, fmt.Errorf("invalid filter field %q on %s", filterField, modelName)
 	}
 	if !hasName && hasLogin {
 		nameCol = "login"
 	} else if !hasName && !hasLogin {
 		return nil, fmt.Errorf("model %s has no name/login field", modelName)
 	}
+
 	tbl := GetTableName(modelName)
+	selectCols := fmt.Sprintf(`id, COALESCE(NULLIF(TRIM(%s::text), ''), '')`, quoteIdent(nameCol))
+	if hasPhoneCode {
+		selectCols += `, COALESCE(NULLIF(TRIM(phone_code::text), ''), '')`
+	}
 	q := strings.TrimSpace(query)
-	var rows *sql.Rows
-	var err error
-	if q == "" {
-		sqlQ := fmt.Sprintf(`SELECT id, COALESCE(NULLIF(TRIM(%s::text), ''), '') FROM %s ORDER BY id DESC LIMIT $1`, quoteIdent(nameCol), tbl)
-		rows, err = DB.QueryContext(ctx, sqlQ, limit)
-	} else {
+	args := []interface{}{}
+	where := []string{}
+	n := 1
+	if filterField != "" && filterID > 0 {
+		where = append(where, fmt.Sprintf(`%s = $%d`, quoteIdent(filterField), n))
+		args = append(args, filterID)
+		n++
+	} else if filterField != "" && filterID <= 0 {
+		// Explicit empty parent → no rows.
+		return []map[string]interface{}{}, nil
+	}
+	if q != "" {
 		pat := "%" + q + "%"
 		if hasName && hasLogin {
-			sqlQ := fmt.Sprintf(`SELECT id, COALESCE(NULLIF(TRIM(name), ''), NULLIF(TRIM(login), ''), '') FROM %s WHERE name ILIKE $1 OR login ILIKE $1 ORDER BY id DESC LIMIT $2`, tbl)
-			rows, err = DB.QueryContext(ctx, sqlQ, pat, limit)
+			where = append(where, fmt.Sprintf(`(name ILIKE $%d OR login ILIKE $%d)`, n, n))
 		} else {
-			sqlQ := fmt.Sprintf(`SELECT id, COALESCE(NULLIF(TRIM(%s::text), ''), '') FROM %s WHERE %s::text ILIKE $1 ORDER BY id DESC LIMIT $2`, quoteIdent(nameCol), tbl, quoteIdent(nameCol))
-			rows, err = DB.QueryContext(ctx, sqlQ, pat, limit)
+			where = append(where, fmt.Sprintf(`%s::text ILIKE $%d`, quoteIdent(nameCol), n))
 		}
+		args = append(args, pat)
+		n++
 	}
+	sqlQ := fmt.Sprintf(`SELECT %s FROM %s`, selectCols, tbl)
+	if len(where) > 0 {
+		sqlQ += ` WHERE ` + strings.Join(where, ` AND `)
+	}
+	sqlQ += fmt.Sprintf(` ORDER BY %s ASC, id ASC LIMIT $%d`, quoteIdent(nameCol), n)
+	args = append(args, limit)
+
+	rows, err := DB.QueryContext(ctx, sqlQ, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -64,10 +99,21 @@ func RelNameSearch(ctx context.Context, modelName, query string, limit int) ([]m
 	for rows.Next() {
 		var id int
 		var name string
-		if err := rows.Scan(&id, &name); err != nil {
-			return nil, err
+		item := map[string]interface{}{}
+		if hasPhoneCode {
+			var phoneCode string
+			if err := rows.Scan(&id, &name, &phoneCode); err != nil {
+				return nil, err
+			}
+			item["phone_code"] = phoneCode
+		} else {
+			if err := rows.Scan(&id, &name); err != nil {
+				return nil, err
+			}
 		}
-		out = append(out, map[string]interface{}{"id": id, "name": name})
+		item["id"] = id
+		item["name"] = name
+		out = append(out, item)
 	}
 	return out, rows.Err()
 }

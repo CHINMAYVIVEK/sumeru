@@ -12,7 +12,7 @@ import (
 )
 
 // RenderTree renders list/tree HTML for workspace views.
-func RenderTree(_ context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string) string {
+func RenderTree(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string) string {
 	if rows == nil {
 		rows = []map[string]interface{}{}
 	}
@@ -84,7 +84,7 @@ func RenderTree(_ context.Context, view *parser.View, rows []map[string]interfac
 		sb.WriteString(`<td class="sum-tree-td-check"><input type="checkbox" disabled onclick="event.stopPropagation()" aria-label="Select row" /></td>`)
 		sb.WriteString(`<td class="sum-tree-td-grip" aria-hidden="true"><span class="sum-tree-grip">⠿</span></td>`)
 		for _, f := range view.Field {
-			cell := template.HTMLEscapeString(recStr(row, f.Name))
+			cell := template.HTMLEscapeString(displayCell(ctx, view.Model, f.Name, row))
 			sb.WriteString(`<td class="sum-tree-td">` + cell + `</td>`)
 		}
 		sb.WriteString(`<td class="sum-tree-td-actions"></td>`)

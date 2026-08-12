@@ -5,6 +5,7 @@ package main
 import (
 	_ "sumeru/addons/automation"
 	_ "sumeru/addons/base"
+	_ "sumeru/addons/contacts"
 	_ "sumeru/addons/mail"
 	_ "sumeru/addons/sumeru_ai"
 )

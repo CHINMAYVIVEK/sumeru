@@ -1,6 +1,7 @@
 package render
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -83,4 +84,17 @@ func rawField(record map[string]interface{}, name string) (interface{}, bool) {
 	}
 	v, ok := record[name]
 	return v, ok
+}
+
+// displayCell returns a human-readable cell value, resolving Many2One to display name.
+func displayCell(ctx context.Context, model, fieldName string, row map[string]interface{}) string {
+	if fd := fieldDef(model, fieldName); fd != nil && fd.Type == orm.Many2One {
+		if id, ok := orm.CoerceInt64(row[fieldName]); ok && id > 0 {
+			if n := orm.DisplayNameForID(ctx, fd.Relation, int(id)); n != "" {
+				return n
+			}
+		}
+		return ""
+	}
+	return strings.TrimSpace(recStr(row, fieldName))
 }

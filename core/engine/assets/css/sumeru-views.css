@@ -825,8 +825,22 @@
   line-height: 1.45;
 }
 
-.sum-m2o {
+.sum-m2o-select {
   position: relative;
+}
+
+.sum-field-phone-code {
+  position: absolute;
+  right: 0.65rem;
+  top: 1.85rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-muted);
+  pointer-events: none;
+}
+
+.sum-m2o-select .sum-field-select {
+  padding-right: 3rem;
 }
 
 .sum-m2o-results {
@@ -970,6 +984,30 @@
 }
 
 .sum-field-checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--sum-header);
+  cursor: pointer;
+}
+
+.sum-field-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.25rem;
+  min-height: 2.35rem;
+}
+
+.sum-field-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--sum-font-size-root);
+  color: var(--sum-ink);
+  cursor: pointer;
+}
+
+.sum-field-radio input[type="radio"] {
   width: 1rem;
   height: 1rem;
   accent-color: var(--sum-header);
