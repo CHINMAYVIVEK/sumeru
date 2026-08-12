@@ -167,13 +167,7 @@ func LogoutGet(w http.ResponseWriter, r *http.Request) {
 
 // TODO: send reset email
 func ActionResetPassword(w http.ResponseWriter, r *http.Request) {
-	if !requireLogin(w, r) {
-		return
-	}
-	if !RequirePOST(w, r) {
-		return
-	}
-	if !ParsePostForm(w, r) {
+	if !requireLoginAndPOST(w, r) {
 		return
 	}
 	userID := strings.TrimSpace(r.PostFormValue("id"))

@@ -38,7 +38,7 @@ func syncSysModuleRows(context context.Context, discovered map[string]*Addon) er
 			state := "uninstalled"
 			if isBootstrap {
 				// Platform spine (base, mail, …) auto-installs; other addons start uninstalled.
-				if IsPlatformModule(addon.Manifest.Name) {
+				if orm.IsPlatformModule(addon.Manifest.Name) {
 					state = "installed"
 				}
 			}

@@ -39,7 +39,7 @@ func loadAppsModuleDetail(w http.ResponseWriter, r *http.Request, moduleParam st
 		http.Error(w, "Module not found", http.StatusNotFound)
 		return nil, "", false
 	}
-	name := stringField(row["name"])
+	name := orm.AsString(row["name"])
 	var found appsModule
 	for _, m := range mods {
 		if m.Name == name {
@@ -59,12 +59,12 @@ func loadAppsModuleDetail(w http.ResponseWriter, r *http.Request, moduleParam st
 		Layout:        layout,
 		Editing:       editing,
 		Name:          name,
-		DisplayName:   stringField(row["display_name"]),
-		Author:        stringField(row["author"]),
-		Version:       stringField(row["version"]),
-		Description:   stringField(row["description"]),
-		State:         stringField(row["state"]),
-		Active:        boolField(row["active"]),
+		DisplayName:   orm.AsString(row["display_name"]),
+		Author:        orm.AsString(row["author"]),
+		Version:       orm.AsString(row["version"]),
+		Description:   orm.AsString(row["description"]),
+		State:         orm.AsString(row["state"]),
+		Active:        orm.AsBool(row["active"]),
 		ID:            int(id64),
 		CanInstall:    found.CanInstall,
 		CanUninstall:  found.CanUninstall,

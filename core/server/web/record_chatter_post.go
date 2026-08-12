@@ -12,13 +12,7 @@ import (
 
 // ChatterPostHandler accepts POST /web/chatter/post (model, res_id, body, next).
 func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
-	if !requireLogin(w, r) {
-		return
-	}
-	if !RequirePOST(w, r) {
-		return
-	}
-	if !ParsePostForm(w, r) {
+	if !requireLoginAndPOST(w, r) {
 		return
 	}
 	if !mail.CompanyChatterEnabled(r.Context()) {
@@ -40,9 +34,7 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Message too long", http.StatusBadRequest)
 		return
 	}
-	inst, ok := orm.Registry[modelName]
-	if !ok || inst == nil {
-		http.Error(w, "Unknown model", http.StatusBadRequest)
+	if _, ok := requireRegisteredModel(w, modelName); !ok {
 		return
 	}
 	if modelName == "mail.message" {

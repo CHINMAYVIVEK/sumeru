@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 
 	"sumeru/core/applog"
 	"sumeru/core/orm"
@@ -25,41 +26,32 @@ func APIHealthHandler(w http.ResponseWriter, r *http.Request) {
 // RPCJSONHandler is model RPC: POST JSON {"model","method","args","kwargs"} with session or API key auth.
 func RPCJSONHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		api.WriteResponse(w, http.StatusMethodNotAllowed, api.Fail(api.CodeMethodNotAllowed, "Method not allowed", nil))
 		return
 	}
 	uid := AuthenticatedUserID(r)
 	if uid <= 0 {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		api.WriteResponse(w, http.StatusUnauthorized, api.Fail(api.CodeUnauthorized, "Unauthorized", nil))
 		return
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, maxRPCBody))
+	ct := strings.TrimSpace(strings.ToLower(r.Header.Get("Content-Type")))
+	if ct != "" && !strings.HasPrefix(ct, "application/json") {
+		api.WriteResponse(w, http.StatusUnsupportedMediaType, api.Fail(api.CodeUnsupportedMediaType, "Content-Type must be application/json", nil))
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxRPCBody+1))
 	if err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+		api.WriteResponse(w, http.StatusBadRequest, api.Fail(api.CodeInvalidBody, "Could not read request body", nil))
+		return
+	}
+	if len(body) > maxRPCBody {
+		api.WriteResponse(w, http.StatusRequestEntityTooLarge, api.Fail(api.CodePayloadTooLarge, "Request body too large", nil))
 		return
 	}
 	ctx := orm.ContextWithUID(r.Context(), uid)
-	result, err := api.DispatchRPC(ctx, body)
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err != nil {
-		applog.L(ctx).Warnw("api.rpc", "err", err)
-		writeRPCEnvelope(w, nil, err)
-		return
+	resp, status := api.Dispatch(ctx, body)
+	if !resp.OK && resp.Error != nil {
+		applog.L(ctx).Warnw("api.rpc", "code", resp.Error.Code, "msg", resp.Error.Message)
 	}
-	writeRPCEnvelope(w, result, nil)
-}
-
-func writeRPCEnvelope(w http.ResponseWriter, result interface{}, err error) {
-	enc := json.NewEncoder(w)
-	if err != nil {
-		_ = enc.Encode(map[string]interface{}{
-			"result": nil,
-			"error": map[string]string{
-				"message": err.Error(),
-				"code":    "RPC_ERROR",
-			},
-		})
-		return
-	}
-	_ = enc.Encode(map[string]interface{}{"result": result, "error": nil})
+	api.WriteResponse(w, status, resp)
 }

@@ -55,6 +55,7 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 	}
 	d.ShellCompany = strings.TrimSpace(shell.Company)
 	d.ShellUser = strings.TrimSpace(shell.User)
+	d.ShellUserImage = ""
 	if orm.DB == nil {
 		d.applyShellUserInitials()
 		return
@@ -67,11 +68,16 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 	activeCID := 0
 	if uid > 0 {
 		if u, err := orm.SearchOne(ctx, "core.user", map[string]interface{}{"id": uid}); err == nil {
-			if d.ShellUser == "" {
-				d.ShellUser = strings.TrimSpace(orm.AsString(u["name"]))
-				if d.ShellUser == "" {
-					d.ShellUser = strings.TrimSpace(orm.AsString(u["login"]))
-				}
+			// Prefer the logged-in user's name and photo over static config labels.
+			name := strings.TrimSpace(orm.AsString(u["name"]))
+			if name == "" {
+				name = strings.TrimSpace(orm.AsString(u["login"]))
+			}
+			if name != "" {
+				d.ShellUser = name
+			}
+			if img := strings.TrimSpace(orm.AsString(u["image"])); imageSrcOK(img) {
+				d.ShellUserImage = template.URL(img)
 			}
 			if id, ok := orm.CoerceInt64(u["company_id"]); ok && id > 0 {
 				activeCID = int(id)

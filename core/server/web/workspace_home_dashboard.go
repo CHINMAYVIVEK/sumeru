@@ -2,7 +2,6 @@ package web
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"html/template"
 	"log"
@@ -12,7 +11,6 @@ import (
 
 	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/render"
-	"sumeru/core/module"
 	"sumeru/core/orm"
 	"sumeru/core/server/config"
 )
@@ -50,52 +48,23 @@ func HomeDashboardHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	raw, err := module.ListModules(ctx)
+	raw, err := loadInstalledAppTiles(ctx, searchQ)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to list modules: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	var tiles []dashAppTile
-	for _, row := range raw {
-		name := stringField(row["name"])
-		if name == "" {
-			continue
-		}
-		if !boolField(row["application"]) {
-			continue
-		}
-		if stringField(row["state"]) != "installed" {
-			continue
-		}
-		if !boolField(row["active"]) {
-			continue
-		}
-		dn := stringField(row["display_name"])
-		if dn == "" {
-			dn = name
-		}
-		desc := stringField(row["description"])
-		if searchQ != "" && !homeSearchMatches(searchQ, name, dn, desc) {
-			continue
-		}
-		letter := "?"
-		if r := []rune(strings.TrimSpace(dn)); len(r) > 0 {
-			letter = strings.ToUpper(string(r[0]))
-		}
-		openHref := "/web/apps"
-		if mid := rootMenuIDForModule(ctx, name); mid > 0 {
-			openHref = fmt.Sprintf("/web?menu_id=%d", mid)
-		}
+	for _, t := range raw {
 		tiles = append(tiles, dashAppTile{
-			Name:         name,
-			DisplayName:  dn,
-			Version:      stringField(row["version"]),
-			Description:  desc,
-			Author:       stringField(row["author"]),
-			IconLetter:   letter,
-			IconHue:      iconHueFromString(name),
-			OpenMenuHref: openHref,
+			Name:         t.Name,
+			DisplayName:  t.DisplayName,
+			Version:      t.Version,
+			Description:  t.Description,
+			Author:       t.Author,
+			IconLetter:   t.IconLetter,
+			IconHue:      t.IconHue,
+			OpenMenuHref: t.OpenMenuHref,
 		})
 	}
 
@@ -149,19 +118,6 @@ func HomeDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(html))
 }
 
-func rootMenuIDForModule(ctx context.Context, moduleName string) int {
-	if orm.DB == nil || strings.TrimSpace(moduleName) == "" {
-		return 0
-	}
-	tbl := orm.GetTableName("sys.menu")
-	q := `SELECT id FROM ` + tbl + ` WHERE module = $1 AND parent_id IS NULL ORDER BY sequence ASC, id ASC LIMIT 1`
-	var id int
-	if err := orm.DB.QueryRowContext(ctx, q, strings.TrimSpace(moduleName)).Scan(&id); err != nil {
-		return 0
-	}
-	return id
-}
-
 // homeSearchMatches returns true if every whitespace-separated token in q appears
 // in name, display name, or description (case-insensitive).
 func homeSearchMatches(q, technicalName, displayName, description string) bool {
@@ -180,15 +136,4 @@ func homeSearchMatches(q, technicalName, displayName, description string) bool {
 		}
 	}
 	return true
-}
-
-func iconHueFromString(s string) int {
-	h := 265
-	for _, c := range strings.TrimSpace(s) {
-		h = (h*31 + int(c)) % 360
-		if h < 0 {
-			h += 360
-		}
-	}
-	return h
 }

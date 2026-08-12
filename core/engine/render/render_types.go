@@ -59,8 +59,9 @@ type PageData struct {
 	BrandLockupHref   string
 	ShellCompany      string
 	ShellUser         string
+	ShellUserImage    template.URL    // profile photo for top bar (template.URL so data: URLs are not scrubbed); empty → initials
 	UserInitial       string          // legacy single-letter hint; prefer ShellUserInitials in shell chrome
-	ShellUserInitials string          // two-letter avatar label in top bar
+	ShellUserInitials string          // two-letter avatar label in top bar when no photo
 	ShellExtraHTML    template.HTML   // AI Assistant or other shell widgets
 	ViewTabs          []ViewSwitchTab // workspace view switcher in breadcrumb bar; empty hides toolbar
 

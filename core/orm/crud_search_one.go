@@ -46,19 +46,9 @@ func SearchOne(ctx context.Context, modelName string, criteria map[string]interf
 	}
 
 	cols, _ := rows.Columns()
-	vals := make([]interface{}, len(cols))
-	valPtrs := make([]interface{}, len(cols))
-	for i := range vals {
-		valPtrs[i] = &vals[i]
-	}
-
-	if err = rows.Scan(valPtrs...); err != nil {
+	result, err = scanRowToMap(cols, rows)
+	if err != nil {
 		return nil, err
-	}
-
-	result = make(map[string]interface{})
-	for i, col := range cols {
-		result[col] = vals[i]
 	}
 
 	if !SecurityBypass(ctx) && uid > 0 {

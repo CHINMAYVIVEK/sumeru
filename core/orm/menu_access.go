@@ -71,7 +71,7 @@ func SetUserGroupLinks(ctx context.Context, userID int, groupIDs []int) error {
 		return fmt.Errorf("no database")
 	}
 	groupIDs = normalizeUserTypeGroupIDs(ctx, groupIDs)
-	tbl := GetTableName("core.group.user.rel")
+	tbl := GetTableName(tableGroupUserRel)
 	if _, err := DB.ExecContext(ctx, `DELETE FROM `+tbl+` WHERE user_id = $1`, userID); err != nil {
 		return err
 	}

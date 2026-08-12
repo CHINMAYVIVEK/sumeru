@@ -18,8 +18,7 @@ func ImportCSVHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
 	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	if !RequirePOST(w, r) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxImportBody)
@@ -32,8 +31,7 @@ func ImportCSVHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "model required", http.StatusBadRequest)
 		return
 	}
-	if _, ok := orm.Registry[model]; !ok {
-		http.Error(w, "unknown model", http.StatusBadRequest)
+	if _, ok := requireRegisteredModel(w, model); !ok {
 		return
 	}
 	ctx := r.Context()

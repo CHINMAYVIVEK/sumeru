@@ -3,6 +3,7 @@ package orm
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -27,7 +28,7 @@ func CanWorkflowTransition(ctx context.Context, model string, recordID int, from
 	return nil
 }
 
-var errNoWorkflowRows = fmt.Errorf("no workflow rows")
+var errNoWorkflowRows = errors.New("no workflow rows")
 
 func checkWorkflowTransitionRows(ctx context.Context, model, fromState, toState string, uid int) error {
 	if _, ok := Registry["sys.workflow.transition"]; !ok || DB == nil {

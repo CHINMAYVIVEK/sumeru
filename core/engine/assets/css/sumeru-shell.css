@@ -298,16 +298,34 @@
   flex-shrink: 0;
   width: 1.85rem;
   height: 1.85rem;
-  border-radius: var(--sum-radius-pill);
+  min-width: 1.85rem;
+  min-height: 1.85rem;
+  border-radius: 50%;
   background: linear-gradient(145deg, var(--sum-gold), #c49a2e);
   color: var(--sum-header-dark);
   font-weight: var(--sum-font-weight-bold);
   font-size: 0.65rem;
   letter-spacing: 0.02em;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  line-height: 1;
+}
+
+.sum-topbar-avatar--photo {
+  background: rgba(255, 255, 255, 0.18);
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.sum-topbar-avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 .sum-dropdown-panel {

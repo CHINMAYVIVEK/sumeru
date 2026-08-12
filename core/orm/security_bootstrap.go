@@ -173,7 +173,7 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 		"core_id": publicGID,
 	}, "name")
 
-	_, _ = DB.ExecContext(ctx, `INSERT INTO `+GetTableName("core.group.implied")+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`, adminGID, userGID)
+	_, _ = DB.ExecContext(ctx, `INSERT INTO `+GetTableName(tableGroupImplied)+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`, adminGID, userGID)
 	return adminGID, userGID, nil
 }
 
@@ -271,10 +271,10 @@ func ensureBootstrapSecurity(ctx context.Context, first *SetupAdminParams) error
 		"core_id": adminUID,
 	}, "name")
 
-	if _, err := DB.ExecContext(ctx, `INSERT INTO `+GetTableName("core.group.user.rel")+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, adminGID); err != nil {
+	if _, err := DB.ExecContext(ctx, `INSERT INTO `+GetTableName(tableGroupUserRel)+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, adminGID); err != nil {
 		return err
 	}
-	if _, err := DB.ExecContext(ctx, `INSERT INTO `+GetTableName("core.group.user.rel")+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, userGID); err != nil {
+	if _, err := DB.ExecContext(ctx, `INSERT INTO `+GetTableName(tableGroupUserRel)+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, userGID); err != nil {
 		return err
 	}
 	_, _ = DB.ExecContext(ctx, `UPDATE `+userTbl+` SET company_id = $1 WHERE id = $2`, compID, adminUID)

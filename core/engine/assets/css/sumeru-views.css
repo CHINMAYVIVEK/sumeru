@@ -404,6 +404,81 @@
   cursor: pointer;
 }
 
+.sum-multi-select-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.sum-multi-select-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 0;
+}
+
+.sum-multi-select-tags:empty {
+  display: none;
+}
+
+.sum-multi-select-tags--readonly {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 2.35rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--sum-line-strong);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+  box-sizing: border-box;
+}
+
+.sum-multi-select-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.25rem 0.45rem 0.25rem 0.55rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-muted-ink);
+  background: color-mix(in srgb, var(--sum-header) 10%, var(--sum-surface));
+  border: 1px solid color-mix(in srgb, var(--sum-header) 22%, var(--sum-line));
+  border-radius: var(--sum-radius-sm);
+}
+
+.sum-multi-select-tag-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sum-multi-select-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sum-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sum-multi-select-remove:hover {
+  color: var(--sum-ink);
+  background: color-mix(in srgb, var(--sum-ink) 8%, transparent);
+}
+
+.sum-multi-select-add {
+  width: 100%;
+}
+
 .sum-form-split-left .sum-form-title-row--sheet {
   flex-direction: column;
   align-items: stretch;
@@ -455,19 +530,23 @@
   flex-direction: column;
 }
 
-/* Field columns inside groups */
+/* Field columns inside groups — match .sum-form-group-grid (edit mode). */
 .sum-read-section .sum-read-fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 1.25rem;
-  row-gap: 0.35rem;
+  grid-template-columns: 1fr;
+  gap: 1rem 1.5rem;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .sum-read-section .sum-read-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
-  .sum-read-section .sum-read-fields {
-    grid-template-columns: 1fr;
-  }
-
   .sum-form-split-layout {
     flex-direction: column;
   }
@@ -514,20 +593,32 @@
   box-sizing: border-box;
   min-width: 0;
   max-width: 100%;
-  margin-bottom: 1.5rem;
-  padding: 1rem 1.25rem;
-  border-radius: var(--sum-radius-sm);
   border: 1px solid var(--sum-line);
-  background: color-mix(in srgb, var(--sum-surface) 92%, var(--sum-bg));
+  border-radius: var(--sum-radius-sm);
+  padding: 1rem 1.15rem 1.1rem;
+  margin-bottom: 1.25rem;
+  background: color-mix(in srgb, var(--sum-surface) 97%, var(--sum-bg));
   overflow: hidden;
 }
 
+/* Untitled wrapper groups (e.g. Preferences outer <group>) — match edit plain groups. */
+.sum-read-section--plain {
+  border: none;
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  overflow: visible;
+}
+
 .sum-read-section-title {
-  margin: 0 0 0.75rem;
+  margin: 0 0 1rem;
+  padding-bottom: 0.45rem;
   font-size: var(--sum-font-size-sm);
   font-weight: var(--sum-font-weight-bold);
-  letter-spacing: var(--sum-letter-spacing-ui);
-  color: var(--sum-header);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sum-muted);
+  border-bottom: 1px solid var(--sum-line);
 }
 
 .sum-header-btn {
@@ -832,18 +923,12 @@
 }
 
 .sum-form-edit-grid > .sum-form-group--full,
-.sum-form-page-grid > .sum-form-group--full,
-.sum-read-fields--sheet > .sum-read-section--full {
+.sum-form-page-grid > .sum-form-group--full {
   grid-column: 1 / -1;
   max-width: 100%;
 }
 
 .sum-form-group-grid > .sum-form-group--full {
-  grid-column: auto;
-  max-width: 100%;
-}
-
-.sum-read-fields > .sum-read-section--full {
   grid-column: auto;
   max-width: 100%;
 }
@@ -1034,6 +1119,35 @@
   box-shadow: var(--sum-focus-ring);
 }
 
+/* Read mode: same field chrome as edit; not interactive. */
+.sum-form-view--readonly .sum-field-input,
+.sum-form-view--readonly .sum-form-hero-input,
+.sum-form-view--readonly .sum-form-inline-input {
+  color: var(--sum-ink);
+  background: var(--sum-surface);
+  border-color: var(--sum-line-strong);
+  opacity: 1;
+  cursor: default;
+  box-shadow: none;
+  resize: none;
+  pointer-events: none;
+}
+
+.sum-form-view--readonly .sum-field-input:hover,
+.sum-form-view--readonly .sum-field-input:focus,
+.sum-form-view--readonly .sum-form-hero-input:hover,
+.sum-form-view--readonly .sum-form-hero-input:focus,
+.sum-form-view--readonly .sum-form-inline-input:hover,
+.sum-form-view--readonly .sum-form-inline-input:focus {
+  border-color: var(--sum-line-strong);
+  box-shadow: none;
+}
+
+.sum-form-view--readonly .sum-field-radio {
+  cursor: default;
+  pointer-events: none;
+}
+
 .sum-field-checkbox {
   width: 1rem;
   height: 1rem;
@@ -1120,26 +1234,34 @@
   color: var(--sum-muted);
 }
 
-.sum-read-field--row {
+/* Sheet-level read rows keep label | value; group fields match edit (label above value). */
+.sum-read-fields--sheet > .sum-read-field--row {
   display: grid;
-  grid-template-columns: minmax(0, 34%) 1fr;
+  grid-template-columns: minmax(0, 38%) 1fr;
   gap: 0.5rem 1.25rem;
   padding: 0.45rem 0;
   border-bottom: 1px solid color-mix(in srgb, var(--sum-line) 85%, transparent);
   align-items: start;
 }
 
-.sum-read-field--row:last-child {
+.sum-read-fields--sheet > .sum-read-field--row:last-child {
   border-bottom: none;
 }
 
-.sum-read-fields--sheet .sum-read-field--row {
-  grid-template-columns: minmax(0, 38%) 1fr;
+.sum-read-section .sum-read-field--row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0;
+  border-bottom: none;
 }
 
 .sum-read-label {
   font-size: var(--sum-font-size-sm);
-  font-weight: var(--sum-font-weight-medium);
+  font-weight: var(--sum-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
   color: var(--sum-muted);
 }
 
@@ -1147,6 +1269,21 @@
   font-size: var(--sum-font-size-root);
   color: var(--sum-ink);
   word-break: break-word;
+  min-width: 0;
+  width: 100%;
+}
+
+.sum-read-section .sum-read-value {
+  box-sizing: border-box;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+  line-height: 1.45;
+}
+
+.sum-read-value--pre {
+  white-space: pre-wrap;
 }
 
 .sum-pivot-placeholder {

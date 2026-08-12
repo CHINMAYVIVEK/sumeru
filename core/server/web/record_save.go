@@ -15,13 +15,7 @@ import (
 
 // RecordSaveHandler applies POSTed field values to an existing row (or creates one when id is empty).
 func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
-	if !requireLogin(w, r) {
-		return
-	}
-	if !RequirePOST(w, r) {
-		return
-	}
-	if !ParsePostForm(w, r) {
+	if !requireLoginAndPOST(w, r) {
 		return
 	}
 	modelName := strings.TrimSpace(r.PostFormValue("model"))
@@ -31,9 +25,8 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inst, ok := orm.Registry[modelName]
-	if !ok || inst == nil {
-		http.Error(w, "Unknown model", http.StatusBadRequest)
+	inst, ok := requireRegisteredModel(w, modelName)
+	if !ok {
 		return
 	}
 

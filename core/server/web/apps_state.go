@@ -1,7 +1,6 @@
 package web
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 )
@@ -9,33 +8,6 @@ import (
 type appsNavVM struct {
 	FilterAll, FilterInstalled, FilterUninstalled string
 	ScopeAll, ScopeApps, ScopeTechnical           string
-}
-
-func stringField(v interface{}) string {
-	switch t := v.(type) {
-	case string:
-		return t
-	case []byte:
-		return string(t)
-	case nil:
-		return ""
-	default:
-		return fmt.Sprint(t)
-	}
-}
-
-func boolField(v interface{}) bool {
-	switch t := v.(type) {
-	case bool:
-		return t
-	case int64:
-		return t != 0
-	case []byte:
-		return string(t) == "t" || string(t) == "true" || string(t) == "1"
-	default:
-		s := strings.ToLower(stringField(v))
-		return s == "true" || s == "t" || s == "1"
-	}
 }
 
 func normalizeAppsFilter(s string) string {

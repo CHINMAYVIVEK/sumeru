@@ -12,13 +12,7 @@ import (
 // ActionCreateAPIKey generates a one-time raw API key for a user (POST user_id, name).
 // The raw key is returned once via the redirect query param api_key (show immediately in UI).
 func ActionCreateAPIKey(w http.ResponseWriter, r *http.Request) {
-	if !requireLogin(w, r) {
-		return
-	}
-	if !RequirePOST(w, r) {
-		return
-	}
-	if !ParsePostForm(w, r) {
+	if !requireLoginAndPOST(w, r) {
 		return
 	}
 	uid, _ := strconv.Atoi(strings.TrimSpace(r.PostFormValue("user_id")))
