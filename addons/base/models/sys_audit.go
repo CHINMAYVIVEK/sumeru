@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// SysAudit is an append-only audit trail (before/after JSON).
 type SysAudit struct {
 	sdk.BaseModel
 	UserID     int    `db:"user_id"`

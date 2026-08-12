@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// SysTranslation stores a translated term for a language.
 type SysTranslation struct {
 	sdk.BaseModel
 	Lang   string `db:"lang"`

@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// SysSequence generates monotonic document numbers.
 type SysSequence struct {
 	sdk.BaseModel
 	Name       string `db:"name"`

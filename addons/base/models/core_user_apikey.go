@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// CoreUserAPIKey stores hashed API keys for external RPC auth (model: core.user.apikey).
 type CoreUserAPIKey struct {
 	sdk.BaseModel
 	UserID     int    `db:"user_id"`

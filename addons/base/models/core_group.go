@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// CoreGroup is the core.group access-group model (users belong via core.group.user.rel).
 type CoreGroup struct {
 	sdk.BaseModel
 	Name        string `db:"name"`

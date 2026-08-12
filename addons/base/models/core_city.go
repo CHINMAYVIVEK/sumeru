@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// CoreCity is a city linked to a country and optional state.
 type CoreCity struct {
 	sdk.BaseModel
 }

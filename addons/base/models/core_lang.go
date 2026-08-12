@@ -2,7 +2,6 @@ package models
 
 import "sumeru/core/sdk"
 
-// CoreLang is an installable language catalog entry.
 type CoreLang struct {
 	sdk.BaseModel
 	Code    string `db:"code"`
