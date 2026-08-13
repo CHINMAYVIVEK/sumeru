@@ -78,7 +78,7 @@ func syncMenusFromItems(ctx context.Context, moduleName string, menus []parser.M
 		}
 	}
 	for _, menu := range pending {
-		fmt.Printf("Warning: sys.menu %s.%s parent %q unresolved — skipped (not creating top-bar orphan)\n",
+		syncWarn(ctx, "Warning: sys.menu %s.%s parent %q unresolved — skipped (not creating top-bar orphan)",
 			moduleName, menu.ID, strings.TrimSpace(menu.ParentID))
 	}
 }
@@ -96,12 +96,7 @@ func upsertMenuRow(ctx context.Context, moduleName, xmlID string, menuValues map
 		}
 		rowID = id
 	}
-	_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-		"module":  moduleName,
-		"name":    xmlID,
-		"model":   "sys.menu",
-		"core_id": rowID,
-	}, "name")
+	_ = linkXMLRecord(ctx, moduleName, xmlID, "sys.menu", rowID)
 	return rowID, nil
 }
 

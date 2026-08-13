@@ -120,20 +120,16 @@ func createTable(model Model) error {
 
 		defVal := field.DefaultVal
 		if defVal != nil {
-			switch v := defVal.(type) {
-			case string:
-				if strings.Contains(v, ";") || strings.Contains(v, "--") || strings.Contains(v, "/*") {
+			if s, ok := defVal.(string); ok {
+				if strings.Contains(s, ";") || strings.Contains(s, "--") || strings.Contains(s, "/*") {
 					return fmt.Errorf("unsafe string default on %s.%s", model.ModelName(), field.Name)
 				}
-				colType += fmt.Sprintf(" DEFAULT '%s'", strings.ReplaceAll(v, "'", "''"))
-			case bool:
-				if v {
-					colType += " DEFAULT TRUE"
-				} else {
-					colType += " DEFAULT FALSE"
+			}
+			switch defVal.(type) {
+			case string, bool, int, int64, float64:
+				if lit, ok := sqlDefaultLiteral(defVal); ok {
+					colType += " DEFAULT " + lit
 				}
-			case int, int64, float64:
-				colType += fmt.Sprintf(" DEFAULT %v", v)
 			}
 		}
 
@@ -144,16 +140,5 @@ func createTable(model Model) error {
 	if _, err := DB.Exec(query); err != nil {
 		return err
 	}
-
-	for _, field := range model.Fields() {
-		if field.Index || field.Type == Many2One {
-			idxName := fmt.Sprintf("idx_%s_%s", physical, field.Name)
-			idxQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s);", quoteIdent(idxName), tableName, quoteIdent(field.Name))
-			if _, err := DB.Exec(idxQuery); err != nil {
-				return fmt.Errorf("create index %s: %w", idxName, err)
-			}
-		}
-	}
-
-	return nil
+	return ensureModelIndexes(model.ModelName(), physical, tableName, model)
 }

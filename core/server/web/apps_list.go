@@ -2,9 +2,7 @@ package web
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -53,10 +51,10 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
 	}
-	if !orm.UserHasGroupXML(r.Context(), orm.SecurityUID(r.Context()), "base.group_system") {
-		http.Redirect(w, r, "/web/home", http.StatusFound)
+	if !requireSystemAdmin(w, r, true) {
 		return
 	}
+	ctx := r.Context()
 	msg := strings.TrimSpace(r.URL.Query().Get("msg"))
 	layout := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("layout")))
 	if layout == "" {
@@ -75,9 +73,10 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	scope := normalizeAppsScope(r.URL.Query().Get("scope"))
 	searchQ := strings.TrimSpace(r.URL.Query().Get("q"))
 
-	raw, err := module.ListModules(r.Context())
+	raw, err := module.ListModules(ctx)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to list modules: %v", err), http.StatusInternalServerError)
+		WebLogEvent(ctx, r.URL.Path, "Failed to list modules for apps page", "load", "failure", err, nil)
+		http.Error(w, "Failed to list modules", http.StatusInternalServerError)
 		return
 	}
 
@@ -139,7 +138,8 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	tmplPath := filepath.Join(config.AppConfig.TemplatesPath, "apps_inner.html")
 	innerTmpl, err := template.ParseFiles(tmplPath)
 	if err != nil {
-		log.Printf("%s: parse %s: %v", platformmsg.MsgHTTPTemplateError, tmplPath, err)
+		WebLogEvent(ctx, r.URL.Path, "Failed to parse apps inner template", "render", "failure", err,
+			map[string]interface{}{"template": tmplPath})
 		http.Error(w, platformmsg.MsgHTTPTemplateError, http.StatusInternalServerError)
 		return
 	}
@@ -159,8 +159,8 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		ViewBreadcrumb: breadcrumb,
 	}
 	if err := innerTmpl.Execute(&innerBuf, data); err != nil {
-		log.Printf("%s: execute apps_inner: %v", platformmsg.MsgHTTPTemplateError, err)
-		http.Error(w, fmt.Sprintf("Template execute: %v", err), http.StatusInternalServerError)
+		WebLogEvent(ctx, r.URL.Path, "Failed to execute apps inner template", "render", "failure", err, nil)
+		http.Error(w, "Template error", http.StatusInternalServerError)
 		return
 	}
 
@@ -192,12 +192,11 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		page.ActivityContextModel = "sys.module"
 		page.ActivityContextRecordID = int64(detail.ID)
 	}
-	html, err := render.RenderPage(r.Context(), config.AppConfig.TemplatesPath, page)
+	html, err := render.RenderPage(ctx, config.AppConfig.TemplatesPath, page)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Layout render: %v", err), http.StatusInternalServerError)
+		WebLogEvent(ctx, r.URL.Path, "Failed to render apps page layout", "render", "failure", err, nil)
+		http.Error(w, "Layout render error", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(html))
+	writeHTML(w, ctx, r.URL.Path, html)
 }

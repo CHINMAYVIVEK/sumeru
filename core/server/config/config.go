@@ -32,9 +32,9 @@ type Config struct {
 	LogMaxSizeMB       int      // max megabytes per log file before rotation (default 100 when log_rolling)
 	LogMaxBackups      int      // retained rotated files (0 = lumberjack default)
 	LogMaxAgeDays      int      // delete rolled files older than N days (0 = no age limit)
-	LogEnabled         bool     // log_enabled: when false, no Zap sinks and L(ctx) is no-op; stdlib log discarded
+	LogEnabled         bool     // log_enabled: when false, no slog sinks and L(ctx) is no-op; stdlib log discarded
 	LogTimezone        string   // log_timezone: UTC, Local (default), or IANA (e.g. Asia/Kolkata) for timestamps
-	DevMode            bool     // dev_mode INI key; parseBoolKey(..., false) — debug Zap level and dev-only server paths
+	DevMode            bool     // dev_mode INI key; parseBoolKey(..., false) — debug slog level and dev-only server paths
 }
 
 var AppConfig Config

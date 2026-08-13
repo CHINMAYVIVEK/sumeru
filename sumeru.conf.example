@@ -11,15 +11,16 @@ db_sslmode = disable
 
 http_port = 8080
 
-# dev_mode        Default false. When true: Zap debug level and dev-only behavior (e.g. branding fallbacks). Use false in production.
+# dev_mode        Default false. When true: slog debug level and dev-only behavior (e.g. branding fallbacks). Use false in production.
 # dev_mode = false
 
-# Core tree only: built-in apps under sumeru/addons/ (base, sumeru_ai, …).
+# Core tree only: built-in apps under sumeru/addons/ (base, mail, contacts, …).
+# Addons with "auto_import": false in manifest.json (e.g. sumeru_ai) are omitted from generated zimports unless you opt in.
 # Standard business addons live in the sibling sumeru_addons repo; custom work runs from sumeru_custom_addons.
 addons_path = addons
 
-# --- Logging (Zap JSON + optional lumberjack rotation) ---
-# log_enabled      Default true. Set false to disable application logging (Zap no-op; stdlib log discarded).
+# --- Logging (applog JSON via slog + optional lumberjack rotation) ---
+# log_enabled      Default true. Set false to disable application logging (slog no-op).
 # log_timezone     UTC, Local, or IANA (e.g. Asia/Kolkata) for log timestamps and L(ctx) log_tz field.
 # log_stdout       Default true. Use true for Kubernetes (collect stdout). Set false for file-only.
 # log_file         Optional absolute or INI-relative path.

@@ -69,7 +69,7 @@ Do not delete half-built features that still write data (e.g. outbox enqueue) un
 
 ## Logging
 
-Use `sumeru/core/applog` (`LoggerFromContext` / `LogORMOperation`) with stdlib `log/slog`. Stdout is always on when logging is enabled; `log_file` is optional. Do not add Zap or other logging libraries.
+Use **`sumeru/core/applog`** only: `Info` / `Warn` / `Debug` / `Error` with `Event`, or the thin helpers `InfoMsg`, `WarnMsg`, and `DebugMsg`. Before `SetupFromConfig` (config load, path resolve), use `BootstrapFatal` for fatal errors. See [docs/logging-contract.md](docs/logging-contract.md). Do not import stdlib `log` or call `fmt.Printf` for operational logging in `core/server` or `core/module`. Stdout is always on when logging is enabled; `log_file` is optional. Do not add Zap or other logging libraries.
 
 ## Testing
 

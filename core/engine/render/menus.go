@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
+	"sumeru/core/applog"
 	"sumeru/core/engine/parser"
 	"sumeru/core/orm"
 )
@@ -43,10 +43,19 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 	)
 	rows, err := orm.DB.QueryContext(ctx, query)
 	if err != nil {
-		log.Printf("Error fetching menus: %v", err)
+		applog.WarnMsg(ctx, "render", "menus", "Error fetching menus", err, nil)
 		return nil, nil, "", AppDisplayName
 	}
 	defer rows.Close()
+
+	lang := "en_US"
+	if uid := orm.UIDFromContext(ctx); uid > 0 {
+		if u, err := orm.SearchOne(ctx, "core.user", map[string]interface{}{"id": uid}); err == nil {
+			if l := strings.TrimSpace(orm.AsString(u["lang"])); l != "" {
+				lang = l
+			}
+		}
+	}
 
 	var allMenus []parser.MenuItem
 	for rows.Next() {
@@ -54,18 +63,10 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 		var name, mod, webIcon, accessGroups string
 		var parentID, actionID, seq sql.NullInt64
 		if err := rows.Scan(&id, &name, &parentID, &actionID, &seq, &mod, &webIcon, &accessGroups); err != nil {
-			log.Printf("Error scanning menu row: %v", err)
+			applog.WarnMsg(ctx, "render", "menus", "Error scanning menu row", err, nil)
 			continue
 		}
 
-		lang := "en_US"
-		if uid := orm.UIDFromContext(ctx); uid > 0 {
-			if u, err := orm.SearchOne(ctx, "core.user", map[string]interface{}{"id": uid}); err == nil {
-				if l := strings.TrimSpace(orm.AsString(u["lang"])); l != "" {
-					lang = l
-				}
-			}
-		}
 		m := parser.MenuItem{
 			ID:           fmt.Sprintf("%d", id),
 			Name:         orm.Translate(ctx, lang, name),
@@ -88,12 +89,12 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 		allMenus = append(allMenus, m)
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("Menu rows error: %v", err)
+		applog.WarnMsg(ctx, "render", "menus", "Menu rows error", err, nil)
 	}
 
 	appMods, err := queryInstalledApplicationNames(ctx)
 	if err != nil {
-		log.Printf("installed application modules: %v", err)
+		applog.WarnMsg(ctx, "render", "menus", "installed application modules", err, nil)
 	}
 
 	uid := orm.UIDFromContext(ctx)
@@ -245,20 +246,5 @@ func IsMenuUnderSettingsRoot(ctx context.Context, activeMenuID string) bool {
 	if err != nil || rootID == 0 {
 		return false
 	}
-	cur := int(id64)
-	for i := 0; i < 64; i++ {
-		if cur == rootID {
-			return true
-		}
-		row, err := orm.SearchOne(ctx, "sys.menu", map[string]interface{}{"id": cur})
-		if err != nil {
-			return false
-		}
-		pid, ok := orm.CoerceInt64(row["parent_id"])
-		if !ok || pid == 0 {
-			return false
-		}
-		cur = int(pid)
-	}
-	return false
+	return orm.MenuHasAncestor(ctx, int(id64), rootID)
 }

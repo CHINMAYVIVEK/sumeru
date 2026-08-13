@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"sumeru/addons/mail"
+	"sumeru/core/applog"
 	"sumeru/core/orm"
 )
 
@@ -35,9 +36,7 @@ func UpdateModuleData(ctx context.Context, name string) error {
 		// e.g. -u all while a leaf is marked installed without its deps — skip reload (no DB churn).
 		return nil
 	}
-	if _, err := orm.DB.ExecContext(ctx,
-		`UPDATE `+orm.MustQuotedTableName("sys.module")+` SET state = 'to_upgrade' WHERE name = $1`, name,
-	); err != nil {
+	if err := setModuleStateOnly(ctx, name, "to_upgrade"); err != nil {
 		return err
 	}
 	if err := orm.SyncRegistrySchemaForModule(name); err != nil {
@@ -49,9 +48,7 @@ func UpdateModuleData(ctx context.Context, name string) error {
 	if err := a.SyncToDB(ctx); err != nil {
 		return err
 	}
-	if _, err := orm.DB.ExecContext(ctx,
-		`UPDATE `+orm.MustQuotedTableName("sys.module")+` SET state = 'installed' WHERE name = $1`, name,
-	); err != nil {
+	if err := setModuleStateOnly(ctx, name, "installed"); err != nil {
 		return err
 	}
 	mail.LogModuleEvent(ctx, name, "Updated", "module data reloaded")
@@ -82,7 +79,9 @@ func RunModuleCLI(installCSV, updateCSV string) error {
 		return err
 	}
 	if len(updateList) > 0 {
-		fmt.Printf("Updating %d installed module(s): %s\n", len(updateList), strings.Join(updateList, ", "))
+		applog.InfoMsg(ctx, "module", "update",
+			fmt.Sprintf("Updating %d installed module(s)", len(updateList)),
+			map[string]interface{}{"modules": strings.Join(updateList, ", ")})
 	}
 	for _, name := range updateList {
 		if err := UpdateModuleData(ctx, name); err != nil {

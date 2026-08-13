@@ -46,7 +46,12 @@ func SyncRegistrySchema() error {
 }
 
 func syncModelSchema(ctx context.Context, model Model) error {
-	tableName, err := ModelToTableName(model.ModelName())
+	modelName := model.ModelName()
+	tableName, err := ModelToTableName(modelName)
+	if err != nil {
+		return err
+	}
+	quotedTable, err := QuotedTableName(modelName)
 	if err != nil {
 		return err
 	}
@@ -73,21 +78,25 @@ func syncModelSchema(ctx context.Context, model Model) error {
 			continue
 		}
 		colDef := FormatAddColumnDefinition(field, baseType)
-		q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", quoteIdent(tableName), quoteIdent(field.Name), colDef)
+		colQuoted, err := QuotedColumnForModel(modelName, field.Name)
+		if err != nil {
+			return err
+		}
+		q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", quotedTable, colQuoted, colDef)
 		if _, err := DB.Exec(q); err != nil {
 			return fmt.Errorf("%s: %w", q, err)
 		}
 		applog.L(ctx).Info("schema_sync", "table", tableName, "field", field.Name)
 	}
-	if err := dropStaleColumnUniques(tableName, model); err != nil {
+	if err := dropStaleColumnUniques(modelName, tableName, quotedTable, model); err != nil {
 		return err
 	}
-	return ensureModelIndexes(tableName, model)
+	return ensureModelIndexes(modelName, tableName, quotedTable, model)
 }
 
 // dropStaleColumnUniques removes single-column UNIQUE constraints when the field
 // definition no longer sets Unique (e.g. sys.menu.name after menu label collisions).
-func dropStaleColumnUniques(tableName string, model Model) error {
+func dropStaleColumnUniques(modelName, tableName, quotedTable string, model Model) error {
 	for _, field := range model.Fields() {
 		if field.Unique || field.Name == "id" {
 			continue
@@ -134,7 +143,7 @@ func dropStaleColumnUniques(tableName string, model Model) error {
 			if !pgIdentOK(con) {
 				return fmt.Errorf("unsafe constraint name %q on %s", con, tableName)
 			}
-			q := fmt.Sprintf(`ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s`, quoteIdent(tableName), quoteIdent(con))
+			q := fmt.Sprintf(`ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s`, quotedTable, quoteIdent(con))
 			if _, err := DB.Exec(q); err != nil {
 				return fmt.Errorf("drop unique %s.%s: %w", tableName, con, err)
 			}
@@ -144,13 +153,17 @@ func dropStaleColumnUniques(tableName string, model Model) error {
 	return nil
 }
 
-func ensureModelIndexes(tableName string, model Model) error {
+func ensureModelIndexes(modelName, tableName, quotedTable string, model Model) error {
 	for _, field := range model.Fields() {
 		if !(field.Index || field.Type == Many2One) {
 			continue
 		}
+		colQuoted, err := QuotedColumnForModel(modelName, field.Name)
+		if err != nil {
+			return err
+		}
 		idxName := fmt.Sprintf("idx_%s_%s", tableName, field.Name)
-		idxQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)", quoteIdent(idxName), quoteIdent(tableName), quoteIdent(field.Name))
+		idxQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)", quoteIdent(idxName), quotedTable, colQuoted)
 		if _, err := DB.Exec(idxQuery + ";"); err != nil {
 			return fmt.Errorf("index %s: %w", idxName, err)
 		}

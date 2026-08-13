@@ -2,12 +2,12 @@ package module
 
 import (
 	"context"
-	"sumeru/core/applog"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"sumeru/core/applog"
 	"sumeru/core/engine/parser"
 	"sumeru/core/orm"
 )
@@ -49,12 +49,7 @@ func upsertSysActionWindowFromRecord(ctx context.Context, moduleName string, xml
 	}
 	id, err := orm.Upsert(ctx, orm.SysActionWindow{}, recordValues, "name")
 	if err == nil {
-		_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-			"module":  moduleName,
-			"name":    xmlRecord.ID,
-			"model":   "sys.action.window",
-			"core_id": id,
-		}, "name")
+		_ = linkXMLRecord(ctx, moduleName, xmlRecord.ID, "sys.action.window", id)
 	}
 }
 

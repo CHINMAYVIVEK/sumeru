@@ -2,15 +2,15 @@ package automation
 
 import (
 	"context"
-	"log"
+	"fmt"
 
 	_ "sumeru/addons/automation/models"
+	"sumeru/core/applog"
 	"sumeru/core/event"
 	"sumeru/core/orm"
 )
 
 func init() {
-	log.Println("Sumeru Automation Addon Loaded")
 	event.Subscribe("record.created", runServerActionsForEvent)
 	event.Subscribe("record.updated", runServerActionsForEvent)
 	event.Subscribe("cron.tick", runServerActionsForEvent)
@@ -33,7 +33,9 @@ func runServerActionsForEvent(ctx context.Context, ev event.Event) error {
 		return err
 	}
 	for _, row := range rows {
-		log.Printf("[automation] server action %v on event %s", row["name"], ev.Name)
+		applog.DebugMsg(ctx, "module", "automation",
+			fmt.Sprintf("server action %v on event %s", row["name"], ev.Name),
+			map[string]interface{}{"module": "automation", "event": ev.Name})
 	}
 	return nil
 }

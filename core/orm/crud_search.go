@@ -18,7 +18,13 @@ func RegisterSearchInterceptor(fn SearchInterceptor) {
 	SearchInterceptors = append(SearchInterceptors, fn)
 }
 
-func execSearchQuery(ctx context.Context, modelName string, domain [][]interface{}, orderLimit string) ([]map[string]interface{}, error) {
+type searchPaging struct {
+	orderBySQL string
+	limit      int
+	offset     int
+}
+
+func execSearchQuery(ctx context.Context, modelName string, domain [][]interface{}, paging *searchPaging) ([]map[string]interface{}, error) {
 	if _, ok := Registry[modelName]; !ok {
 		return nil, fmt.Errorf("model %s not found", modelName)
 	}
@@ -45,8 +51,10 @@ func execSearchQuery(ctx context.Context, modelName string, domain [][]interface
 		return nil, err
 	}
 	query := fmt.Sprintf("SELECT * FROM %s WHERE %s", table, whereClause)
-	if orderLimit != "" {
-		query += " " + orderLimit
+	if paging != nil {
+		n := len(args) + 1
+		query += fmt.Sprintf(" ORDER BY %s LIMIT $%d OFFSET $%d", paging.orderBySQL, n, n+1)
+		args = append(args, paging.limit, paging.offset)
 	}
 	rows, err := DB.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -74,9 +82,9 @@ func Search(ctx context.Context, modelName string, domain [][]interface{}) (resu
 		if results != nil {
 			n = len(results)
 		}
-		logORMOperation(ctx, start, "search", modelName, err, "rows", n)
+		logORMOperationKV(ctx, start, "search", modelName, err, "rows", n)
 	}()
-	results, err = execSearchQuery(ctx, modelName, domain, "")
+	results, err = execSearchQuery(ctx, modelName, domain, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +114,7 @@ func SearchPage(ctx context.Context, modelName string, domain [][]interface{}, l
 		if results != nil {
 			n = len(results)
 		}
-		logORMOperation(ctx, start, "search_page", modelName, err, "rows", n, "limit", limit, "offset", offset)
+		logORMOperationKV(ctx, start, "search_page", modelName, err, "rows", n, "limit", limit, "offset", offset)
 	}()
 	if limit <= 0 || limit > maxSearchLimit {
 		limit = maxSearchLimit
@@ -121,6 +129,9 @@ func SearchPage(ctx context.Context, modelName string, domain [][]interface{}, l
 	if err != nil {
 		return nil, err
 	}
-	orderLimit := fmt.Sprintf("ORDER BY %s LIMIT %d OFFSET %d", obSQL, limit, offset)
-	return execSearchQuery(ctx, modelName, domain, orderLimit)
+	return execSearchQuery(ctx, modelName, domain, &searchPaging{
+		orderBySQL: obSQL,
+		limit:      limit,
+		offset:     offset,
+	})
 }

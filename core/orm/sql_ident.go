@@ -41,15 +41,22 @@ func QuotedColumnForModel(modelName, fieldName string) (string, error) {
 	return "", fmt.Errorf("unknown field %q on model %s", fieldName, modelName)
 }
 
-// isSQLColumnOnModel reports whether fieldName is a writable/searchable SQL column.
-func isSQLColumnOnModel(modelName, fieldName string) bool {
-	_, err := QuotedColumnForModel(modelName, fieldName)
-	return err == nil
-}
-
 // QuotedConflictColumn validates an Upsert conflict target column.
 func QuotedConflictColumn(modelName, column string) (string, error) {
 	return QuotedColumnForModel(modelName, column)
+}
+
+// QuotedPermColumnForOp returns a quoted sys.access / sys.rule permission column for op.
+// op is read, write, create, or unlink (case-insensitive). Unknown ops error.
+func QuotedPermColumnForOp(op string) (string, error) {
+	col := permColumnForOp(op)
+	if col == "" {
+		return "", fmt.Errorf("unknown operation %q", op)
+	}
+	if err := ValidateFieldName(col); err != nil {
+		return "", err
+	}
+	return quoteIdent(col), nil
 }
 
 // ParseOrderByForModel parses "field", "field ASC", or "field DESC" against the model.

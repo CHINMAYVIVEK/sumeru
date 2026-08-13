@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"sumeru/core/sdk/platformmsg"
+	"sumeru/core/applog"
 	"sumeru/core/orm"
 )
 
@@ -62,20 +61,25 @@ func LoadAddonPaths(rootPaths []string) error {
 				if IsFatalSync(err) {
 					_ = setModuleLastError(contextWithBypass, addon.Manifest.Name, err.Error())
 					syncErrs = append(syncErrs, err)
-					fmt.Printf(platformmsg.FmtErrorSyncingAddon, addon.Manifest.Name, err)
+					applog.WarnMsg(contextWithBypass, "module", "sync",
+						fmt.Sprintf("Error syncing addon %s", addon.Manifest.Name), err, nil)
 					continue
 				}
-				fmt.Printf(platformmsg.FmtErrorSyncingAddon, addon.Manifest.Name, err)
+				applog.WarnMsg(contextWithBypass, "module", "sync",
+					fmt.Sprintf("Error syncing addon %s", addon.Manifest.Name), err, nil)
 			} else {
 				_ = setModuleLastError(contextWithBypass, addon.Manifest.Name, "")
-				fmt.Printf(platformmsg.FmtLoadedAddonData, addon.Manifest.Name, addon.Manifest.Version)
+				applog.InfoMsg(contextWithBypass, "module", "sync",
+					fmt.Sprintf("Loaded addon data: %s (v%s)", addon.Manifest.Name, addon.Manifest.Version), nil)
 			}
 		}
 		if len(syncErrs) > 0 {
 			return fmt.Errorf("fatal module sync failure(s): %w", syncErrs[0])
 		}
 	} else {
-		log.Printf("LoadAddonPaths: Database not initialized, skipping DB sync for %d discovered addons.", len(discoveredAddons))
+		applog.InfoMsg(contextWithBypass, "module", "discover",
+			"Database not initialized; skipping DB sync for discovered addons",
+			map[string]interface{}{"count": len(discoveredAddons)})
 	}
 
 	return nil
@@ -104,7 +108,9 @@ func DiscoverAddonRoots(rootPaths []string) (map[string]*Addon, error) {
 				return nil, fmt.Errorf("%s: manifest.json: %w", addonPath, err)
 			}
 			if existingAddon, exists := addonsMap[parsedManifest.Name]; exists {
-				fmt.Printf(platformmsg.FmtAddonOverrideNotice, parsedManifest.Name, addonPath, existingAddon.Path)
+				applog.InfoMsg(context.Background(), "module", "discover",
+					fmt.Sprintf("Addon %q path override", parsedManifest.Name),
+					map[string]interface{}{"new_path": addonPath, "old_path": existingAddon.Path})
 			}
 			addonsMap[parsedManifest.Name] = &Addon{Manifest: *parsedManifest, Path: addonPath}
 		}

@@ -65,15 +65,10 @@ func upsertSysViewFromRecord(ctx context.Context, moduleName string, xmlRecord p
 
 	id, err := orm.Upsert(ctx, orm.SysView{}, recordValues, "name")
 	if err != nil {
-		fmt.Printf(platformmsg.FmtGenericUpsertWarn, "sys.view", xmlRecord.ID, err)
+		syncWarn(ctx, platformmsg.FmtGenericUpsertWarn, "sys.view", xmlRecord.ID, err)
 		return
 	}
-	_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-		"module":  moduleName,
-		"name":    xmlRecord.ID,
-		"model":   "sys.view",
-		"core_id": id,
-	}, "name")
+	_ = linkXMLRecord(ctx, moduleName, xmlRecord.ID, "sys.view", id)
 }
 
 func inferSysViewTypeFromArch(arch string) string {
@@ -106,11 +101,6 @@ func upsertInlineViewDef(ctx context.Context, moduleName string, viewDef *parser
 		"arch":  viewArchitecture,
 	}, "name")
 	if err == nil {
-		_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-			"module":  moduleName,
-			"name":    viewDef.ID,
-			"model":   "sys.view",
-			"core_id": id,
-		}, "name")
+		_ = linkXMLRecord(ctx, moduleName, viewDef.ID, "sys.view", id)
 	}
 }

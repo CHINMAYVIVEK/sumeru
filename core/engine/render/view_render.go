@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"html/template"
-	"log"
 	"strings"
 
-	"sumeru/core/engine/parser"
 	"sumeru/addons/mail"
+	"sumeru/core/applog"
+	"sumeru/core/engine/parser"
 )
 
 // RenderView builds full HTML for a workspace view (form, tree, kanban, pivot) inside the shell layout.
@@ -65,11 +65,14 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 		pageData.ActivityChatterHTML = template.HTML(ch.String())
 	}
 
-	log.Printf("Rendering view for model %s (ActiveMenu: %s, ActiveModule: %s)", view.Model, activeMenuID, activeModuleID)
+	applog.DebugMsg(ctx, "render", "view",
+		fmt.Sprintf("Rendering view for model %s", view.Model),
+		map[string]interface{}{"active_menu": activeMenuID, "active_module": activeModuleID})
 
 	out, err := RenderPage(ctx, templatesDir, pageData)
 	if err != nil {
-		log.Printf("Error rendering page: %v", err)
+		applog.WarnMsg(ctx, "render", "view", "Error rendering page", err,
+			map[string]interface{}{"model": view.Model})
 		return content
 	}
 	return out

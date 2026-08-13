@@ -1,9 +1,9 @@
 package applog
 
 import (
+	"context"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -24,13 +24,8 @@ type handlerResult struct {
 	maxAge     int
 }
 
-// SetupFromConfig builds the global slog logger and redirects the standard library log package.
+// SetupFromConfig builds the global slog logger for JSON logs to stdout and optional file.
 // Call after config.LoadConfig and config.AbsPaths so log_file paths are absolute.
-//
-//   - log_enabled=false: discard all logs
-//   - stdout is always enabled when logging is on (log_stdout is ignored for disabling)
-//   - log_file: optional second sink; log_rolling=true uses lumberjack
-//   - log_timezone: UTC, Local (default), or IANA name for log_ts in LoggerFromContext
 func SetupFromConfig(c *config.Config) error {
 	root = nil
 	logEnabled = c.LogEnabled
@@ -41,7 +36,6 @@ func SetupFromConfig(c *config.Config) error {
 	if !c.LogEnabled {
 		root = slog.New(slog.DiscardHandler)
 		slog.SetDefault(root)
-		log.SetOutput(io.Discard)
 		return nil
 	}
 
@@ -56,32 +50,24 @@ func SetupFromConfig(c *config.Config) error {
 	}
 	root = slog.New(hr.handler)
 	slog.SetDefault(root)
-	log.SetFlags(0)
-	log.SetOutput(slogBridge{logger: root})
 
-	root.Info("logging initialized",
-		"log_enabled", c.LogEnabled,
-		"log_timezone", logTzName,
-		"log_stdout", true,
-		"log_rolling", c.LogRolling,
-		"log_file", hr.logPath,
-		"log_max_size_mb", hr.maxSize,
-		"log_max_backups", hr.maxBackups,
-		"log_max_age_days", hr.maxAge,
-	)
+	Info(context.Background(), Event{
+		Message:   "Logging initialized",
+		Component: "applog",
+		Operation: "init",
+		Status:    "success",
+		Context: map[string]interface{}{
+			"log_enabled":     c.LogEnabled,
+			"log_timezone":    logTzName,
+			"log_stdout":      true,
+			"log_rolling":     c.LogRolling,
+			"log_file":        hr.logPath,
+			"log_max_size_mb": hr.maxSize,
+			"log_max_backups": hr.maxBackups,
+			"log_max_age_days": hr.maxAge,
+		},
+	})
 	return nil
-}
-
-type slogBridge struct {
-	logger *slog.Logger
-}
-
-func (b slogBridge) Write(p []byte) (int, error) {
-	msg := strings.TrimRight(string(p), "\n")
-	if msg != "" {
-		b.logger.Info(msg)
-	}
-	return len(p), nil
 }
 
 func buildHandler(c *config.Config, level slog.Level) (handlerResult, error) {
@@ -103,7 +89,15 @@ func buildHandler(c *config.Config, level slog.Level) (handlerResult, error) {
 		maxAge = 0
 	}
 
-	opts := &slog.HandlerOptions{Level: level}
+	opts := &slog.HandlerOptions{
+		Level: level,
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.MessageKey {
+				a.Key = "message"
+			}
+			return a
+		},
+	}
 	writers := []io.Writer{os.Stdout}
 	if logPath != "" {
 		w, err := openLogFile(logPath, c.LogRolling, maxSize, maxBackups, maxAge)

@@ -98,21 +98,7 @@ func isHomeMenuTree(ctx context.Context, menuIDStr string) bool {
 	if err != nil || cur <= 0 {
 		return false
 	}
-	for i := 0; i < 64 && cur > 0; i++ {
-		if cur == rootID {
-			return true
-		}
-		row, err := orm.SearchOne(ctx, "sys.menu", map[string]interface{}{"id": cur})
-		if err != nil {
-			return false
-		}
-		pid, ok := orm.CoerceInt64(row["parent_id"])
-		if !ok || pid == 0 {
-			return false
-		}
-		cur = int(pid)
-	}
-	return false
+	return orm.MenuHasAncestor(ctx, cur, rootID)
 }
 
 // actionWindowTargetModel returns the ORM technical model for a sys.action.window row (core_model).

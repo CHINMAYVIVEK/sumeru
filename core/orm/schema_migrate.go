@@ -1,5 +1,10 @@
 package orm
 
+import (
+	"errors"
+	"fmt"
+)
+
 // Legacy schema fixes that are not expressed as additive columns on Model.Fields():
 // - widen sys.view.arch to TEXT
 // - composite index on mail.message
@@ -13,15 +18,15 @@ func BackfillSysMenuModule() error {
 	if DB == nil {
 		return nil
 	}
-	dataTbl := MustModelToTableName("sys.model.data")
-	ok, err := tableExists(dataTbl)
+	ok, err := tableExists(MustModelToTableName("sys.model.data"))
 	if err != nil || !ok {
 		return err
 	}
-	menuTbl := MustModelToTableName("sys.menu")
-	q := `UPDATE ` + quoteIdent(menuTbl) + ` m
+	menuTbl := MustQuotedTableName("sys.menu")
+	dataTbl := MustQuotedTableName("sys.model.data")
+	q := `UPDATE ` + menuTbl + ` m
 		SET module = d.module
-		FROM ` + quoteIdent(dataTbl) + ` d
+		FROM ` + dataTbl + ` d
 		WHERE d.model = 'sys.menu' AND d.core_id = m.id
 		  AND (m.module IS NULL OR TRIM(m.module) = '')`
 	_, err = DB.Exec(q)
@@ -34,9 +39,21 @@ func FixSysMenuSelfParent() error {
 	if DB == nil {
 		return nil
 	}
-	menuTbl := MustModelToTableName("sys.menu")
-	_, err := DB.Exec(`UPDATE ` + quoteIdent(menuTbl) + ` SET parent_id = NULL WHERE id = parent_id AND parent_id IS NOT NULL`)
+	menuTbl := MustQuotedTableName("sys.menu")
+	_, err := DB.Exec(`UPDATE ` + menuTbl + ` SET parent_id = NULL WHERE id = parent_id AND parent_id IS NOT NULL`)
 	return err
+}
+
+// RunMenuDataFixes applies startup/setup menu repairs (module backfill + self-parent cleanup).
+func RunMenuDataFixes() error {
+	var errs []error
+	if err := BackfillSysMenuModule(); err != nil {
+		errs = append(errs, fmt.Errorf("backfill sys.menu.module: %w", err))
+	}
+	if err := FixSysMenuSelfParent(); err != nil {
+		errs = append(errs, fmt.Errorf("fix sys.menu self-parent: %w", err))
+	}
+	return errors.Join(errs...)
 }
 
 // EnsureSysViewArchText widens sys.view.arch for large inherited views.
@@ -44,8 +61,8 @@ func EnsureSysViewArchText() error {
 	if DB == nil {
 		return nil
 	}
-	tn := MustModelToTableName("sys.view")
-	_, err := DB.Exec(`ALTER TABLE ` + quoteIdent(tn) + ` ALTER COLUMN arch TYPE TEXT USING arch::text`)
+	tn := MustQuotedTableName("sys.view")
+	_, err := DB.Exec(`ALTER TABLE ` + tn + ` ALTER COLUMN arch TYPE TEXT USING arch::text`)
 	return err
 }
 
@@ -55,12 +72,13 @@ func EnsureCoreUserImageText() error {
 	if DB == nil {
 		return nil
 	}
-	tn := MustModelToTableName("core.user")
-	ok, err := tableExists(tn)
+	tnPhysical := MustModelToTableName("core.user")
+	ok, err := tableExists(tnPhysical)
 	if err != nil || !ok {
 		return err
 	}
-	_, err = DB.Exec(`ALTER TABLE ` + quoteIdent(tn) + ` ALTER COLUMN image TYPE TEXT USING image::text`)
+	tn := MustQuotedTableName("core.user")
+	_, err = DB.Exec(`ALTER TABLE ` + tn + ` ALTER COLUMN image TYPE TEXT USING image::text`)
 	return err
 }
 
@@ -69,8 +87,9 @@ func EnsureMailMessageModelResIndex() error {
 	if DB == nil {
 		return nil
 	}
-	tn := MustModelToTableName("mail.message") // physical name for index id; quote only in ON clause
-	q := `CREATE INDEX IF NOT EXISTS idx_` + tn + `_model_core_created ON ` + quoteIdent(tn) + ` (model, core_id, create_date DESC)`
+	tnPhysical := MustModelToTableName("mail.message") // physical name for index id; quote only in ON clause
+	tn := MustQuotedTableName("mail.message")
+	q := `CREATE INDEX IF NOT EXISTS idx_` + tnPhysical + `_model_core_created ON ` + tn + ` (model, core_id, create_date DESC)`
 	_, err := DB.Exec(q)
 	return err
 }

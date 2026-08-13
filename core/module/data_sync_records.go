@@ -94,15 +94,10 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 		if existing, err := orm.SearchOne(ctx, xmlRecord.Model, criteria); err == nil {
 			if eid, ok := orm.CoerceInt64(existing["id"]); ok && eid > 0 {
 				if err := orm.UpdateRecordByID(ctx, xmlRecord.Model, int(eid), fieldValues); err != nil {
-					fmt.Printf(platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
+					syncWarn(ctx, platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
 					return
 				}
-				_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-					"module":  moduleName,
-					"name":    xmlRecord.ID,
-					"model":   xmlRecord.Model,
-					"core_id": int(eid),
-				}, "name")
+				_ = linkXMLRecord(ctx, moduleName, xmlRecord.ID, xmlRecord.Model, int(eid))
 				return
 			}
 		}
@@ -119,7 +114,7 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 		id, err = orm.Upsert(ctx, modelInstance, fieldValues, conflictColumn)
 	}
 	if err != nil {
-		fmt.Printf(platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
+		syncWarn(ctx, platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
 		return
 	}
 	if xmlRecord.Model == "core.group" {
@@ -139,12 +134,7 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 			}
 		}
 	}
-	_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-		"module":  moduleName,
-		"name":    xmlRecord.ID,
-		"model":   xmlRecord.Model,
-		"core_id": id,
-	}, "name")
+	_ = linkXMLRecord(ctx, moduleName, xmlRecord.ID, xmlRecord.Model, id)
 }
 
 // ConvertRecordScalar coerces XML/form string values into types used for registry upserts.

@@ -89,11 +89,9 @@ func CheckStageApproval(ctx context.Context, model string, id int, targetState s
 		return err
 	}
 
-	// Get current state to check from_state rules
 	before, err := SearchOne(ctx, model, map[string]interface{}{"id": id})
 	if err != nil {
-		// If record not found, we can't check from_state. For now, assume it's okay (e.g. create case handled elsewhere).
-		return nil
+		return fmt.Errorf("approval denied: record lookup failed")
 	}
 	currentState := AsString(before["state"])
 

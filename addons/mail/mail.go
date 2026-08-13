@@ -110,6 +110,13 @@ func ListCommentsForRecord(ctx context.Context, model string, coreID int64, limi
 	if orm.DB == nil {
 		return nil, nil
 	}
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return nil, fmt.Errorf("model is required")
+	}
+	if _, ok := orm.Registry[model]; !ok {
+		return nil, fmt.Errorf("unknown model %q", model)
+	}
 	if limit <= 0 || limit > 500 {
 		limit = 120
 	}

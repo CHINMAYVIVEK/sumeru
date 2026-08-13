@@ -8,7 +8,7 @@ const (
 	MsgHTTPTemplateError = "Template error"
 )
 
-// Log line formats (fmt.Printf / log.Printf style; end with \n where used as full lines).
+// Message format strings for sync warnings (used with applog via syncWarn).
 const (
 	FmtErrorSyncingAddon   = "Error syncing addon %s: %v\n"
 	FmtLoadedAddonData     = "Loaded addon data: %s (v%s)\n"

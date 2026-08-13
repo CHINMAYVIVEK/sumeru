@@ -9,17 +9,18 @@ import (
 )
 
 // FindUIDefaultView returns the highest-priority sys.view for a model and type.
-// view_mode "list" maps to type "tree".
+// view_mode "list" maps to type "tree". Record rules are applied in SQL like Search.
 func FindUIDefaultView(ctx context.Context, modelName, viewType string) (result map[string]interface{}, err error) {
 	start := time.Now()
 	defer func() {
-		logORMOperation(ctx, start, "find_ui_view", "sys.view", err, "target_model", modelName, "view_type", viewType, "found", result != nil)
+		logORMOperationKV(ctx, start, "find_ui_view", "sys.view", err, "target_model", modelName, "view_type", viewType, "found", result != nil)
 	}()
 	if _, ok := Registry["sys.view"]; !ok {
 		return nil, fmt.Errorf("model sys.view not registered")
 	}
+	uid := SecurityUID(ctx)
 	if !SecurityBypass(ctx) {
-		if err := CheckModelAccess(ctx, SecurityUID(ctx), "sys.view", "read"); err != nil {
+		if err := CheckModelAccess(ctx, uid, "sys.view", "read"); err != nil {
 			return nil, err
 		}
 	}
@@ -27,12 +28,31 @@ func FindUIDefaultView(ctx context.Context, modelName, viewType string) (result 
 	if vt == "list" {
 		vt = "tree"
 	}
-	tbl := MustQuotedTableName("sys.view")
+	domain := [][]interface{}{
+		{"model", "=", modelName},
+		{"type", "=", vt},
+	}
+	whereClause, args, err := BuildWhereWithRecordRules(ctx, uid, "sys.view", "read", domain)
+	if err != nil {
+		return nil, err
+	}
+	priCol, err := QuotedColumnForModel("sys.view", "priority")
+	if err != nil {
+		return nil, err
+	}
+	idCol, err := QuotedColumnForModel("sys.view", "id")
+	if err != nil {
+		return nil, err
+	}
+	tbl, err := QuotedTableForModel("sys.view")
+	if err != nil {
+		return nil, err
+	}
 	q := fmt.Sprintf(
-		`SELECT * FROM %s WHERE model = $1 AND type = $2 ORDER BY priority DESC NULLS LAST, id DESC LIMIT 1`,
-		tbl,
+		`SELECT * FROM %s WHERE %s ORDER BY %s DESC NULLS LAST, %s DESC LIMIT 1`,
+		tbl, whereClause, priCol, idCol,
 	)
-	rows, err := DB.QueryContext(ctx, q, modelName, vt)
+	rows, err := DB.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}

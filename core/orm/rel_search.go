@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// RelNameSearchFiltered is RelNameSearch with an optional equality filter (filterField = filterID).
+// RelNameSearchFiltered returns name_search rows with an optional equality filter (filterField = filterID).
 func RelNameSearchFiltered(ctx context.Context, modelName, query string, limit int, filterField string, filterID int64) ([]map[string]interface{}, error) {
 	modelName = strings.TrimSpace(modelName)
 	if modelName == "" {

@@ -3,7 +3,6 @@ package orm
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	_ "github.com/lib/pq"
 
 	"sumeru/core/applog"
@@ -24,5 +23,5 @@ func InitDB(connStr string) {
 		applog.Fatal(context.Background(), "db_ping", "err", err)
 	}
 
-	fmt.Println("Successfully connected to the database")
+	applog.InfoMsg(context.Background(), "orm", "connect", "Successfully connected to the database", nil)
 }

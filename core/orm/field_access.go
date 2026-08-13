@@ -28,9 +28,9 @@ func fieldAccessDenied(ctx context.Context, uid int, model, op string) (map[stri
 	if _, ok := Registry["sys.field.access"]; !ok || DB == nil {
 		return out, nil
 	}
-	col := "perm_write"
-	if op == "read" {
-		col = "perm_read"
+	col, err := QuotedPermColumnForOp(op)
+	if err != nil {
+		return nil, err
 	}
 	groups, err := EffectiveGroupIDs(ctx, uid)
 	if err != nil {

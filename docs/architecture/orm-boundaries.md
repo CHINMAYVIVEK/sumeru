@@ -50,17 +50,32 @@ request → model lookup → field whitelist → field ACL → type coercion →
 
 ## SQL identifiers (injection safety)
 
+Sumeru uses a **two-layer rule**:
+
+1. **Identifiers** (tables, columns, ORDER BY fields) — validated and quoted via `QuotedTableForModel`, `QuotedColumnForModel`, `QuotedPermColumnForOp`, or compile-time `MustQuotedTableName`.
+2. **Values** (user input, domain literals, limits) — always bound with `$1`, `$2`, … placeholders. Never interpolate request strings into SQL text.
+
 Logical **model names** are lowercase segments joined only by `.` (e.g. `core.user`, `sys.config.parameter`). No underscores, whitespace, or other symbols in the logical name. Physical tables replace `.` with `_` after validation (`ModelToTableName` / `QuotedTableName`).
 
 Every dynamic SQL path must:
 
 1. Resolve tables via `QuotedTableForModel` / `QuotedTableName` (registered + validated).
-2. Resolve columns via `QuotedColumnForModel` (whitelist against `model.Fields()` + `id`).
+2. Resolve columns via `QuotedColumnForModel` (whitelist against `model.Fields()` + `id`) or `QuotedPermColumnForOp` for ACL permission columns.
 3. Bind all **values** with `$n` placeholders — never interpolate user strings into SQL.
+
+**Forbidden:** building WHERE/ORDER BY/LIMIT from unchecked strings; splicing model or field names from HTTP/RPC/domain without validation.
+
+**Allowed:** `fmt.Sprintf("SELECT * FROM %s WHERE %s", quotedTable, whereClause)` when `quotedTable` comes from `Quoted*` helpers and `whereClause` uses only `$n` placeholders.
+
+Run `make check-sql` (see [`scripts/check_sql_safety.sh`](../scripts/check_sql_safety.sh)) before committing raw SQL changes.
 
 ## Side effects
 
-Business mutation, audit, and outbox event rows commit together. Publishing to the in-process bus happens after commit (or via outbox worker). Never emit `record.*` for data that did not commit. Outbox rows are enqueued today; a drain worker is a follow-up.
+Business mutation, audit, and outbox event rows commit together via `runMutationTx` / `execute*Mutation` in `crud_mutate.go`. All Create, Update, and Unlink paths enter this pipeline — no autocommit business-row mutations outside it (except documented bootstrap/schema bypass). Publishing to the in-process bus happens after commit (or via outbox worker). Never emit `record.*` for data that did not commit. Outbox rows are enqueued today; a drain worker is a follow-up. Side-effect failures are logged with `status=partial` via `applog.Warn`.
+
+## Structured logging
+
+ORM mutations, module sync, web handlers, and RPC emit JSON via `sumeru/core/applog` (`Event` API). See [`docs/logging-contract.md`](../logging-contract.md) for the canonical field schema (`message`, `component`, `operation`, `status`, nested `context`).
 
 ## Globals / Runtime
 

@@ -3,8 +3,9 @@ package orm
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
+
+	"sumeru/core/applog"
 	"unicode/utf8"
 
 	"golang.org/x/crypto/bcrypt"
@@ -307,7 +308,7 @@ func ensurePlatformDefaults(ctx context.Context) {
 func ensureBootstrapACLs(ctx context.Context, adminGID, userGID int) {
 	installed, err := InstalledModuleNames(ctx)
 	if err != nil {
-		log.Printf("bootstrap ACL: installed modules: %v", err)
+		applog.WarnMsg(ctx, "orm", "bootstrap", "Could not list installed modules for ACL bootstrap", err, nil)
 		installed = nil
 	}
 	for modelName := range Registry {
@@ -324,7 +325,8 @@ func ensureBootstrapACLs(ctx context.Context, adminGID, userGID int) {
 			"perm_create": true,
 			"perm_unlink": true,
 		}, "name"); err != nil {
-			log.Printf("bootstrap ACL %s: %v", modelName, err)
+			applog.WarnMsg(ctx, "orm", "bootstrap", "Bootstrap ACL upsert failed",
+				err, map[string]interface{}{"model": modelName})
 		}
 	}
 

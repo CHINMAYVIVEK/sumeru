@@ -41,6 +41,7 @@ func InvalidateRuleCache() {
 	ruleCache = map[string]cachedRules{}
 	ruleCacheMu.Unlock()
 	cache.DeletePrefix("eff_groups:")
+	InvalidateXmlIDCache()
 }
 
 func loadRuleDomainParts(ctx context.Context, uid int, model string, op string) (ruleDomainParts, error) {
@@ -50,10 +51,6 @@ func loadRuleDomainParts(ctx context.Context, uid int, model string, op string) 
 	}
 	if uid <= 0 {
 		return empty, nil
-	}
-	col := "perm_" + strings.ToLower(strings.TrimSpace(op))
-	if col != "perm_read" && col != "perm_write" && col != "perm_create" && col != "perm_unlink" {
-		col = "perm_read"
 	}
 	groups, err := EffectiveGroupIDs(ctx, uid)
 	if err != nil {
@@ -74,7 +71,7 @@ func loadRuleDomainParts(ctx context.Context, uid int, model string, op string) 
 	}
 	ruleCacheMu.RUnlock()
 
-	parts, err := loadRuleDomainsFromDB(ctx, model, col, groups, dc)
+	parts, err := loadRuleDomainsFromDB(ctx, model, op, groups, dc)
 	if err != nil {
 		return empty, err
 	}
@@ -84,8 +81,15 @@ func loadRuleDomainParts(ctx context.Context, uid int, model string, op string) 
 	return parts, nil
 }
 
-func loadRuleDomainsFromDB(ctx context.Context, model, permCol string, groups []int, dc DomainContext) (ruleDomainParts, error) {
+func loadRuleDomainsFromDB(ctx context.Context, model, op string, groups []int, dc DomainContext) (ruleDomainParts, error) {
 	var out ruleDomainParts
+	permCol, err := QuotedPermColumnForOp(op)
+	if err != nil {
+		permCol, err = QuotedPermColumnForOp("read")
+		if err != nil {
+			return out, err
+		}
+	}
 	ruleTbl := MustQuotedTableName("sys.rule")
 	relTbl := MustQuotedTableName(tableRuleGroupRel)
 	q := `SELECT r.id, r.domain_force, r.active, r.` + permCol + ` FROM ` + ruleTbl + ` r WHERE r.model = $1 AND r.active = true AND r.` + permCol + ` = true`

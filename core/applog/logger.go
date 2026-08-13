@@ -11,12 +11,12 @@ import (
 var (
 	uidMu       sync.RWMutex
 	uidFromCtx  func(context.Context) int
-	logLocation *time.Location // effective location for log_ts (set in SetupFromConfig)
-	logEnabled  bool           // false → discard
-	logTzName   string         // IANA or "UTC" / "Local" label for log_tz field
+	logLocation *time.Location
+	logEnabled  bool
+	logTzName   string
 )
 
-// RegisterUIDResolver wires user_id for LoggerFromContext. Call once at process startup.
+// RegisterUIDResolver wires user_id resolution for event context maps.
 func RegisterUIDResolver(fn func(context.Context) int) {
 	uidMu.Lock()
 	defer uidMu.Unlock()
@@ -40,23 +40,13 @@ func baseLogger() *slog.Logger {
 	return slog.Default()
 }
 
-// LoggerFromContext returns a slog logger with user_id, request_id, log_ts, log_tz.
+// LoggerFromContext returns the base logger. Per-event fields use the Event API;
+// slog JSON handler supplies the canonical top-level "time" field (no log_ts duplication).
 func LoggerFromContext(ctx context.Context) *slog.Logger {
 	if !logEnabled {
 		return slog.New(slog.DiscardHandler)
 	}
-	loc := effectiveLocation()
-	now := time.Now().In(loc)
-	tzLabel := logTzName
-	if tzLabel == "" {
-		tzLabel = loc.String()
-	}
-	return baseLogger().With(
-		"user_id", resolveUID(ctx),
-		"request_id", RequestIDFromContext(ctx),
-		"log_ts", now.Format(time.RFC3339Nano),
-		"log_tz", tzLabel,
-	)
+	return baseLogger()
 }
 
 // L is an alias for LoggerFromContext.
@@ -64,22 +54,51 @@ func L(ctx context.Context) *slog.Logger {
 	return LoggerFromContext(ctx)
 }
 
-// LogORMOperation logs one ORM operation with enforced context fields.
+// LogORMOperation logs one ORM operation using the structured Event contract.
 func LogORMOperation(ctx context.Context, op, model string, err error, keysAndValues ...interface{}) {
 	if !logEnabled {
 		return
 	}
-	attrs := append([]interface{}{"op", op, "model", model}, keysAndValues...)
+	ctxMap := map[string]interface{}{"resource": model}
+	for i := 0; i+1 < len(keysAndValues); i += 2 {
+		if k, ok := keysAndValues[i].(string); ok {
+			ctxMap[k] = keysAndValues[i+1]
+		}
+	}
+	ev := Event{
+		Component: "orm",
+		Operation: op,
+		Context:   ctxMap,
+		Err:       err,
+	}
 	if err != nil {
-		attrs = append(attrs, "err", err)
-		LoggerFromContext(ctx).Error("orm", attrs...)
+		ev.Message = op + " on " + model + " failed"
+		ev.Status = "failure"
+		Error(ctx, ev)
 		return
 	}
-	LoggerFromContext(ctx).Info("orm", attrs...)
+	ev.Message = op + " on " + model + " completed"
+	ev.Status = "success"
+	Info(ctx, ev)
 }
 
 // Fatal logs at error level and exits the process.
 func Fatal(ctx context.Context, msg string, keysAndValues ...interface{}) {
-	LoggerFromContext(ctx).Error(msg, keysAndValues...)
+	attrs := keysAndValues
+	if len(attrs) == 0 {
+		Error(ctx, Event{Message: msg, Component: "server", Status: "failure"})
+	} else {
+		Error(ctx, Event{Message: msg, Component: "server", Status: "failure", Context: kvPairsToMap(attrs)})
+	}
 	os.Exit(1)
+}
+
+func kvPairsToMap(pairs []interface{}) map[string]interface{} {
+	out := make(map[string]interface{})
+	for i := 0; i+1 < len(pairs); i += 2 {
+		if k, ok := pairs[i].(string); ok {
+			out[k] = pairs[i+1]
+		}
+	}
+	return out
 }

@@ -93,6 +93,15 @@ func setModuleState(ctx context.Context, moduleName, state string, active bool) 
 	return err
 }
 
+// setModuleStateOnly updates state without changing active (CLI -u must not force active=true).
+func setModuleStateOnly(ctx context.Context, moduleName, state string) error {
+	_, err := orm.DB.ExecContext(ctx,
+		`UPDATE `+orm.MustQuotedTableName("sys.module")+` SET state = $1 WHERE name = $2`,
+		state, moduleName,
+	)
+	return err
+}
+
 func setModuleLastError(ctx context.Context, moduleName, msg string) error {
 	_, err := orm.DB.ExecContext(ctx,
 		`UPDATE `+orm.MustQuotedTableName("sys.module")+` SET last_error = $1 WHERE name = $2`,

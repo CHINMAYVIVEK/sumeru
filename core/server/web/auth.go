@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"sumeru/core/applog"
 	"sumeru/core/engine/assets"
@@ -49,6 +50,7 @@ func SecurityMiddleware(next http.Handler) http.Handler {
 		next = http.DefaultServeMux
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		rid := strings.TrimSpace(r.Header.Get("X-Request-ID"))
 		if rid == "" {
 			rid = applog.NewRequestID()
@@ -57,8 +59,52 @@ func SecurityMiddleware(next http.Handler) http.Handler {
 		ctx := applog.ContextWithRequestID(r.Context(), rid)
 		uid := AuthenticatedUserID(r)
 		ctx = orm.ContextWithUID(ctx, uid)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		r = r.WithContext(ctx)
+
+		applog.Debug(ctx, applog.Event{
+			Message:   "HTTP request started",
+			Component: "web",
+			Operation: "request",
+			Status:    "success",
+			Context: map[string]interface{}{
+				"route":  r.URL.Path,
+				"method": r.Method,
+			},
+		})
+
+		rw := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rw, r)
+
+		ev := applog.Event{
+			Component: "web",
+			Operation: "request",
+			Duration:  time.Since(start),
+			Context: map[string]interface{}{
+				"route":       r.URL.Path,
+				"method":      r.Method,
+				"status_code": rw.status,
+			},
+		}
+		if rw.status >= 500 {
+			ev.Message = "HTTP request failed"
+			ev.Status = "failure"
+			applog.Error(ctx, ev)
+			return
+		}
+		ev.Message = "HTTP request completed"
+		ev.Status = "success"
+		applog.Debug(ctx, ev)
 	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (sr *statusRecorder) WriteHeader(code int) {
+	sr.status = code
+	sr.ResponseWriter.WriteHeader(code)
 }
 
 func requireLogin(w http.ResponseWriter, r *http.Request) bool {
