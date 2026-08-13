@@ -1,7 +1,9 @@
-# Example INI for local runs and for `go generate ./cmd/sumeru` (import-gen reads addons_path).
-# Copy to sumeru.conf and adjust. Path keys are relative to this file’s directory unless absolute.
+# Copy to sumeru.conf (keep next to go.mod). Paths are relative to this file unless absolute.
+# Also read by `go generate ./cmd/sumeru` for addons_path.
 
 [options]
+
+# Database (required)
 db_host = localhost
 db_port = 5432
 db_user = postgres
@@ -9,33 +11,35 @@ db_password = postgres
 db_name = sumeru
 db_sslmode = disable
 
+# HTTP (required)
 http_port = 8080
-
-# dev_mode        Default false. When true: slog debug level and dev-only behavior (e.g. branding fallbacks). Use false in production.
-# For local development, enable dev_mode to surface DEBUG logs (HTTP requests, ORM reads, view renders) on stdout.
 dev_mode = true
 
-# setup_localhost_only  Default true. When true, uninitialized setup mode listens on 127.0.0.1 only.
-# setup_token           Optional secret for POST /setup/init (header X-Setup-Token or JSON setup_token).
+# Setup wizard — first run only; leave setup_token empty to skip
+setup_localhost_only = true
+setup_token =
 
-# Core tree only: built-in apps under sumeru/addons/ (base, mail, contacts, …).
-# Addons with "auto_import": false in manifest.json (e.g. sumeru_ai) are omitted from generated zimports unless you opt in.
-# Standard business addons live in the sibling sumeru_addons repo; custom work runs from sumeru_custom_addons.
+# Addons (required) — comma-separated directories
 addons_path = addons
 
-# --- Logging (applog JSON via slog + optional lumberjack rotation) ---
-# log_enabled      Default true. Set false to disable application logging (slog no-op).
-# log_timezone     UTC, Local, or IANA (e.g. Asia/Kolkata) for log timestamps and L(ctx) log_tz field.
-# log_stdout       Default true. Use true for Kubernetes (collect stdout). Set false for file-only.
-# log_file         Optional absolute or INI-relative path.
-# log_rolling      Default false. Set true on a VPS/single host for size-based rotation; keep false when the platform rotates logs (e.g. Kubernetes).
-# log_max_size_mb  Max MB per file before rotate (default 100 when rolling is on and this is 0).
-# log_max_backups  Retained rotated files (0 = lumberjack default).
-# log_max_age_days Delete rotated files older than N days (0 = no age limit).
-
+# Logging — enable stdout and/or log_file (at least one sink)
+log_enabled = true
 log_stdout = true
+log_timezone = Local
+log_rolling = false
+
+# File logging (optional; uncomment for local log files)
 # log_file = ./logs/sumeru.log
-# log_rolling = false
+# log_rolling = true
 # log_max_size_mb = 100
 # log_max_backups = 10
 # log_max_age_days = 30
+
+# Branding / paths (optional — defaults work when this INI lives in the sumeru repo)
+# sumeru_home =
+# assets_path =
+# templates_path =
+# brand_css =
+# logo_path =
+# company_display_name =
+# user_display_name =
