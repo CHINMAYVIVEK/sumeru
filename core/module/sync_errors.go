@@ -1,6 +1,7 @@
 package module
 
 import (
+	"context"
 	"fmt"
 	"strings"
 )
@@ -80,4 +81,18 @@ func aggregateErrors(module string, errs []error) error {
 		return FatalSync(module, "module sync failed", fmt.Errorf("%s", joined))
 	}
 	return RecoverableSync(module, "module sync warnings", fmt.Errorf("%s", joined))
+}
+
+// recordSyncToDBResult updates sys.module.last_error and returns a fatal sync error when the caller should abort.
+// Recoverable sync warnings clear the fatal return but still set last_error (install/update continue).
+func recordSyncToDBResult(ctx context.Context, moduleName string, err error) error {
+	if err == nil {
+		_ = setModuleLastError(ctx, moduleName, "")
+		return nil
+	}
+	_ = setModuleLastError(ctx, moduleName, err.Error())
+	if IsFatalSync(err) {
+		return err
+	}
+	return nil
 }

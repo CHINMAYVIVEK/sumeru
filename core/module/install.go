@@ -58,30 +58,65 @@ func installModuleUnlocked(context context.Context, moduleName string) error {
 		}
 	}
 
-	if err := setModuleState(context, moduleName, "to_install", true); err != nil {
-		return err
+	return reloadModuleData(context, moduleName, moduleReloadInstall)
+}
+
+type moduleReloadMode int
+
+const (
+	moduleReloadInstall moduleReloadMode = iota
+	moduleReloadUpdate
+)
+
+// reloadModuleData syncs schema and XML for install (-i) or update (-u).
+func reloadModuleData(ctx context.Context, moduleName string, mode moduleReloadMode) error {
+	addon, ok := DiscoveredAddons[moduleName]
+	if !ok {
+		return fmt.Errorf("unknown module %q", moduleName)
+	}
+
+	switch mode {
+	case moduleReloadInstall:
+		if err := setModuleState(ctx, moduleName, "to_install", true); err != nil {
+			return err
+		}
+	case moduleReloadUpdate:
+		if err := setModuleStateOnly(ctx, moduleName, "to_upgrade"); err != nil {
+			return err
+		}
 	}
 
 	if err := orm.SyncRegistrySchemaForModule(moduleName); err != nil {
-		_ = setModuleLastError(context, moduleName, err.Error())
-		return FatalSync(moduleName, "schema sync", err)
+		_ = setModuleLastError(ctx, moduleName, err.Error())
+		if mode == moduleReloadInstall {
+			return FatalSync(moduleName, "schema sync", err)
+		}
+		return fmt.Errorf("schema sync: %w", err)
 	}
 
-	if err := addon.SyncToDB(context); err != nil {
-		_ = setModuleLastError(context, moduleName, err.Error())
-		if IsFatalSync(err) {
+	if mode == moduleReloadUpdate {
+		if err := deleteModuleMetadata(ctx, moduleName); err != nil {
 			return err
 		}
-		// Recoverable warnings: still mark installed but keep last_error.
-	} else {
-		_ = setModuleLastError(context, moduleName, "")
 	}
 
-	if err := setModuleState(context, moduleName, "installed", true); err != nil {
-		return err
+	if fatal := recordSyncToDBResult(ctx, moduleName, addon.SyncToDB(ctx)); fatal != nil {
+		return fatal
 	}
-	orm.InvalidateRuleCache()
-	mail.LogModuleEvent(context, moduleName, "Installed", "")
+
+	switch mode {
+	case moduleReloadInstall:
+		if err := setModuleState(ctx, moduleName, "installed", true); err != nil {
+			return err
+		}
+		orm.InvalidateRuleCache()
+		mail.LogModuleEvent(ctx, moduleName, "Installed", "")
+	case moduleReloadUpdate:
+		if err := setModuleStateOnly(ctx, moduleName, "installed"); err != nil {
+			return err
+		}
+		mail.LogModuleEvent(ctx, moduleName, "Updated", "module data reloaded")
+	}
 	return nil
 }
 
@@ -151,21 +186,44 @@ func UninstallModuleByName(context context.Context, moduleName string) error {
 }
 
 func deleteModuleMetadata(context context.Context, moduleName string) error {
-	modelNames := []string{"sys.menu", "sys.view", "sys.action.window", "sys.access", "sys.rule", "sys.approval.rule"}
+	modelDataTable := orm.MustQuotedTableName("sys.model.data")
+
+	viewTable, err := orm.QuotedTableName("sys.view")
+	if err != nil {
+		return fmt.Errorf("delete sys.view: %w", err)
+	}
+	if _, err := orm.DB.ExecContext(context, ModuleViewDeleteQuery(viewTable, modelDataTable), moduleName); err != nil {
+		return fmt.Errorf("delete sys.view: %w", err)
+	}
+
+	modelNames := []string{"sys.menu", "sys.action.window", "sys.access", "sys.rule", "sys.approval.rule"}
 	for _, modelName := range modelNames {
 		tableName, err := orm.QuotedTableName(modelName)
 		if err != nil {
 			return fmt.Errorf("delete %s: %w", modelName, err)
 		}
-		deleteQuery := `DELETE FROM ` + tableName + ` WHERE id IN (SELECT core_id FROM ` + orm.MustQuotedTableName("sys.model.data") + ` WHERE module = $1 AND model = $2)`
+		deleteQuery := `DELETE FROM ` + tableName + ` WHERE id IN (SELECT core_id FROM ` + modelDataTable + ` WHERE module = $1 AND model = $2)`
 		if _, err := orm.DB.ExecContext(context, deleteQuery, moduleName, modelName); err != nil {
 			return fmt.Errorf("delete %s: %w", modelName, err)
 		}
 	}
-	if _, err := orm.DB.ExecContext(context, `DELETE FROM `+orm.MustQuotedTableName("sys.model.data")+` WHERE module = $1`, moduleName); err != nil {
+	if _, err := orm.DB.ExecContext(context, `DELETE FROM `+modelDataTable+` WHERE module = $1`, moduleName); err != nil {
 		return err
 	}
 	return nil
+}
+
+// ModuleViewDeleteQuery deletes sys.view rows owned solely by moduleName.
+// Rows whose core_id is also linked from another module (view inherit extensions) are kept.
+func ModuleViewDeleteQuery(viewTable, modelDataTable string) string {
+	return `DELETE FROM ` + viewTable + ` WHERE id IN (
+		SELECT md.core_id FROM ` + modelDataTable + ` md
+		WHERE md.module = $1 AND md.model = 'sys.view'
+		AND NOT EXISTS (
+			SELECT 1 FROM ` + modelDataTable + ` other
+			WHERE other.model = 'sys.view' AND other.core_id = md.core_id AND other.module <> $1
+		)
+	)`
 }
 
 // SetModuleActive toggles visibility of menus for an installed module without removing data.

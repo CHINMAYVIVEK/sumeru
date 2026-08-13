@@ -57,18 +57,17 @@ func LoadAddonPaths(rootPaths []string) error {
 			if !shouldSyncData(contextWithBypass, addon.Manifest.Name) {
 				continue
 			}
-			if err := addon.SyncToDB(contextWithBypass); err != nil {
-				if IsFatalSync(err) {
-					_ = setModuleLastError(contextWithBypass, addon.Manifest.Name, err.Error())
-					syncErrs = append(syncErrs, err)
-					applog.WarnMsg(contextWithBypass, "module", "sync",
-						fmt.Sprintf("Error syncing addon %s", addon.Manifest.Name), err, nil)
-					continue
-				}
+			syncErr := addon.SyncToDB(contextWithBypass)
+			if fatal := recordSyncToDBResult(contextWithBypass, addon.Manifest.Name, syncErr); fatal != nil {
+				syncErrs = append(syncErrs, fatal)
 				applog.WarnMsg(contextWithBypass, "module", "sync",
-					fmt.Sprintf("Error syncing addon %s", addon.Manifest.Name), err, nil)
+					fmt.Sprintf("Error syncing addon %s", addon.Manifest.Name), fatal, nil)
+				continue
+			}
+			if syncErr != nil {
+				applog.WarnMsg(contextWithBypass, "module", "sync",
+					fmt.Sprintf("Error syncing addon %s", addon.Manifest.Name), syncErr, nil)
 			} else {
-				_ = setModuleLastError(contextWithBypass, addon.Manifest.Name, "")
 				applog.InfoMsg(contextWithBypass, "module", "sync",
 					fmt.Sprintf("Loaded addon data: %s (v%s)", addon.Manifest.Name, addon.Manifest.Version), nil)
 			}
