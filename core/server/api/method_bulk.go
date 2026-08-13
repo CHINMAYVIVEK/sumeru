@@ -8,6 +8,15 @@ import (
 	"sumeru/core/orm"
 )
 
+const maxRPCBulkSize = 500
+
+func capRPCIDs(ids []int) error {
+	if len(ids) > maxRPCBulkSize {
+		return newRPCError(CodeInvalidArgs, fmt.Sprintf("too many ids (max %d)", maxRPCBulkSize), map[string]interface{}{"max": maxRPCBulkSize})
+	}
+	return nil
+}
+
 func rpcCreateMany(ctx context.Context, model string, args json.RawMessage) (interface{}, error) {
 	arr, err := parseArgsArray(args)
 	if err != nil {
@@ -19,6 +28,9 @@ func rpcCreateMany(ctx context.Context, model string, args json.RawMessage) (int
 	var rows []map[string]interface{}
 	if err := json.Unmarshal(arr[0], &rows); err != nil {
 		return nil, newRPCError(CodeInvalidArgs, fmt.Sprintf("args[0] values list: %v", err), map[string]interface{}{"method": "create_many"})
+	}
+	if len(rows) > maxRPCBulkSize {
+		return nil, newRPCError(CodeInvalidArgs, fmt.Sprintf("too many rows (max %d)", maxRPCBulkSize), map[string]interface{}{"max": maxRPCBulkSize})
 	}
 	inst, ok := orm.Registry[model]
 	if !ok || inst == nil {
@@ -46,6 +58,9 @@ func rpcWriteMany(ctx context.Context, model string, args json.RawMessage) (inte
 	var ids []int
 	if err := json.Unmarshal(arr[0], &ids); err != nil {
 		return nil, newRPCError(CodeInvalidArgs, fmt.Sprintf("args[0] ids: %v", err), map[string]interface{}{"method": "write_many"})
+	}
+	if err := capRPCIDs(ids); err != nil {
+		return nil, err
 	}
 	var vals map[string]interface{}
 	if err := json.Unmarshal(arr[1], &vals); err != nil {
@@ -78,6 +93,9 @@ func rpcUnlinkMany(ctx context.Context, model string, args json.RawMessage) (int
 	var ids []int
 	if err := json.Unmarshal(arr[0], &ids); err != nil {
 		return nil, newRPCError(CodeInvalidArgs, fmt.Sprintf("args[0] ids: %v", err), map[string]interface{}{"method": "unlink_many"})
+	}
+	if err := capRPCIDs(ids); err != nil {
+		return nil, err
 	}
 	if len(ids) == 0 {
 		return true, nil

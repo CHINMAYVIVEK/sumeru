@@ -44,6 +44,7 @@ func Run() {
 	}
 	defer applog.Sync()
 	applog.RegisterUIDResolver(orm.UIDFromContext)
+	applog.RegisterCompanyIDResolver(orm.CompanyIDFromContext)
 	ctx := context.Background()
 
 	if s := strings.TrimSpace(*dbNameLong); s != "" {
@@ -85,10 +86,14 @@ func Run() {
 		registerBrandingAndStatic()
 		registerSetupRoutes()
 
+		listenHost := ":" + config.AppConfig.HttpPort
+		if config.AppConfig.SetupLocalhostOnly {
+			listenHost = "127.0.0.1:" + config.AppConfig.HttpPort
+		}
 		applog.InfoMsg(ctx, "server", "listen", "Server starting in setup mode",
-			map[string]interface{}{"port": config.AppConfig.HttpPort})
+			map[string]interface{}{"port": config.AppConfig.HttpPort, "bind": listenHost})
 		setupHandler := web.SecurityMiddleware(nil)
-		if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, setupHandler); err != nil {
+		if err := http.ListenAndServe(listenHost, setupHandler); err != nil {
 			applog.Fatal(ctx, "Server failed in setup mode", "err", err)
 		}
 		return

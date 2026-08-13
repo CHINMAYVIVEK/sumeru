@@ -142,23 +142,27 @@ func applyCoreUserSecurityPost(r *http.Request, modelName string, userID int) {
 	if modelName != "core.user" || userID <= 0 {
 		return
 	}
-	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), "core.user", "write"); err != nil {
+	actor := orm.SecurityUID(r.Context())
+	if err := orm.CheckModelAccess(r.Context(), actor, "core.user", "write"); err != nil {
 		return
 	}
 	if _, ok := r.Form["company_ids"]; ok {
-		var cids []int
-		for _, s := range r.Form["company_ids"] {
-			n, err := strconv.Atoi(strings.TrimSpace(s))
-			if err == nil && n > 0 {
-				cids = append(cids, n)
+		if !orm.UserHasGroupXML(r.Context(), actor, "base.group_system") {
+			WebLogf(r.Context(), "/web/record/save", "deny set companies for user %d: actor %d not system admin", userID, actor)
+		} else {
+			var cids []int
+			for _, s := range r.Form["company_ids"] {
+				n, err := strconv.Atoi(strings.TrimSpace(s))
+				if err == nil && n > 0 {
+					cids = append(cids, n)
+				}
 			}
-		}
-		if err := orm.SetUserCompanyLinks(r.Context(), userID, cids); err != nil {
-			WebLogf(r.Context(), "/web/record/save", "set user %d companies: %v", userID, err)
+			if err := orm.SetUserCompanyLinks(r.Context(), userID, cids); err != nil {
+				WebLogf(r.Context(), "/web/record/save", "set user %d companies: %v", userID, err)
+			}
 		}
 	}
 	if r.PostFormValue("security_groups_touched") == "1" {
-		actor := orm.SecurityUID(r.Context())
 		if !orm.UserHasGroupXML(r.Context(), actor, "base.group_system") {
 			WebLogf(r.Context(), "/web/record/save", "deny set groups for user %d: actor %d not system admin", userID, actor)
 			return
@@ -180,6 +184,10 @@ func applyCoreUserSecurityPost(r *http.Request, modelName string, userID int) {
 		}
 	}
 	if _, ok := r.Form["password_plain"]; ok {
+		if !orm.UserHasGroupXML(r.Context(), actor, "base.group_system") {
+			WebLogf(r.Context(), "/web/record/save", "deny password change for user %d: actor %d not system admin", userID, actor)
+			return
+		}
 		if pw := strings.TrimSpace(r.PostFormValue("password_plain")); pw != "" {
 			if err := orm.ValidatePasswordPolicy(pw); err != nil {
 				WebLogf(r.Context(), "/web/record/save", "password policy: %v", err)
@@ -190,8 +198,7 @@ func applyCoreUserSecurityPost(r *http.Request, modelName string, userID int) {
 				WebLogf(r.Context(), "/web/record/save", "bcrypt: %v", err)
 				return
 			}
-			tbl := orm.MustQuotedTableName("core.user")
-			if _, err := orm.DB.ExecContext(r.Context(), `UPDATE `+tbl+` SET password = $1 WHERE id = $2`, string(hash), userID); err != nil {
+			if err := orm.UpdateRecordByID(r.Context(), "core.user", userID, map[string]interface{}{"password": string(hash)}); err != nil {
 				WebLogf(r.Context(), "/web/record/save", "password update user %d: %v", userID, err)
 			}
 		}

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+
 	"sumeru/core/orm"
 )
 
@@ -14,9 +16,22 @@ func RecordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	if !RequirePOST(w, r) {
 		return
 	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form", http.StatusBadRequest)
+		return
+	}
+	if !validateSessionCSRF(w, r) {
+		return
+	}
 
-	modelName := r.URL.Query().Get("model")
-	idStr := r.URL.Query().Get("id")
+	modelName := strings.TrimSpace(r.FormValue("model"))
+	if modelName == "" {
+		modelName = strings.TrimSpace(r.URL.Query().Get("model"))
+	}
+	idStr := strings.TrimSpace(r.FormValue("id"))
+	if idStr == "" {
+		idStr = strings.TrimSpace(r.URL.Query().Get("id"))
+	}
 	if modelName == "" || idStr == "" {
 		http.Error(w, "Missing model or id", http.StatusBadRequest)
 		return

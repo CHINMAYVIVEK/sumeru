@@ -46,6 +46,14 @@ func WebLogf(ctx context.Context, route, format string, args ...interface{}) {
 	WebLogEvent(ctx, route, fmt.Sprintf(format, args...), "request", "success", nil, nil)
 }
 
+// WebLogNavigation emits an INFO-level audit event for successful navigation (menu, view, module, company).
+func WebLogNavigation(ctx context.Context, route, operation, message string, fields map[string]interface{}) {
+	if fields == nil {
+		fields = map[string]interface{}{}
+	}
+	WebLogEvent(ctx, route, message, operation, "success", nil, fields)
+}
+
 func SafePathNext(raw, fallback string) string {
 	s := strings.TrimSpace(raw)
 	if s == "" || !strings.HasPrefix(s, "/") || strings.HasPrefix(s, "//") {
@@ -78,9 +86,24 @@ func ParsePostForm(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-// requireLoginAndPOST checks login, method, and parses the form.
+// requireLoginAndPOST checks login, method, CSRF, and parses the form.
 func requireLoginAndPOST(w http.ResponseWriter, r *http.Request) bool {
-	return requireLogin(w, r) && RequirePOST(w, r) && ParsePostForm(w, r)
+	if !requireLogin(w, r) || !RequirePOST(w, r) || !ParsePostForm(w, r) {
+		return false
+	}
+	if !ValidateCSRF(r) {
+		http.Error(w, "Invalid CSRF token", http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+func validateSessionCSRF(w http.ResponseWriter, r *http.Request) bool {
+	if !ValidateCSRF(r) {
+		http.Error(w, "Invalid CSRF token", http.StatusForbidden)
+		return false
+	}
+	return true
 }
 
 func requireRegisteredModel(w http.ResponseWriter, modelName string) (orm.Model, bool) {

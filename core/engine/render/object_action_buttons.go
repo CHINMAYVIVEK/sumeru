@@ -13,11 +13,11 @@ func writeObjectActionButtons(sb *strings.Builder, header *parser.Header, vr *Vi
 		return
 	}
 	for _, b := range header.Button {
-		writeObjectActionButton(sb, b, vr.ResModel, vr.RecordID, nextURL, false)
+		writeObjectActionButton(sb, b, vr.ResModel, vr.RecordID, nextURL, vr.CSRFToken, false)
 	}
 }
 
-func writeObjectActionButton(sb *strings.Builder, b parser.Button, model string, id int, nextURL string, insideForm bool) {
+func writeObjectActionButton(sb *strings.Builder, b parser.Button, model string, id int, nextURL, csrfToken string, insideForm bool) {
 	label := strings.TrimSpace(b.String)
 	if label == "" {
 		label = strings.TrimSpace(b.Name)
@@ -54,6 +54,7 @@ func writeObjectActionButton(sb *strings.Builder, b parser.Button, model string,
 		if nextURL != "" {
 			sb.WriteString(`<input type="hidden" name="next" value="` + template.HTMLEscapeString(nextURL) + `" />`)
 		}
+		writeCSRFHidden(sb, csrfToken)
 		sb.WriteString(fmt.Sprintf(`<button type="submit" class="%s">%s</button>`, class, template.HTMLEscapeString(label)))
 		sb.WriteString(`</form>`)
 		return

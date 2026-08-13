@@ -51,6 +51,10 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Record not found", http.StatusNotFound)
 		return
 	}
+	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), modelName, "write"); err != nil {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	author := "User"
 	if err := mail.PostMessage(r.Context(), modelName, rid, body, mail.SubtypeComment, author); err != nil {
 		WebLogf(r.Context(), "/web/chatter/post", "chatter post %s id=%d: %v", modelName, rid, err)

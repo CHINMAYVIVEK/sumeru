@@ -71,7 +71,18 @@ Run `make check-sql` (see [`scripts/check_sql_safety.sh`](../scripts/check_sql_s
 
 ## Side effects
 
-Business mutation, audit, and outbox event rows commit together via `runMutationTx` / `execute*Mutation` in `crud_mutate.go`. All Create, Update, and Unlink paths enter this pipeline — no autocommit business-row mutations outside it (except documented bootstrap/schema bypass). Publishing to the in-process bus happens after commit (or via outbox worker). Never emit `record.*` for data that did not commit. Outbox rows are enqueued today; a drain worker is a follow-up. Side-effect failures are logged with `status=partial` via `applog.Warn`.
+Business mutation, audit, and outbox event rows commit together via `runMutationTx` / `execute*Mutation` in `crud_mutate.go`. All Create, Update, and Unlink paths enter this pipeline — no autocommit business-row mutations outside it (except documented bootstrap/schema bypass). Publishing to the in-process bus happens after commit (or via outbox worker). Never emit `record.*` for data that did not commit.
+
+### Intentional stubs (not dead code)
+
+| Feature | Status |
+|---------|--------|
+| **Outbox drain** | Rows are enqueued on CRUD; no publisher worker yet (`sys_outbox.go` TODO). |
+| **Automation server actions** | Event subscriber logs matches only; execution is not wired. |
+| **Cron `code` field** | Scheduled jobs log the field; never `eval` — use registered handlers only. |
+| **Pivot view** | Placeholder renderer; use tree/kanban/form until implemented. |
+
+Outbox rows are enqueued today; a drain worker is a follow-up. Side-effect failures are logged with `status=partial` via `applog.Warn`.
 
 ## Structured logging
 

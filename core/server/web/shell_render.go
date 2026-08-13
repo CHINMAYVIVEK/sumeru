@@ -65,6 +65,9 @@ func renderShellPage(w http.ResponseWriter, r *http.Request, opts shellPageOpts)
 	if len(opts.ExtraStylesheetURLs) > 0 {
 		page.ExtraStylesheetURLs = opts.ExtraStylesheetURLs
 	}
+	if page.CSRFToken == "" {
+		page.CSRFToken = CSRFTokenForRequest(r)
+	}
 
 	html, err := render.RenderPage(ctx, config.AppConfig.TemplatesPath, page)
 	if err != nil {

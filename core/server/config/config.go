@@ -35,6 +35,8 @@ type Config struct {
 	LogEnabled         bool     // log_enabled: when false, no slog sinks and L(ctx) is no-op; stdlib log discarded
 	LogTimezone        string   // log_timezone: UTC, Local (default), or IANA (e.g. Asia/Kolkata) for timestamps
 	DevMode            bool     // dev_mode INI key; parseBoolKey(..., false) — debug slog level and dev-only server paths
+	SetupToken         string   // optional secret required for POST /setup/init (header X-Setup-Token or JSON setup_token)
+	SetupLocalhostOnly bool     // when true (default), setup mode listens on 127.0.0.1 only
 }
 
 var AppConfig Config
@@ -45,10 +47,11 @@ var ConfigFileDir string
 
 func LoadConfig(path string) error {
 	AppConfig = Config{
-		DbSslMode:    defaultDbSSLMode,
-		LogStdout:    true,
-		LogEnabled:   true,
-		LogMaxSizeMB: 100,
+		DbSslMode:          defaultDbSSLMode,
+		LogStdout:          true,
+		LogEnabled:         true,
+		LogMaxSizeMB:       100,
+		SetupLocalhostOnly: true,
 	}
 
 	absPath, err := filepath.Abs(path)
@@ -133,6 +136,10 @@ func LoadConfig(path string) error {
 			AppConfig.LogTimezone = val
 		case keyDevMode:
 			AppConfig.DevMode = parseBoolKey(val, false)
+		case keySetupToken:
+			AppConfig.SetupToken = val
+		case keySetupLocalhostOnly:
+			AppConfig.SetupLocalhostOnly = parseBoolKey(val, true)
 		}
 	}
 

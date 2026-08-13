@@ -71,6 +71,7 @@
                         <form method="post" action="/web/company/switch" class="sum-dropdown-form">
                             <input type="hidden" name="company_id" value="{{.ID}}" />
                             <input type="hidden" name="next" value="/web/home" />
+                            {{if $.CSRFToken}}<input type="hidden" name="csrf_token" value="{{$.CSRFToken}}" />{{end}}
                             <button type="submit" class="sum-dropdown-item sum-dropdown-item--submit" role="menuitem">
                                 {{if eq $.ShellActiveCompanyID .ID}}<span class="sum-dropdown-check" aria-hidden="true">✓</span>{{else}}<span class="sum-dropdown-check" aria-hidden="true"></span>{{end}}
                                 <span>{{.Name}}</span>
@@ -222,6 +223,12 @@
 
                 <div class="sum-workspace-row{{if .ActivityEnabled}} sum-workspace-row--with-activity{{end}}">
                     <div class="sum-content">
+                        {{range .FlashMessages}}
+                        <div class="sum-flash-prem sum-flash-prem--{{.Kind}}" role="status">
+                            {{if .Title}}<strong>{{.Title}}</strong>{{end}}
+                            {{if .Body}}<pre class="sum-flash-pre">{{.Body}}</pre>{{end}}
+                        </div>
+                        {{end}}
                         {{.Content}}
                     </div>{{- if .ActivityEnabled -}}
                     <div class="sum-activity-dock">

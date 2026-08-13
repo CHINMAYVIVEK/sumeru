@@ -304,4 +304,5 @@
 <input type="hidden" name="apps_filter" value="{{.Filter}}" />
 <input type="hidden" name="apps_scope" value="{{.Scope}}" />
 <input type="hidden" name="apps_q" value="{{.Search}}" />
+{{if .CSRFToken}}<input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />{{end}}
 {{end}}

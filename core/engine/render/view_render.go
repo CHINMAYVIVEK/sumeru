@@ -56,6 +56,8 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 		ActivityContextRecordID: actCtxID,
 		SettingsNavActive:       IsMenuUnderSettingsRoot(ctx, activeMenuID),
 		BreadcrumbItems:         BuildWorkspaceBreadcrumbs(ctx, activeMenuID, view.Type, viewBC, recData.FormBaseQuery, recData.Record, recData.RecordID),
+		CSRFToken:               recData.CSRFToken,
+		FlashMessages:           recData.FlashMessages,
 	}
 	if strings.EqualFold(view.Type, "form") && view.Chatter != nil && recData.RecordID > 0 &&
 		mail.CompanyChatterEnabled(ctx) && mail.CompanyActivityPanelEnabled(ctx) {

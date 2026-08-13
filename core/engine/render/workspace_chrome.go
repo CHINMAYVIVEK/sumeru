@@ -75,6 +75,7 @@ func renderWorkspaceFormToolbar(sb *strings.Builder, vr *ViewRecordData, header 
 		sb.WriteString(`<input type="hidden" name="id" value="` + template.HTMLEscapeString(fmt.Sprintf("%d", vr.RecordID)) + `" />`)
 	}
 	sb.WriteString(`<input type="hidden" name="next" value="` + nextEsc + `" />`)
+	writeCSRFHidden(sb, vr.CSRFToken)
 }
 
 func renderWorkspaceFormChromeClose(sb *strings.Builder, vr *ViewRecordData) {
