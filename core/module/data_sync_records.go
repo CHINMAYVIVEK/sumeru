@@ -2,6 +2,7 @@ package module
 
 import (
 	"context"
+	"sumeru/core/applog"
 	"fmt"
 	"strconv"
 	"strings"
@@ -124,17 +125,17 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 	if xmlRecord.Model == "core.group" {
 		if impliedEval != "" {
 			if err := syncCoreGroupImpliedFromEval(ctx, moduleName, id, impliedEval); err != nil {
-				fmt.Printf("Warning: core.group implied_ids %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+				applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: core.group implied_ids %s (%s): %v", xmlRecord.ID, moduleName, err))
 			}
 		}
 		if err := EnsureSystemImpliesManagerGroup(ctx, moduleName, xmlRecord.ID, id); err != nil {
-			fmt.Printf("Warning: system→manager imply %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+			applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: system→manager imply %s (%s): %v", xmlRecord.ID, moduleName, err))
 		}
 	}
 	if xmlRecord.Model == "sys.rule" {
 		if groupsEval := strings.TrimSpace(fieldMapStrings["groups"]); groupsEval != "" {
 			if err := syncSysRuleGroupsFromEval(ctx, moduleName, id, groupsEval); err != nil {
-				fmt.Printf("Warning: sys.rule groups %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+				applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.rule groups %s (%s): %v", xmlRecord.ID, moduleName, err))
 			}
 		}
 	}

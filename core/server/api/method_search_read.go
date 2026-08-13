@@ -26,7 +26,7 @@ func rpcSearchRead(ctx context.Context, model string, args, kwargs json.RawMessa
 		return nil, newRPCError(CodeInvalidArgs, fmt.Sprintf("args[1] fields: %v", err), map[string]interface{}{"method": "search_read"})
 	}
 	limit, offset := parseLimitOffset(kwargs)
-	rows, err := searchLimitWithOffset(ctx, model, domain, limit, offset)
+	rows, err := orm.SearchPage(ctx, model, domain, limit, offset, "")
 	if err != nil {
 		return nil, err
 	}

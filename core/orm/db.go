@@ -14,14 +14,14 @@ var DB DBWrapper
 func InitDB(connStr string) {
 	rawDB, err := sql.Open("postgres", connStr)
 	if err != nil {
-		applog.L(context.Background()).Fatalw("db_open", "err", err)
+		applog.Fatal(context.Background(), "db_open", "err", err)
 	}
 
 	DB = NewDBWrapper(rawDB)
 
 	err = DB.Ping()
 	if err != nil {
-		applog.L(context.Background()).Fatalw("db_ping", "err", err)
+		applog.Fatal(context.Background(), "db_ping", "err", err)
 	}
 
 	fmt.Println("Successfully connected to the database")

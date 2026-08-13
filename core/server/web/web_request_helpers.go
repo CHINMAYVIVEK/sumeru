@@ -16,7 +16,7 @@ func WebLogf(ctx context.Context, route, format string, args ...interface{}) {
 		route = "-"
 	}
 	msg := fmt.Sprintf(format, args...)
-	applog.L(ctx).Infow("web", "route", route, "msg", msg)
+	applog.L(ctx).Info("web", "route", route, "msg", msg)
 }
 
 func SafePathNext(raw, fallback string) string {

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"sumeru/core/applog"
 	"sumeru/core/engine/assets"
 	"sumeru/core/engine/render"
 	"sumeru/core/orm"
@@ -42,14 +43,20 @@ func AuthenticatedUserID(r *http.Request) int {
 	return APIKeyUserID(r)
 }
 
-// SecurityMiddleware attaches orm.UIDFromContext from session cookie or API key.
+// SecurityMiddleware attaches request_id and orm.UIDFromContext from session cookie or API key.
 func SecurityMiddleware(next http.Handler) http.Handler {
 	if next == nil {
 		next = http.DefaultServeMux
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rid := strings.TrimSpace(r.Header.Get("X-Request-ID"))
+		if rid == "" {
+			rid = applog.NewRequestID()
+		}
+		w.Header().Set("X-Request-ID", rid)
+		ctx := applog.ContextWithRequestID(r.Context(), rid)
 		uid := AuthenticatedUserID(r)
-		ctx := orm.ContextWithUID(r.Context(), uid)
+		ctx = orm.ContextWithUID(ctx, uid)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -112,7 +119,7 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 	login := strings.TrimSpace(r.PostFormValue("login"))
 	password := r.PostFormValue("password")
 	next := SafePathNext(r.PostFormValue("next"), "/web/home")
-	tbl := orm.GetTableName("core.user")
+	tbl := orm.MustQuotedTableName("core.user")
 	var id int
 	var hash string
 	var active bool

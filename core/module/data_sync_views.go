@@ -2,6 +2,7 @@ package module
 
 import (
 	"context"
+	"sumeru/core/applog"
 	"encoding/xml"
 	"fmt"
 	"strings"
@@ -39,12 +40,12 @@ func upsertSysViewFromRecord(ctx context.Context, moduleName string, xmlRecord p
 	}
 	modelName := strings.TrimSpace(orm.AsString(recordValues["model"]))
 	if modelName == "" {
-		fmt.Printf("Warning: sys.view record %s (module %s): model is required\n", xmlRecord.ID, moduleName)
+		applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.view record %s (module %s): model is required", xmlRecord.ID, moduleName))
 		return
 	}
 	arch := strings.TrimSpace(orm.AsString(recordValues["arch"]))
 	if arch == "" {
-		fmt.Printf("Warning: sys.view record %s (module %s): arch is required\n", xmlRecord.ID, moduleName)
+		applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.view record %s (module %s): arch is required", xmlRecord.ID, moduleName))
 		return
 	}
 	recordValues["arch"] = arch
@@ -57,7 +58,7 @@ func upsertSysViewFromRecord(ctx context.Context, moduleName string, xmlRecord p
 		vt = "tree"
 	}
 	if vt == "" {
-		fmt.Printf("Warning: sys.view record %s (module %s): could not infer type from arch\n", xmlRecord.ID, moduleName)
+		applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.view record %s (module %s): could not infer type from arch", xmlRecord.ID, moduleName))
 		return
 	}
 	recordValues["type"] = vt

@@ -11,6 +11,7 @@ type SysModule struct {
 	State       string `orm:"state"` // uninstalled | to_install | installed | to_upgrade | to_remove
 	Application bool   `orm:"application"`
 	Active      bool   `orm:"active"`
+	LastError   string `orm:"last_error"`
 }
 
 func (m SysModule) ModelName() string { return "sys.module" }
@@ -24,6 +25,7 @@ func (m SysModule) Fields() []FieldDefinition {
 		{Name: "state", Type: Char, Required: true},
 		{Name: "application", Type: Boolean, Required: true},
 		{Name: "active", Type: Boolean, Required: true},
+		{Name: "last_error", Type: Text},
 	}
 }
 

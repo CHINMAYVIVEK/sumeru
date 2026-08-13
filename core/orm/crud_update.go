@@ -4,86 +4,143 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	"sumeru/core/applog"
 	"sumeru/core/event"
 )
 
-// UpdateRecordByID sets only columns that appear in the model's field definitions (never id).
+// UpdateRecordByID sets columns from prepared values for a single id.
+// Security uses the same domain-scoped Update path (record-rule SQL + row lock).
 func UpdateRecordByID(ctx context.Context, modelName string, id int, values map[string]interface{}) (err error) {
-	defer func() { applog.ORMOp(ctx, "write", modelName, err, "id", id) }()
+	start := time.Now()
+	defer func() { logORMOperation(ctx, start, "write", modelName, err, "id", id) }()
 	if id <= 0 {
 		return fmt.Errorf("invalid id")
 	}
+	_, err = Update(ctx, modelName, [][]interface{}{{"id", "=", id}}, values)
+	return err
+}
+
+// Update updates rows matching domain with values. Record rules for write are
+// compiled into the WHERE clause; mutations run inside a transaction with FOR UPDATE.
+// Returns rows affected. Zero rows → access denied or not found.
+func Update(ctx context.Context, modelName string, domain [][]interface{}, values map[string]interface{}) (n int64, err error) {
+	start := time.Now()
+	defer func() { logORMOperation(ctx, start, "update", modelName, err, "rows", n) }()
 	uid := SecurityUID(ctx)
 	if err := CheckModelAccess(ctx, uid, modelName, "write"); err != nil {
-		return err
-	}
-	if err := CheckFieldWriteAccess(ctx, uid, modelName, values); err != nil {
-		return err
+		return 0, err
 	}
 	inst, ok := Registry[modelName]
 	if !ok || inst == nil {
-		return fmt.Errorf("model %s not found", modelName)
+		return 0, fmt.Errorf("model %s not found", modelName)
 	}
-	before, err := SearchOne(ctx, modelName, map[string]interface{}{"id": id})
+	prepared, err := PrepareValues(inst, values, WriteOpWrite, PrepareOptions{StrictUnknown: false})
 	if err != nil {
-		return err
+		return 0, err
 	}
-	if err := CheckRecordRules(ctx, uid, modelName, "write", before); err != nil {
-		return err
+	if err := CheckFieldWriteAccess(ctx, uid, modelName, prepared); err != nil {
+		return 0, err
+	}
+	if len(prepared) == 0 {
+		return 0, nil
 	}
 
-	// Workflow / stage approval when state changes.
-	if newState, ok := values["state"].(string); ok {
-		oldState := AsString(before["state"])
-		if newState != oldState {
-			if err := CanWorkflowTransition(ctx, modelName, id, oldState, newState, uid); err != nil {
-				return err
+	table, err := QuotedTableForModel(modelName)
+	if err != nil {
+		return 0, err
+	}
+	securedSQL, args, err := BuildWhereWithRecordRules(ctx, uid, modelName, "write", domain)
+	if err != nil {
+		return 0, err
+	}
+
+	tx, err := DB.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	lockQ := fmt.Sprintf(`SELECT * FROM %s WHERE %s FOR UPDATE`, table, securedSQL)
+	rows, err := tx.QueryContext(ctx, lockQ, args...)
+	if err != nil {
+		return 0, err
+	}
+	cols, _ := rows.Columns()
+	var locked []map[string]interface{}
+	for rows.Next() {
+		m, err := scanRowToMap(cols, rows)
+		if err != nil {
+			rows.Close()
+			return 0, err
+		}
+		locked = append(locked, m)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	if len(locked) == 0 {
+		return 0, fmt.Errorf("access denied or record not found")
+	}
+
+	for _, before := range locked {
+		if newState, ok := prepared["state"].(string); ok {
+			oldState := AsString(before["state"])
+			if newState != oldState {
+				rid, _ := CoerceInt64(before["id"])
+				if err := CanWorkflowTransition(ctx, modelName, int(rid), oldState, newState, uid); err != nil {
+					return 0, err
+				}
 			}
 		}
+		merged := mergeRecordMap(before, prepared)
+		if err := CheckRecordRules(ctx, uid, modelName, "write", merged); err != nil {
+			return 0, err
+		}
 	}
 
-	merged := mergeRecordMap(before, values)
-	if err := CheckRecordRules(ctx, uid, modelName, "write", merged); err != nil {
-		return err
-	}
-	allowed := map[string]struct{}{}
-	for _, f := range inst.Fields() {
-		if f.Name != "" && f.Name != "id" {
-			allowed[f.Name] = struct{}{}
-		}
-	}
 	var sets []string
-	var args []interface{}
+	var setArgs []interface{}
 	i := 1
-	for k, v := range values {
-		if k == "id" {
-			continue
+	for k, v := range prepared {
+		qcol, err := QuotedColumnForModel(modelName, k)
+		if err != nil {
+			return 0, err
 		}
-		if _, ok := allowed[k]; !ok {
-			continue
-		}
-		sets = append(sets, fmt.Sprintf("%s = $%d", k, i))
-		args = append(args, v)
+		sets = append(sets, fmt.Sprintf("%s = $%d", qcol, i))
+		setArgs = append(setArgs, v)
 		i++
 	}
-	if len(sets) == 0 {
-		return nil
+	shiftedWhere, _ := shiftPlaceholders(securedSQL, len(setArgs)+1)
+	allArgs := append(setArgs, args...)
+	updQ := fmt.Sprintf(`UPDATE %s SET %s WHERE %s`, table, strings.Join(sets, ", "), shiftedWhere)
+	res, err := tx.ExecContext(ctx, updQ, allArgs...)
+	if err != nil {
+		return 0, err
 	}
-	args = append(args, id)
-	tbl := GetTableName(modelName)
-	q := fmt.Sprintf(`UPDATE %s SET %s WHERE id = $%d`, tbl, strings.Join(sets, ", "), i)
-	_, err = DB.ExecContext(ctx, q, args...)
-	if err == nil && !SecurityBypass(ctx) {
-		AppendAudit(ctx, "write", modelName, int64(id), before, values, "")
-		_ = event.Publish(ctx, event.Event{
-			Name:  "record.updated",
-			Actor: uid,
-			Payload: map[string]interface{}{"model": modelName, "id": id},
-		})
+	n, _ = res.RowsAffected()
+	if n == 0 {
+		return 0, fmt.Errorf("access denied or record not found")
 	}
-	return err
+
+	if !SecurityBypass(ctx) {
+		for _, before := range locked {
+			rid, _ := CoerceInt64(before["id"])
+			merged := mergeRecordMap(before, prepared)
+			AppendAudit(ctx, "write", modelName, rid, before, merged, "")
+			EnqueueOutbox(ctx, "record.updated", uid, map[string]interface{}{"model": modelName, "id": int(rid)})
+			_ = event.Publish(ctx, event.Event{
+				Name:    "record.updated",
+				Actor:   uid,
+				Payload: map[string]interface{}{"model": modelName, "id": int(rid)},
+			})
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
 func mergeRecordMap(base map[string]interface{}, patch map[string]interface{}) map[string]interface{} {

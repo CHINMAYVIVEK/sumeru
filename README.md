@@ -130,7 +130,7 @@ Copy **`sumeru.conf.example`** → **`sumeru.conf`**.
 | `brand_css`                                 | Optional extra CSS; linked as **`/static/brand.css`**                                                                           |
 | `dev_mode`                                  | Default **false**. When **true**, debug-level logs and dev-only behavior                                                        |
 
-**Logging:** `log_enabled`, `log_timezone`, `log_stdout`, `log_file`, `log_rolling`, and related rotation keys are documented in **`sumeru.conf.example`**.
+**Logging:** structured JSON via stdlib `log/slog` (`sumeru/core/applog`). When `log_enabled=true`, logs always go to **stdout**; `log_file` is optional (with `log_rolling` / size keys). See **`sumeru.conf.example`**.
 
 ### HTTP API
 
@@ -199,8 +199,15 @@ Legacy clients may ignore `ok` and continue checking `error == null`.
 | `create`      | `[values]`         | —                 | `int` (new id)                   |
 | `write`       | `[ids, values]`    | —                 | `true`                           |
 | `unlink`      | `[ids]`            | —                 | `true`                           |
+| `create_many` | `[[values], …]`    | —                 | `[id, …]`                        |
+| `write_many`  | `[ids, values]`    | —                 | `true`                           |
+| `unlink_many` | `[ids]`            | —                 | `true`                           |
 
-Default `kwargs.limit` is **500**. `offset` skips rows after the ORM fetch (in-memory slice).
+Default `kwargs.limit` is **500** (hard cap). `offset` is applied in SQL via ORM `SearchPage` (`LIMIT`/`OFFSET`), not an in-memory slice. Deep offsets are clamped (max 1_000_000).
+
+Observability: every response includes `X-Request-ID` (echoed from the request header when set). Prometheus-style metrics are exposed at `GET /metrics` (`sumeru_rpc_*`, `sumeru_orm_ops_total`, `sumeru_db_query_duration_seconds`).
+
+Architecture boundaries (ORM vs ERP modules): see [docs/architecture/orm-boundaries.md](docs/architecture/orm-boundaries.md).
 
 **Error codes** (representative HTTP status)
 

@@ -3,8 +3,7 @@ package orm
 import (
 	"context"
 	"fmt"
-
-	"sumeru/core/applog"
+	"time"
 )
 
 // SearchInterceptor allows addons to intercept and modify search domains.
@@ -36,17 +35,16 @@ func execSearchQuery(ctx context.Context, modelName string, domain [][]interface
 		}
 	}
 
-	domain, err := MergeRuleDomainsIntoSearch(ctx, uid, modelName, "read", domain)
+	whereClause, args, err := BuildWhereWithRecordRules(ctx, uid, modelName, "read", domain)
 	if err != nil {
 		return nil, err
 	}
 
-	whereClause, args, err := buildSearchWhereClause(domain)
+	table, err := QuotedTableForModel(modelName)
 	if err != nil {
 		return nil, err
 	}
-
-	query := fmt.Sprintf("SELECT * FROM %s WHERE %s", GetTableName(modelName), whereClause)
+	query := fmt.Sprintf("SELECT * FROM %s WHERE %s", table, whereClause)
 	if orderLimit != "" {
 		query += " " + orderLimit
 	}
@@ -70,12 +68,13 @@ func execSearchQuery(ctx context.Context, modelName string, domain [][]interface
 
 // Search finds records matching the criteria
 func Search(ctx context.Context, modelName string, domain [][]interface{}) (results []map[string]interface{}, err error) {
+	start := time.Now()
 	defer func() {
 		n := 0
 		if results != nil {
 			n = len(results)
 		}
-		applog.ORMOp(ctx, "search", modelName, err, "rows", n)
+		logORMOperation(ctx, start, "search", modelName, err, "rows", n)
 	}()
 	results, err = execSearchQuery(ctx, modelName, domain, "")
 	if err != nil {
@@ -90,16 +89,38 @@ func Search(ctx context.Context, modelName string, domain [][]interface{}) (resu
 // SearchLimit returns up to limit rows for modelName matching domain, ordered by id.
 // limit must be positive; otherwise it defaults to 500.
 func SearchLimit(ctx context.Context, modelName string, domain [][]interface{}, limit int) (results []map[string]interface{}, err error) {
+	return SearchPage(ctx, modelName, domain, limit, 0, "")
+}
+
+const (
+	maxSearchLimit  = 500
+	maxSearchOffset = 1_000_000
+)
+
+// SearchPage returns rows with database-level LIMIT/OFFSET.
+// orderBy defaults to "id ASC". limit defaults/caps at 500; offset is clamped.
+func SearchPage(ctx context.Context, modelName string, domain [][]interface{}, limit, offset int, orderBy string) (results []map[string]interface{}, err error) {
+	start := time.Now()
 	defer func() {
 		n := 0
 		if results != nil {
 			n = len(results)
 		}
-		applog.ORMOp(ctx, "search_limit", modelName, err, "rows", n, "limit", limit)
+		logORMOperation(ctx, start, "search_page", modelName, err, "rows", n, "limit", limit, "offset", offset)
 	}()
-	if limit <= 0 {
-		limit = 500
+	if limit <= 0 || limit > maxSearchLimit {
+		limit = maxSearchLimit
 	}
-	orderLimit := fmt.Sprintf("ORDER BY id ASC LIMIT %d", limit)
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > maxSearchOffset {
+		offset = maxSearchOffset
+	}
+	obSQL, err := ParseOrderByForModel(modelName, orderBy)
+	if err != nil {
+		return nil, err
+	}
+	orderLimit := fmt.Sprintf("ORDER BY %s LIMIT %d OFFSET %d", obSQL, limit, offset)
 	return execSearchQuery(ctx, modelName, domain, orderLimit)
 }

@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"sumeru/addons/mail"
+	"sumeru/core/metrics"
 	"sumeru/core/orm"
 )
 
@@ -22,6 +24,10 @@ func InstallModuleByName(context context.Context, moduleName string) error {
 }
 
 func installModuleUnlocked(context context.Context, moduleName string) error {
+	start := time.Now()
+	defer func() {
+		metrics.ObserveDuration("sumeru_module_install_duration_seconds", time.Since(start))
+	}()
 	if moduleName == "" {
 		return fmt.Errorf("module name required")
 	}
@@ -52,29 +58,47 @@ func installModuleUnlocked(context context.Context, moduleName string) error {
 		}
 	}
 
-	if _, err := orm.DB.ExecContext(context,
-		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'to_install', active = true WHERE name = $1`,
-		moduleName,
-	); err != nil {
+	if err := setModuleState(context, moduleName, "to_install", true); err != nil {
 		return err
 	}
 
 	if err := orm.SyncRegistrySchemaForModule(moduleName); err != nil {
-		return fmt.Errorf("schema sync: %w", err)
+		_ = setModuleLastError(context, moduleName, err.Error())
+		return FatalSync(moduleName, "schema sync", err)
 	}
 
 	if err := addon.SyncToDB(context); err != nil {
-		return err
+		_ = setModuleLastError(context, moduleName, err.Error())
+		if IsFatalSync(err) {
+			return err
+		}
+		// Recoverable warnings: still mark installed but keep last_error.
+	} else {
+		_ = setModuleLastError(context, moduleName, "")
 	}
 
-	if _, err := orm.DB.ExecContext(context,
-		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'installed', active = true WHERE name = $1`,
-		moduleName,
-	); err != nil {
+	if err := setModuleState(context, moduleName, "installed", true); err != nil {
 		return err
 	}
+	orm.InvalidateRuleCache()
 	mail.LogModuleEvent(context, moduleName, "Installed", "")
 	return nil
+}
+
+func setModuleState(ctx context.Context, moduleName, state string, active bool) error {
+	_, err := orm.DB.ExecContext(ctx,
+		`UPDATE `+orm.MustQuotedTableName("sys.module")+` SET state = $1, active = $2 WHERE name = $3`,
+		state, active, moduleName,
+	)
+	return err
+}
+
+func setModuleLastError(ctx context.Context, moduleName, msg string) error {
+	_, err := orm.DB.ExecContext(ctx,
+		`UPDATE `+orm.MustQuotedTableName("sys.module")+` SET last_error = $1 WHERE name = $2`,
+		msg, moduleName,
+	)
+	return err
 }
 
 // UninstallModuleByName removes XML-linked metadata for the module and marks it uninstalled.
@@ -100,7 +124,7 @@ func UninstallModuleByName(context context.Context, moduleName string) error {
 	}
 
 	if _, err := orm.DB.ExecContext(systemContext,
-		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'to_remove' WHERE name = $1`,
+		`UPDATE `+orm.MustQuotedTableName("sys.module")+` SET state = 'to_remove' WHERE name = $1`,
 		moduleName,
 	); err != nil {
 		return err
@@ -110,10 +134,7 @@ func UninstallModuleByName(context context.Context, moduleName string) error {
 		return err
 	}
 
-	if _, err := orm.DB.ExecContext(systemContext,
-		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'uninstalled', active = true WHERE name = $1`,
-		moduleName,
-	); err != nil {
+	if err := setModuleState(systemContext, moduleName, "uninstalled", true); err != nil {
 		return err
 	}
 	mail.LogModuleEvent(systemContext, moduleName, "Uninstalled", "")
@@ -121,15 +142,18 @@ func UninstallModuleByName(context context.Context, moduleName string) error {
 }
 
 func deleteModuleMetadata(context context.Context, moduleName string) error {
-	modelNames := []string{"sys.menu", "sys.view", "sys.action.window", "sys.access", "sys.rule", "sys.approval_rule"}
+	modelNames := []string{"sys.menu", "sys.view", "sys.action.window", "sys.access", "sys.rule", "sys.approval.rule"}
 	for _, modelName := range modelNames {
-		tableName := orm.GetTableName(modelName)
-		deleteQuery := `DELETE FROM ` + tableName + ` WHERE id IN (SELECT core_id FROM ` + orm.GetTableName("sys.model_data") + ` WHERE module = $1 AND model = $2)`
+		tableName, err := orm.QuotedTableName(modelName)
+		if err != nil {
+			return fmt.Errorf("delete %s: %w", modelName, err)
+		}
+		deleteQuery := `DELETE FROM ` + tableName + ` WHERE id IN (SELECT core_id FROM ` + orm.MustQuotedTableName("sys.model.data") + ` WHERE module = $1 AND model = $2)`
 		if _, err := orm.DB.ExecContext(context, deleteQuery, moduleName, modelName); err != nil {
 			return fmt.Errorf("delete %s: %w", modelName, err)
 		}
 	}
-	if _, err := orm.DB.ExecContext(context, `DELETE FROM `+orm.GetTableName("sys.model_data")+` WHERE module = $1`, moduleName); err != nil {
+	if _, err := orm.DB.ExecContext(context, `DELETE FROM `+orm.MustQuotedTableName("sys.model.data")+` WHERE module = $1`, moduleName); err != nil {
 		return err
 	}
 	return nil
@@ -160,7 +184,7 @@ func SetModuleActive(context context.Context, moduleName string, active bool) er
 	}
 
 	if _, err := orm.DB.ExecContext(systemContext,
-		`UPDATE `+orm.GetTableName("sys.module")+` SET active = $1 WHERE name = $2`,
+		`UPDATE `+orm.MustQuotedTableName("sys.module")+` SET active = $1 WHERE name = $2`,
 		active, moduleName,
 	); err != nil {
 		return err
@@ -177,7 +201,7 @@ func SetModuleActive(context context.Context, moduleName string, active bool) er
 func ListModules(context context.Context) ([]map[string]interface{}, error) {
 	moduleRows, err := orm.DB.QueryContext(context,
 		`SELECT id, name, display_name, author, version, description, state, application, active FROM `+
-			orm.GetTableName("sys.module")+` ORDER BY application DESC, name`,
+			orm.MustQuotedTableName("sys.module")+` ORDER BY application DESC, name`,
 	)
 	if err != nil {
 		return nil, err

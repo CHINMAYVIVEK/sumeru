@@ -5,8 +5,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"sumeru/core/applog"
+	"sumeru/core/metrics"
 	"sumeru/core/orm"
 	"sumeru/core/server/api"
 )
@@ -25,6 +27,12 @@ func APIHealthHandler(w http.ResponseWriter, r *http.Request) {
 
 // RPCJSONHandler is model RPC: POST JSON {"model","method","args","kwargs"} with session or API key auth.
 func RPCJSONHandler(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	metrics.Inc("sumeru_rpc_requests_total")
+	defer func() {
+		metrics.ObserveDuration("sumeru_rpc_duration_seconds", time.Since(start))
+	}()
+
 	if r.Method != http.MethodPost {
 		api.WriteResponse(w, http.StatusMethodNotAllowed, api.Fail(api.CodeMethodNotAllowed, "Method not allowed", nil))
 		return
@@ -51,7 +59,7 @@ func RPCJSONHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := orm.ContextWithUID(r.Context(), uid)
 	resp, status := api.Dispatch(ctx, body)
 	if !resp.OK && resp.Error != nil {
-		applog.L(ctx).Warnw("api.rpc", "code", resp.Error.Code, "msg", resp.Error.Message)
+		applog.L(ctx).Warn("api.rpc", "code", resp.Error.Code, "msg", resp.Error.Message)
 	}
 	api.WriteResponse(w, status, resp)
 }

@@ -1,84 +1,151 @@
 package applog
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 
 	"sumeru/core/server/config"
 )
 
-var root *zap.Logger
+var root *slog.Logger
 
-// SetupFromConfig builds the global Zap logger and redirects the standard library log package.
+type handlerResult struct {
+	handler    slog.Handler
+	logPath    string
+	maxSize    int
+	maxBackups int
+	maxAge     int
+}
+
+// SetupFromConfig builds the global slog logger and redirects the standard library log package.
 // Call after config.LoadConfig and config.AbsPaths so log_file paths are absolute.
 //
-//   - log_enabled=false: no log sinks, stdlib log discarded, L(ctx) is a no-op (use for benchmarks / quiet CI).
-//   - log_stdout=true (default): JSON logs to stdout (typical Kubernetes / containers).
-//   - log_file: optional second sink; log_rolling=true uses lumberjack (VPS / single host).
-//   - log_timezone: UTC, Local (default), or IANA name (e.g. Asia/Kolkata) for Zap EncodeTime and log_ts in L(ctx).
+//   - log_enabled=false: discard all logs
+//   - stdout is always enabled when logging is on (log_stdout is ignored for disabling)
+//   - log_file: optional second sink; log_rolling=true uses lumberjack
+//   - log_timezone: UTC, Local (default), or IANA name for log_ts in LoggerFromContext
 func SetupFromConfig(c *config.Config) error {
-	if root != nil {
-		_ = root.Sync()
-		root = nil
-	}
-
+	root = nil
 	logEnabled = c.LogEnabled
 	loc, tzLabel := parseLogTimezone(c.LogTimezone)
 	logLocation = loc
 	logTzName = tzLabel
 
 	if !c.LogEnabled {
-		root = zap.NewNop()
-		zap.ReplaceGlobals(root)
+		root = slog.New(slog.DiscardHandler)
+		slog.SetDefault(root)
 		log.SetOutput(io.Discard)
 		return nil
 	}
-	log.SetOutput(os.Stderr)
 
-	level := zapcore.InfoLevel
+	level := slog.LevelInfo
 	if c.DevMode {
-		level = zapcore.DebugLevel
+		level = slog.LevelDebug
 	}
 
-	sinks, err := buildCores(c, level)
+	hr, err := buildHandler(c, level)
 	if err != nil {
 		return err
 	}
+	root = slog.New(hr.handler)
+	slog.SetDefault(root)
+	log.SetFlags(0)
+	log.SetOutput(slogBridge{logger: root})
 
-	core := zapcore.NewTee(sinks.cores...)
-	root = zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
-	zap.ReplaceGlobals(root)
-
-	zap.RedirectStdLog(root.Named("stdlib"))
-
-	root.Sugar().Infow("logging initialized",
+	root.Info("logging initialized",
 		"log_enabled", c.LogEnabled,
 		"log_timezone", logTzName,
-		"log_stdout", c.LogStdout,
+		"log_stdout", true,
 		"log_rolling", c.LogRolling,
-		"log_file", sinks.logPath,
-		"log_max_size_mb", sinks.maxSize,
-		"log_max_backups", sinks.maxBackups,
-		"log_max_age_days", sinks.maxAge,
+		"log_file", hr.logPath,
+		"log_max_size_mb", hr.maxSize,
+		"log_max_backups", hr.maxBackups,
+		"log_max_age_days", hr.maxAge,
 	)
 	return nil
 }
 
-// Sync flushes buffered log entries (call on graceful shutdown).
-func Sync() {
-	if root != nil {
-		_ = root.Sync()
-	}
+type slogBridge struct {
+	logger *slog.Logger
 }
 
-// Sugar returns the global sugared logger (nil if SetupFromConfig was not called).
-func Sugar() *zap.SugaredLogger {
-	if root == nil {
-		return nil
+func (b slogBridge) Write(p []byte) (int, error) {
+	msg := strings.TrimRight(string(p), "\n")
+	if msg != "" {
+		b.logger.Info(msg)
 	}
-	return root.Sugar()
+	return len(p), nil
 }
+
+func buildHandler(c *config.Config, level slog.Level) (handlerResult, error) {
+	logPath := strings.TrimSpace(c.LogFile)
+	if c.LogRolling && logPath == "" {
+		return handlerResult{}, fmt.Errorf("log_rolling=true requires log_file")
+	}
+
+	maxSize := c.LogMaxSizeMB
+	if maxSize <= 0 {
+		maxSize = 100
+	}
+	maxBackups := c.LogMaxBackups
+	if maxBackups < 0 {
+		maxBackups = 0
+	}
+	maxAge := c.LogMaxAgeDays
+	if maxAge < 0 {
+		maxAge = 0
+	}
+
+	opts := &slog.HandlerOptions{Level: level}
+	writers := []io.Writer{os.Stdout}
+	if logPath != "" {
+		w, err := openLogFile(logPath, c.LogRolling, maxSize, maxBackups, maxAge)
+		if err != nil {
+			return handlerResult{}, err
+		}
+		writers = append(writers, w)
+	}
+	var out io.Writer
+	if len(writers) == 1 {
+		out = writers[0]
+	} else {
+		out = io.MultiWriter(writers...)
+	}
+	return handlerResult{
+		handler:    slog.NewJSONHandler(out, opts),
+		logPath:    logPath,
+		maxSize:    maxSize,
+		maxBackups: maxBackups,
+		maxAge:     maxAge,
+	}, nil
+}
+
+func openLogFile(path string, rolling bool, maxSize, maxBackups, maxAge int) (io.Writer, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, fmt.Errorf("mkdir log dir: %w", err)
+	}
+	if rolling {
+		return &lumberjack.Logger{
+			Filename:   path,
+			MaxSize:    maxSize,
+			MaxBackups: maxBackups,
+			MaxAge:     maxAge,
+			LocalTime:  true,
+		}, nil
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("open log file %q: %w", path, err)
+	}
+	return f, nil
+}
+
+// Sync flushes buffered log entries (no-op for slog JSON handlers; kept for API compatibility).
+func Sync() {}

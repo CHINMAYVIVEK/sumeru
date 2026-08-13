@@ -5,14 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-
-	"sumeru/core/applog"
+	"time"
 )
 
 // SearchOne finds a single record matching the criteria
 func SearchOne(ctx context.Context, modelName string, criteria map[string]interface{}) (result map[string]interface{}, err error) {
+	start := time.Now()
 	defer func() {
-		applog.ORMOp(ctx, "search_one", modelName, err, "has_row", result != nil)
+		logORMOperation(ctx, start, "search_one", modelName, err, "has_row", result != nil)
 	}()
 	if _, ok := Registry[modelName]; !ok {
 		return nil, fmt.Errorf("model %s not registered", modelName)
@@ -24,16 +24,28 @@ func SearchOne(ctx context.Context, modelName string, criteria map[string]interf
 		}
 	}
 
+	table, err := QuotedTableForModel(modelName)
+	if err != nil {
+		return nil, err
+	}
+
 	var where []string
 	var args []interface{}
 	i := 1
 	for col, val := range criteria {
-		where = append(where, fmt.Sprintf("%s = $%d", col, i))
+		qcol, err := QuotedColumnForModel(modelName, col)
+		if err != nil {
+			return nil, err
+		}
+		where = append(where, fmt.Sprintf("%s = $%d", qcol, i))
 		args = append(args, val)
 		i++
 	}
+	if len(where) == 0 {
+		return nil, fmt.Errorf("search criteria required")
+	}
 
-	query := fmt.Sprintf("SELECT * FROM %s WHERE %s LIMIT 1", GetTableName(modelName), strings.Join(where, " AND "))
+	query := fmt.Sprintf("SELECT * FROM %s WHERE %s LIMIT 1", table, strings.Join(where, " AND "))
 	rows, err := DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err

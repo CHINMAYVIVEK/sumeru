@@ -50,6 +50,7 @@ func LoadAddonPaths(rootPaths []string) error {
 			return err
 		}
 
+		var syncErrs []error
 		for _, addon := range sortedAddonOrder {
 			// Only load XML data for modules that are installed and active.
 			// Discovered-but-uninstalled modules are visible in the Apps UI
@@ -58,10 +59,20 @@ func LoadAddonPaths(rootPaths []string) error {
 				continue
 			}
 			if err := addon.SyncToDB(contextWithBypass); err != nil {
+				if IsFatalSync(err) {
+					_ = setModuleLastError(contextWithBypass, addon.Manifest.Name, err.Error())
+					syncErrs = append(syncErrs, err)
+					fmt.Printf(platformmsg.FmtErrorSyncingAddon, addon.Manifest.Name, err)
+					continue
+				}
 				fmt.Printf(platformmsg.FmtErrorSyncingAddon, addon.Manifest.Name, err)
 			} else {
+				_ = setModuleLastError(contextWithBypass, addon.Manifest.Name, "")
 				fmt.Printf(platformmsg.FmtLoadedAddonData, addon.Manifest.Name, addon.Manifest.Version)
 			}
+		}
+		if len(syncErrs) > 0 {
+			return fmt.Errorf("fatal module sync failure(s): %w", syncErrs[0])
 		}
 	} else {
 		log.Printf("LoadAddonPaths: Database not initialized, skipping DB sync for %d discovered addons.", len(discoveredAddons))

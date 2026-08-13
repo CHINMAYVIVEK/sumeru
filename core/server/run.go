@@ -12,6 +12,7 @@ import (
 
 	"sumeru/core/applog"
 	"sumeru/core/orm"
+	"sumeru/core/runtime"
 	"sumeru/core/scheduler"
 	"sumeru/core/server/config"
 	"sumeru/core/server/web"
@@ -56,13 +57,13 @@ func Run() {
 		config.AppConfig.HttpPort = s
 	}
 	if strings.TrimSpace(*dbName) != "" || strings.TrimSpace(*dbNameLong) != "" {
-		applog.L(context.Background()).Infow("server", "msg", "database override", "db", config.AppConfig.DbName)
+		applog.L(context.Background()).Info("server", "msg", "database override", "db", config.AppConfig.DbName)
 	}
 	if strings.TrimSpace(*httpPort) != "" || strings.TrimSpace(*httpPortShort) != "" {
-		applog.L(context.Background()).Infow("server", "msg", "http port override", "port", config.AppConfig.HttpPort)
+		applog.L(context.Background()).Info("server", "msg", "http port override", "port", config.AppConfig.HttpPort)
 	}
 
-	applog.L(context.Background()).Infow("server", "msg", "addon roots", "paths", config.AppConfig.AddonPaths)
+	applog.L(context.Background()).Info("server", "msg", "addon roots", "paths", config.AppConfig.AddonPaths)
 
 	databaseSource := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		config.AppConfig.DbHost, config.AppConfig.DbPort, config.AppConfig.DbUser,
@@ -81,8 +82,8 @@ func Run() {
 		registerSetupRoutes()
 
 		log.Printf("Server starting on :%s (SETUP MODE)...", config.AppConfig.HttpPort)
-		// Use default mux for setup
-		if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, nil); err != nil {
+		setupHandler := web.SecurityMiddleware(nil)
+		if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, setupHandler); err != nil {
 			log.Fatalf("Server failed: %v", err)
 		}
 		return
@@ -136,6 +137,7 @@ func Run() {
 	scheduler.Start(context.Background(), time.Minute)
 
 	log.Printf("Server starting on :%s...", config.AppConfig.HttpPort)
+	runtime.SyncFromGlobals() // bind process Runtime to orm globals for injectable APIs
 	appHandler := web.SecurityMiddleware(nil)
 	if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, appHandler); err != nil {
 		log.Fatalf("Server failed: %v", err)

@@ -5,15 +5,15 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-
-	"sumeru/core/applog"
+	"time"
 )
 
 // FindUIDefaultView returns the highest-priority sys.view for a model and type.
 // view_mode "list" maps to type "tree".
 func FindUIDefaultView(ctx context.Context, modelName, viewType string) (result map[string]interface{}, err error) {
+	start := time.Now()
 	defer func() {
-		applog.ORMOp(ctx, "find_ui_view", "sys.view", err, "target_model", modelName, "view_type", viewType, "found", result != nil)
+		logORMOperation(ctx, start, "find_ui_view", "sys.view", err, "target_model", modelName, "view_type", viewType, "found", result != nil)
 	}()
 	if _, ok := Registry["sys.view"]; !ok {
 		return nil, fmt.Errorf("model sys.view not registered")
@@ -27,7 +27,7 @@ func FindUIDefaultView(ctx context.Context, modelName, viewType string) (result 
 	if vt == "list" {
 		vt = "tree"
 	}
-	tbl := GetTableName("sys.view")
+	tbl := MustQuotedTableName("sys.view")
 	q := fmt.Sprintf(
 		`SELECT * FROM %s WHERE model = $1 AND type = $2 ORDER BY priority DESC NULLS LAST, id DESC LIMIT 1`,
 		tbl,

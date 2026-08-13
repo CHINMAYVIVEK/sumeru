@@ -57,3 +57,17 @@ func Clear() {
 	store = map[string]entry{}
 	mu.Unlock()
 }
+
+// DeletePrefix removes all keys with the given prefix.
+func DeletePrefix(prefix string) {
+	if prefix == "" {
+		return
+	}
+	mu.Lock()
+	for k := range store {
+		if len(k) >= len(prefix) && k[:len(prefix)] == prefix {
+			delete(store, k)
+		}
+	}
+	mu.Unlock()
+}

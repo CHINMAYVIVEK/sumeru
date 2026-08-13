@@ -2,21 +2,21 @@ package applog
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"sync"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 var (
 	uidMu       sync.RWMutex
 	uidFromCtx  func(context.Context) int
 	logLocation *time.Location // effective location for log_ts (set in SetupFromConfig)
-	logEnabled  bool           // false → Nop logger, no structured output
+	logEnabled  bool           // false → discard
 	logTzName   string         // IANA or "UTC" / "Local" label for log_tz field
 )
 
-// RegisterUIDResolver wires user_id for L(ctx). Call once at process startup from server (e.g. orm.UIDFromContext).
+// RegisterUIDResolver wires user_id for LoggerFromContext. Call once at process startup.
 func RegisterUIDResolver(fn func(context.Context) int) {
 	uidMu.Lock()
 	defer uidMu.Unlock()
@@ -33,15 +33,17 @@ func resolveUID(ctx context.Context) int {
 	return fn(ctx)
 }
 
-// L returns a sugared logger with enforced fields: user_id, log_ts (RFC3339Nano in configured TZ), log_tz.
-// When logging is disabled or Zap is not initialized, returns a no-op sugared logger.
-func L(ctx context.Context) *zap.SugaredLogger {
-	if !logEnabled {
-		return zap.NewNop().Sugar()
+func baseLogger() *slog.Logger {
+	if root != nil {
+		return root
 	}
-	s := Sugar()
-	if s == nil {
-		return zap.NewNop().Sugar()
+	return slog.Default()
+}
+
+// LoggerFromContext returns a slog logger with user_id, request_id, log_ts, log_tz.
+func LoggerFromContext(ctx context.Context) *slog.Logger {
+	if !logEnabled {
+		return slog.New(slog.DiscardHandler)
 	}
 	loc := effectiveLocation()
 	now := time.Now().In(loc)
@@ -49,23 +51,35 @@ func L(ctx context.Context) *zap.SugaredLogger {
 	if tzLabel == "" {
 		tzLabel = loc.String()
 	}
-	return s.With(
+	return baseLogger().With(
 		"user_id", resolveUID(ctx),
+		"request_id", RequestIDFromContext(ctx),
 		"log_ts", now.Format(time.RFC3339Nano),
 		"log_tz", tzLabel,
 	)
 }
 
-// ORMOp logs one ORM operation with enforced context fields (no-op when logging disabled).
-func ORMOp(ctx context.Context, op, model string, err error, keysAndValues ...interface{}) {
+// L is an alias for LoggerFromContext.
+func L(ctx context.Context) *slog.Logger {
+	return LoggerFromContext(ctx)
+}
+
+// LogORMOperation logs one ORM operation with enforced context fields.
+func LogORMOperation(ctx context.Context, op, model string, err error, keysAndValues ...interface{}) {
 	if !logEnabled {
 		return
 	}
-	kvs := append([]interface{}{"op", op, "model", model}, keysAndValues...)
+	attrs := append([]interface{}{"op", op, "model", model}, keysAndValues...)
 	if err != nil {
-		kvs = append(kvs, "err", err)
-		L(ctx).Errorw("orm", kvs...)
+		attrs = append(attrs, "err", err)
+		LoggerFromContext(ctx).Error("orm", attrs...)
 		return
 	}
-	L(ctx).Infow("orm", kvs...)
+	LoggerFromContext(ctx).Info("orm", attrs...)
+}
+
+// Fatal logs at error level and exits the process.
+func Fatal(ctx context.Context, msg string, keysAndValues ...interface{}) {
+	LoggerFromContext(ctx).Error(msg, keysAndValues...)
+	os.Exit(1)
 }

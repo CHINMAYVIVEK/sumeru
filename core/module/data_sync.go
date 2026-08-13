@@ -2,6 +2,7 @@ package module
 
 import (
 	"context"
+	"sumeru/core/applog"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +10,6 @@ import (
 
 	"sumeru/core/engine/parser"
 	"sumeru/core/orm"
-	"sumeru/core/sdk/platformmsg"
 )
 
 // resolveXMLIDInModule resolves module.external_id: uses full ref if it contains a dot,
@@ -41,7 +41,7 @@ func upsertSysActionWindowFromRecord(ctx context.Context, moduleName string, xml
 		recordValues[key] = val
 	}
 	if cm := strings.TrimSpace(orm.AsString(recordValues["core_model"])); cm == "" {
-		fmt.Printf("Warning: sys.action.window record %s (module %s): core_model is required\n", xmlRecord.ID, moduleName)
+		applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.action.window record %s (module %s): core_model is required", xmlRecord.ID, moduleName))
 		return
 	}
 	if _, ok := recordValues["name"]; !ok || recordValues["name"] == "" {
@@ -76,6 +76,7 @@ func processXMLRecords(ctx context.Context, moduleName string, records []parser.
 
 func (addon *Addon) SyncToDB(ctx context.Context) error {
 	moduleName := addon.Manifest.Name
+	var errs []error
 
 	for _, registeredModel := range orm.Registry {
 		if strings.TrimSpace(orm.DeclaringModule(registeredModel.ModelName())) != moduleName {
@@ -87,23 +88,24 @@ func (addon *Addon) SyncToDB(ctx context.Context) error {
 			"module": moduleName,
 		}, "name")
 		if err != nil {
-			return err
+			errs = append(errs, FatalSync(moduleName, "sys.model upsert "+registeredModel.ModelName(), err))
 		}
 	}
 
 	if err := addon.syncCSVModelAccess(ctx); err != nil {
-		fmt.Printf("Warning: Failed to load CSV ACLs for %s: %v\n", moduleName, err)
+		errs = append(errs, FatalSync(moduleName, "CSV ACL load", err))
+	} else {
+		orm.InvalidateRuleCache()
 	}
 	var inheritQueue []parser.Record
 
 	for _, xmlFile := range addon.Manifest.Data {
 		xmlPath := filepath.Join(addon.Path, xmlFile)
 		if _, err := os.Stat(xmlPath); err != nil {
-			fmt.Printf(platformmsg.FmtDataFileMissing, xmlFile, moduleName)
+			errs = append(errs, RecoverableSync(moduleName, "data file missing "+xmlFile, err))
 			continue
 		}
 
-		// Unified path: records, views, actions, and menuitems from one parse.
 		parsedViewData, err := parser.ParseViewList(xmlPath)
 		if err == nil {
 			hasContent := len(parsedViewData.Records) > 0 || len(parsedViewData.Views) > 0 ||
@@ -119,10 +121,9 @@ func (addon *Addon) SyncToDB(ctx context.Context) error {
 				continue
 			}
 		} else {
-			fmt.Printf("Warning: ParseViewList %s (module %s): %v\n", xmlFile, moduleName, err)
+			errs = append(errs, RecoverableSync(moduleName, "ParseViewList "+xmlFile, err))
 		}
 
-		// Fallback for menus-only / legacy shapes if ViewList yielded nothing.
 		menuList, err := parser.ParseMenuList(xmlPath)
 		if err == nil {
 			if len(menuList.MenuItems) > 0 {
@@ -130,15 +131,15 @@ func (addon *Addon) SyncToDB(ctx context.Context) error {
 			}
 			processXMLRecords(ctx, moduleName, menuList.Records, &inheritQueue)
 		} else if err != nil {
-			fmt.Printf("Warning: ParseMenuList %s (module %s): %v\n", xmlFile, moduleName, err)
+			errs = append(errs, RecoverableSync(moduleName, "ParseMenuList "+xmlFile, err))
 		}
 	}
 
 	for _, xmlRecord := range inheritQueue {
 		if err := applySysUIViewInherit(ctx, moduleName, xmlRecord); err != nil {
-			fmt.Printf(platformmsg.FmtViewInheritWarning, moduleName, xmlRecord.ID, err)
+			errs = append(errs, RecoverableSync(moduleName, "view inherit "+xmlRecord.ID, err))
 		}
 	}
 
-	return nil
+	return aggregateErrors(moduleName, errs)
 }

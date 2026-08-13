@@ -118,7 +118,7 @@ func SubstituteDomainContext(domain [][]interface{}, dc DomainContext) [][]inter
 }
 
 // RecordMatchesDomain evaluates AND of triples for =, !=, in (value list).
-// Prefix Polish "|" markers OR the following leaf triples (same shape as ApplicableRuleDomains).
+// Prefix Polish "|" markers OR the following leaf triples (same shape as BuildWhereWithRecordRules group OR).
 func RecordMatchesDomain(rec map[string]interface{}, domain [][]interface{}) bool {
 	orLeaves := 0
 	for _, d := range domain {

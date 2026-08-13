@@ -9,7 +9,7 @@ import (
 
 func skipAuditModel(model string) bool {
 	switch model {
-	case "sys.audit", "sys.session", "app.log", "core.user.log", "mail.message":
+	case "sys.audit", "sys.session", "app.log", "core.user.log", "mail.message", "sys.outbox.event":
 		return true
 	default:
 		return false

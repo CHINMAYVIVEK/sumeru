@@ -53,6 +53,24 @@ make bp NAME=my_module
 
 For custom modules, scaffold under `sumeru_custom_addons` (see that repo’s docs / `sumeru-bp` usage).
 
+## Runtime and globals
+
+Prefer `sumeru/core/runtime.Runtime` for new injectable surfaces (DB, registry, events). Package-level singletons (`orm.DB`, `orm.Registry`, …) remain for bootstrap compatibility, but **do not add new package-level process globals** — put shared state on `Runtime` (or an explicit constructor) and migrate call sites incrementally. Tests should construct an isolated `runtime.New(...)` when practical.
+
+## Dead code policy
+
+Remove a symbol only when:
+
+1. It has zero in-repo callers (or only self-references).
+2. A documented replacement already exists (e.g. `BuildWhereWithRecordRules` replaced `MergeRuleDomainsIntoSearch`).
+3. Public SDK / extension hooks (`core/sdk`, `RegisterObjectAction`) are kept even if unused in-tree.
+
+Do not delete half-built features that still write data (e.g. outbox enqueue) unless the feature is abandoned.
+
+## Logging
+
+Use `sumeru/core/applog` (`LoggerFromContext` / `LogORMOperation`) with stdlib `log/slog`. Stdout is always on when logging is enabled; `log_file` is optional. Do not add Zap or other logging libraries.
+
 ## Testing
 
 From the `sumeru` module root:
