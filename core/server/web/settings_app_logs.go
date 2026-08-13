@@ -86,7 +86,7 @@ type ModuleEvent struct {
 }
 
 func loadAppLogEvents(ctx context.Context) ([]ModuleEvent, error) {
-	tbl := orm.GetTableName("app.log")
+	tbl := orm.MustQuotedTableName("app.log")
 	query := `
 		SELECT
 			to_char(create_date, 'YYYY-MM-DD HH24:MI:SS') AS created_at,

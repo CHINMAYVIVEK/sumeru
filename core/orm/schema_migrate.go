@@ -13,12 +13,12 @@ func BackfillSysMenuModule() error {
 	if DB == nil {
 		return nil
 	}
-	dataTbl := GetTableName("sys.model_data")
+	dataTbl := MustModelToTableName("sys.model.data")
 	ok, err := tableExists(dataTbl)
 	if err != nil || !ok {
 		return err
 	}
-	menuTbl := GetTableName("sys.menu")
+	menuTbl := MustModelToTableName("sys.menu")
 	q := `UPDATE ` + quoteIdent(menuTbl) + ` m
 		SET module = d.module
 		FROM ` + quoteIdent(dataTbl) + ` d
@@ -34,7 +34,7 @@ func FixSysMenuSelfParent() error {
 	if DB == nil {
 		return nil
 	}
-	menuTbl := GetTableName("sys.menu")
+	menuTbl := MustModelToTableName("sys.menu")
 	_, err := DB.Exec(`UPDATE ` + quoteIdent(menuTbl) + ` SET parent_id = NULL WHERE id = parent_id AND parent_id IS NOT NULL`)
 	return err
 }
@@ -44,8 +44,8 @@ func EnsureSysViewArchText() error {
 	if DB == nil {
 		return nil
 	}
-	tn := GetTableName("sys.view")
-	_, err := DB.Exec(`ALTER TABLE ` + tn + ` ALTER COLUMN arch TYPE TEXT USING arch::text`)
+	tn := MustModelToTableName("sys.view")
+	_, err := DB.Exec(`ALTER TABLE ` + quoteIdent(tn) + ` ALTER COLUMN arch TYPE TEXT USING arch::text`)
 	return err
 }
 
@@ -55,7 +55,7 @@ func EnsureCoreUserImageText() error {
 	if DB == nil {
 		return nil
 	}
-	tn := GetTableName("core.user")
+	tn := MustModelToTableName("core.user")
 	ok, err := tableExists(tn)
 	if err != nil || !ok {
 		return err
@@ -69,8 +69,8 @@ func EnsureMailMessageModelResIndex() error {
 	if DB == nil {
 		return nil
 	}
-	tn := GetTableName("mail.message")
-	q := `CREATE INDEX IF NOT EXISTS idx_` + tn + `_model_core_created ON ` + tn + ` (model, core_id, create_date DESC)`
+	tn := MustModelToTableName("mail.message") // physical name for index id; quote only in ON clause
+	q := `CREATE INDEX IF NOT EXISTS idx_` + tn + `_model_core_created ON ` + quoteIdent(tn) + ` (model, core_id, create_date DESC)`
 	_, err := DB.Exec(q)
 	return err
 }

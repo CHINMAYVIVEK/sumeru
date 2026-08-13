@@ -6,11 +6,6 @@ import (
 	"strings"
 )
 
-// RelNameSearch returns up to limit id/name pairs for a comodel (name or login ILIKE).
-func RelNameSearch(ctx context.Context, modelName, query string, limit int) ([]map[string]interface{}, error) {
-	return RelNameSearchFiltered(ctx, modelName, query, limit, "", 0)
-}
-
 // RelNameSearchFiltered is RelNameSearch with an optional equality filter (filterField = filterID).
 func RelNameSearchFiltered(ctx context.Context, modelName, query string, limit int, filterField string, filterID int64) ([]map[string]interface{}, error) {
 	modelName = strings.TrimSpace(modelName)
@@ -56,17 +51,32 @@ func RelNameSearchFiltered(ctx context.Context, modelName, query string, limit i
 		return nil, fmt.Errorf("model %s has no name/login field", modelName)
 	}
 
-	tbl := GetTableName(modelName)
-	selectCols := fmt.Sprintf(`id, COALESCE(NULLIF(TRIM(%s::text), ''), '')`, quoteIdent(nameCol))
+	tbl, err := QuotedTableForModel(modelName)
+	if err != nil {
+		return nil, err
+	}
+	nameIdent, err := QuotedColumnForModel(modelName, nameCol)
+	if err != nil {
+		return nil, err
+	}
+	selectCols := fmt.Sprintf(`id, COALESCE(NULLIF(TRIM(%s::text), ''), '')`, nameIdent)
 	if hasPhoneCode {
-		selectCols += `, COALESCE(NULLIF(TRIM(phone_code::text), ''), '')`
+		phoneIdent, err := QuotedColumnForModel(modelName, "phone_code")
+		if err != nil {
+			return nil, err
+		}
+		selectCols += fmt.Sprintf(`, COALESCE(NULLIF(TRIM(%s::text), ''), '')`, phoneIdent)
 	}
 	q := strings.TrimSpace(query)
 	args := []interface{}{}
 	where := []string{}
 	n := 1
 	if filterField != "" && filterID > 0 {
-		where = append(where, fmt.Sprintf(`%s = $%d`, quoteIdent(filterField), n))
+		filterIdent, err := QuotedColumnForModel(modelName, filterField)
+		if err != nil {
+			return nil, err
+		}
+		where = append(where, fmt.Sprintf(`%s = $%d`, filterIdent, n))
 		args = append(args, filterID)
 		n++
 	} else if filterField != "" && filterID <= 0 {
@@ -76,9 +86,17 @@ func RelNameSearchFiltered(ctx context.Context, modelName, query string, limit i
 	if q != "" {
 		pat := "%" + q + "%"
 		if hasName && hasLogin {
-			where = append(where, fmt.Sprintf(`(name ILIKE $%d OR login ILIKE $%d)`, n, n))
+			loginIdent, err := QuotedColumnForModel(modelName, "login")
+			if err != nil {
+				return nil, err
+			}
+			nameForLike, err := QuotedColumnForModel(modelName, "name")
+			if err != nil {
+				return nil, err
+			}
+			where = append(where, fmt.Sprintf(`(%s ILIKE $%d OR %s ILIKE $%d)`, nameForLike, n, loginIdent, n))
 		} else {
-			where = append(where, fmt.Sprintf(`%s::text ILIKE $%d`, quoteIdent(nameCol), n))
+			where = append(where, fmt.Sprintf(`%s::text ILIKE $%d`, nameIdent, n))
 		}
 		args = append(args, pat)
 		n++
@@ -87,7 +105,7 @@ func RelNameSearchFiltered(ctx context.Context, modelName, query string, limit i
 	if len(where) > 0 {
 		sqlQ += ` WHERE ` + strings.Join(where, ` AND `)
 	}
-	sqlQ += fmt.Sprintf(` ORDER BY %s ASC, id ASC LIMIT $%d`, quoteIdent(nameCol), n)
+	sqlQ += fmt.Sprintf(` ORDER BY %s ASC, id ASC LIMIT $%d`, nameIdent, n)
 	args = append(args, limit)
 
 	rows, err := DB.QueryContext(ctx, sqlQ, args...)

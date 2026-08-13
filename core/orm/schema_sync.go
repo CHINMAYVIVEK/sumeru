@@ -46,7 +46,10 @@ func SyncRegistrySchema() error {
 }
 
 func syncModelSchema(ctx context.Context, model Model) error {
-	tableName := GetTableName(model.ModelName())
+	tableName, err := ModelToTableName(model.ModelName())
+	if err != nil {
+		return err
+	}
 	exists, err := tableExists(tableName)
 	if err != nil {
 		return err
@@ -74,7 +77,7 @@ func syncModelSchema(ctx context.Context, model Model) error {
 		if _, err := DB.Exec(q); err != nil {
 			return fmt.Errorf("%s: %w", q, err)
 		}
-		applog.L(ctx).Infow("schema_sync", "table", tableName, "field", field.Name)
+		applog.L(ctx).Info("schema_sync", "table", tableName, "field", field.Name)
 	}
 	if err := dropStaleColumnUniques(tableName, model); err != nil {
 		return err
@@ -128,11 +131,14 @@ func dropStaleColumnUniques(tableName string, model Model) error {
 		}
 		rows.Close()
 		for _, con := range names {
+			if !pgIdentOK(con) {
+				return fmt.Errorf("unsafe constraint name %q on %s", con, tableName)
+			}
 			q := fmt.Sprintf(`ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s`, quoteIdent(tableName), quoteIdent(con))
 			if _, err := DB.Exec(q); err != nil {
 				return fmt.Errorf("drop unique %s.%s: %w", tableName, con, err)
 			}
-			applog.L(context.Background()).Infow("schema_sync_drop_unique", "table", tableName, "constraint", con)
+			applog.L(context.Background()).Info("schema_sync_drop_unique", "table", tableName, "constraint", con)
 		}
 	}
 	return nil
@@ -150,6 +156,22 @@ func ensureModelIndexes(tableName string, model Model) error {
 		}
 	}
 	return nil
+}
+
+func pgIdentOK(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		if r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r == '_' {
+			continue
+		}
+		if i > 0 && r >= '0' && r <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func tableExists(tableName string) (bool, error) {
@@ -226,6 +248,9 @@ func sqlDefaultLiteral(v interface{}) (string, bool) {
 	case float64:
 		return fmt.Sprintf("%g", t), true
 	case string:
+		if strings.Contains(t, ";") || strings.Contains(t, "--") || strings.Contains(t, "/*") {
+			return "", false
+		}
 		return "'" + strings.ReplaceAll(t, "'", "''") + "'", true
 	default:
 		return "'" + strings.ReplaceAll(fmt.Sprint(t), "'", "''") + "'", true

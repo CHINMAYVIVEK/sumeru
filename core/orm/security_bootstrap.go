@@ -173,7 +173,7 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 		"core_id": publicGID,
 	}, "name")
 
-	_, _ = DB.ExecContext(ctx, `INSERT INTO `+GetTableName(tableGroupImplied)+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`, adminGID, userGID)
+	_, _ = DB.ExecContext(ctx, `INSERT INTO `+MustQuotedTableName(tableGroupImplied)+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`, adminGID, userGID)
 	return adminGID, userGID, nil
 }
 
@@ -211,7 +211,7 @@ func ensureBootstrapSecurity(ctx context.Context, first *SetupAdminParams) error
 		return fmt.Errorf("core.company not registered")
 	}
 
-	userTbl := GetTableName("core.user")
+	userTbl := MustQuotedTableName("core.user")
 	var userCount int
 	if err := DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+userTbl).Scan(&userCount); err != nil {
 		return fmt.Errorf("count users: %w", err)
@@ -271,10 +271,10 @@ func ensureBootstrapSecurity(ctx context.Context, first *SetupAdminParams) error
 		"core_id": adminUID,
 	}, "name")
 
-	if _, err := DB.ExecContext(ctx, `INSERT INTO `+GetTableName(tableGroupUserRel)+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, adminGID); err != nil {
+	if _, err := DB.ExecContext(ctx, `INSERT INTO `+MustQuotedTableName(tableGroupUserRel)+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, adminGID); err != nil {
 		return err
 	}
-	if _, err := DB.ExecContext(ctx, `INSERT INTO `+GetTableName(tableGroupUserRel)+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, userGID); err != nil {
+	if _, err := DB.ExecContext(ctx, `INSERT INTO `+MustQuotedTableName(tableGroupUserRel)+` (user_id, group_id) VALUES ($1, $2) ON CONFLICT (user_id, group_id) DO NOTHING`, adminUID, userGID); err != nil {
 		return err
 	}
 	_, _ = DB.ExecContext(ctx, `UPDATE `+userTbl+` SET company_id = $1 WHERE id = $2`, compID, adminUID)
@@ -328,7 +328,7 @@ func ensureBootstrapACLs(ctx context.Context, adminGID, userGID int) {
 		}
 	}
 
-	globalReads := []string{"sys.model_data", "sys.menu", "sys.action.window", "sys.view", "sys.module", "sys.module.category", "core.country", "core.country.state", "core.city"}
+	globalReads := []string{"sys.model.data", "sys.menu", "sys.action.window", "sys.view", "sys.module", "sys.module.category", "core.country", "core.country.state", "core.city"}
 	for _, m := range globalReads {
 		accName := fmt.Sprintf("access_%s_global_read", strings.ReplaceAll(m, ".", "_"))
 		_, _ = Upsert(ctx, SysAccess{}, map[string]interface{}{

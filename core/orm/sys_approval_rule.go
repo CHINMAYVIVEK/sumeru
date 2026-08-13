@@ -10,7 +10,7 @@ type SysApprovalRule struct {
 	RequireApproval bool   `orm:"require_approval"`
 }
 
-func (r SysApprovalRule) ModelName() string { return "sys.approval_rule" }
+func (r SysApprovalRule) ModelName() string { return "sys.approval.rule" }
 func (r SysApprovalRule) Fields() []FieldDefinition {
 	return []FieldDefinition{
 		{Name: "model", Type: Char, Required: true},

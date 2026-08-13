@@ -22,13 +22,13 @@ func ResolveXmlId(ctx context.Context, xmlID string) (int, string, error) {
 		criteria["module"] = module
 	}
 
-	data, err := SearchOne(ctx, "sys.model_data", criteria)
+	data, err := SearchOne(ctx, "sys.model.data", criteria)
 	if err != nil {
 		return 0, "", err
 	}
 	rid, ok := CoerceInt64(data["core_id"])
 	if !ok {
-		return 0, "", fmt.Errorf("invalid core_id in sys.model_data")
+		return 0, "", fmt.Errorf("invalid core_id in sys.model.data")
 	}
 	return int(rid), AsString(data["model"]), nil
 }

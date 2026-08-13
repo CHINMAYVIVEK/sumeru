@@ -32,7 +32,7 @@ func firstCompanyID(ctx context.Context) int64 {
 	if orm.DB == nil {
 		return 0
 	}
-	tn := orm.GetTableName("core.company")
+	tn := orm.MustQuotedTableName("core.company")
 	var id sql.NullInt64
 	if err := orm.DB.QueryRowContext(ctx, `SELECT id FROM `+tn+` ORDER BY id ASC LIMIT 1`).Scan(&id); err != nil || !id.Valid {
 		return 0
@@ -45,7 +45,7 @@ func CompanyChatterEnabled(ctx context.Context) bool {
 	if orm.DB == nil {
 		return true
 	}
-	tn := orm.GetTableName("core.company")
+	tn := orm.MustQuotedTableName("core.company")
 	var b sql.NullBool
 	err := orm.DB.QueryRowContext(ctx, `SELECT mail_chatter_enabled FROM `+tn+` ORDER BY id ASC LIMIT 1`).Scan(&b)
 	if err != nil || !b.Valid {
@@ -59,7 +59,7 @@ func CompanyActivityPanelEnabled(ctx context.Context) bool {
 	if orm.DB == nil {
 		return true
 	}
-	tn := orm.GetTableName("core.company")
+	tn := orm.MustQuotedTableName("core.company")
 	var b sql.NullBool
 	err := orm.DB.QueryRowContext(ctx, `SELECT mail_activity_panel_enabled FROM `+tn+` ORDER BY id ASC LIMIT 1`).Scan(&b)
 	if err != nil || !b.Valid {
@@ -113,7 +113,7 @@ func ListCommentsForRecord(ctx context.Context, model string, coreID int64, limi
 	if limit <= 0 || limit > 500 {
 		limit = 120
 	}
-	tn := orm.GetTableName("mail.message")
+	tn := orm.MustQuotedTableName("mail.message")
 	q := `SELECT body, subtype, author, create_date, model, core_id FROM ` + tn +
 		` WHERE model = $1 AND core_id = $2 AND subtype = $3 ORDER BY create_date ASC, id ASC LIMIT $4`
 	rows, err := orm.DB.QueryContext(ctx, q, model, coreID, SubtypeComment, limit)
@@ -133,7 +133,7 @@ func QueryActivityLog(ctx context.Context, limit int, ctxModel string, ctxID int
 	if limit <= 0 || limit > 200 {
 		limit = 40
 	}
-	tn := orm.GetTableName("mail.message")
+	tn := orm.MustQuotedTableName("mail.message")
 	ctxModel = strings.TrimSpace(ctxModel)
 	var rows *sql.Rows
 	var err error
@@ -177,6 +177,6 @@ func scanMessageRows(rows *sql.Rows) ([]Row, error) {
 // LogModuleEvent records a module lifecycle line in app.log (not mail.message).
 func LogModuleEvent(ctx context.Context, moduleName, verb, detail string) {
 	if err := orm.AppendAppLog(ctx, moduleName, verb, detail); err != nil {
-		applog.L(ctx).Warnw("applog.log_failed", "err", err)
+		applog.L(ctx).Warn("applog.log_failed", "err", err)
 	}
 }

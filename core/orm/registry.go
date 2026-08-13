@@ -18,12 +18,19 @@ func RegisterModelWithModule(model Model, declaringModule string) {
 		return
 	}
 	name := model.ModelName()
+	if err := ValidateModelName(name); err != nil {
+		panic(fmt.Sprintf("RegisterModelWithModule: %v", err))
+	}
+	for _, f := range model.Fields() {
+		if f.Name == "" || f.Name == "id" {
+			continue
+		}
+		if err := ValidateFieldName(f.Name); err != nil {
+			panic(fmt.Sprintf("RegisterModelWithModule %s: %v", name, err))
+		}
+	}
 	Registry[name] = model
 	modelDeclaringModule[name] = strings.TrimSpace(declaringModule)
-}
-
-func GetTableName(modelName string) string {
-	return strings.ReplaceAll(modelName, ".", "_")
 }
 
 func SyncModels() error {
@@ -84,14 +91,24 @@ func ColumnTypeSQL(f FieldDefinition) (string, bool) {
 }
 
 func createTable(model Model) error {
-	tableName := GetTableName(model.ModelName())
+	physical, err := ModelToTableName(model.ModelName())
+	if err != nil {
+		return err
+	}
+	tableName, err := QuotedTableName(model.ModelName())
+	if err != nil {
+		return err
+	}
 	var columns []string
-	columns = append(columns, "id BIGSERIAL PRIMARY KEY")
+	columns = append(columns, quoteIdent("id")+" BIGSERIAL PRIMARY KEY")
 
 	for _, field := range model.Fields() {
 		baseType, ok := ColumnTypeSQL(field)
 		if !ok {
 			continue
+		}
+		if err := ValidateFieldName(field.Name); err != nil {
+			return err
 		}
 		colType := baseType
 		if field.Required {
@@ -101,11 +118,13 @@ func createTable(model Model) error {
 			colType += " UNIQUE"
 		}
 
-		// Handle Default values
 		defVal := field.DefaultVal
 		if defVal != nil {
 			switch v := defVal.(type) {
 			case string:
+				if strings.Contains(v, ";") || strings.Contains(v, "--") || strings.Contains(v, "/*") {
+					return fmt.Errorf("unsafe string default on %s.%s", model.ModelName(), field.Name)
+				}
 				colType += fmt.Sprintf(" DEFAULT '%s'", strings.ReplaceAll(v, "'", "''"))
 			case bool:
 				if v {
@@ -118,24 +137,20 @@ func createTable(model Model) error {
 			}
 		}
 
-		columns = append(columns, fmt.Sprintf("%s %s", field.Name, colType))
+		columns = append(columns, fmt.Sprintf("%s %s", quoteIdent(field.Name), colType))
 	}
 
 	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", tableName, strings.Join(columns, ", "))
-	fmt.Printf("Syncing model %s...\n", model.ModelName())
-
 	if _, err := DB.Exec(query); err != nil {
 		return err
 	}
 
-	// Handle Indexing
 	for _, field := range model.Fields() {
 		if field.Index || field.Type == Many2One {
-			idxName := fmt.Sprintf("idx_%s_%s", tableName, field.Name)
-			idxQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s);", idxName, tableName, field.Name)
-			fmt.Printf("Syncing index %s...\n", idxName)
+			idxName := fmt.Sprintf("idx_%s_%s", physical, field.Name)
+			idxQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s);", quoteIdent(idxName), tableName, quoteIdent(field.Name))
 			if _, err := DB.Exec(idxQuery); err != nil {
-				fmt.Printf("Error creating index %s: %v\n", idxName, err)
+				return fmt.Errorf("create index %s: %w", idxName, err)
 			}
 		}
 	}

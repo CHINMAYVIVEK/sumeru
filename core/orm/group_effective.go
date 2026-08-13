@@ -28,7 +28,7 @@ func EffectiveGroupIDs(ctx context.Context, uid int) ([]int, error) {
 
 func effectiveGroupIDsUncached(ctx context.Context, uid int) ([]int, error) {
 	if uid == superuserUID {
-		rows, err := DB.QueryContext(ctx, `SELECT id FROM `+GetTableName("core.group")+` ORDER BY id`)
+		rows, err := DB.QueryContext(ctx, `SELECT id FROM `+MustQuotedTableName("core.group")+` ORDER BY id`)
 		if err != nil {
 			return nil, err
 		}
@@ -44,7 +44,7 @@ func effectiveGroupIDsUncached(ctx context.Context, uid int) ([]int, error) {
 		return all, rows.Err()
 	}
 	rows, err := DB.QueryContext(ctx,
-		`SELECT group_id FROM `+GetTableName(tableGroupUserRel)+` WHERE user_id = $1`,
+		`SELECT group_id FROM `+MustQuotedTableName(tableGroupUserRel)+` WHERE user_id = $1`,
 		uid,
 	)
 	if err != nil {
@@ -69,7 +69,7 @@ func effectiveGroupIDsUncached(ctx context.Context, uid int) ([]int, error) {
 		out[g] = struct{}{}
 		queue = append(queue, g)
 	}
-	implTbl := GetTableName(tableGroupImplied)
+	implTbl := MustQuotedTableName(tableGroupImplied)
 	for len(queue) > 0 {
 		gid := queue[0]
 		queue = queue[1:]

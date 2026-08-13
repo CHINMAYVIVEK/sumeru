@@ -30,7 +30,7 @@ func CheckModelAccess(ctx context.Context, uid int, model string, op string) err
 	if want == "" {
 		return fmt.Errorf("unknown operation %q", op)
 	}
-	accTbl := GetTableName("sys.access")
+	accTbl := MustQuotedTableName("sys.access")
 	q := `SELECT group_id, ` + want + ` FROM ` + accTbl + ` WHERE model = $1 AND ` + want + ` = true`
 	rows, err := DB.QueryContext(ctx, q, model)
 	if err != nil {

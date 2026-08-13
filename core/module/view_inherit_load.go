@@ -36,7 +36,7 @@ func applySysUIViewInherit(context context.Context, moduleName string, xmlRecord
 	if err != nil {
 		return fmt.Errorf("merge inherit %q: %w", xmlRecord.ID, err)
 	}
-	viewTableName := orm.GetTableName("sys.view")
+	viewTableName := orm.MustQuotedTableName("sys.view")
 	if _, err := orm.DB.ExecContext(context, `UPDATE `+viewTableName+` SET arch = $1 WHERE id = $2`, mergedArchitecture, parentID); err != nil {
 		return err
 	}

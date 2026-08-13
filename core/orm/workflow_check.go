@@ -9,7 +9,7 @@ import (
 )
 
 // CanWorkflowTransition reports whether uid may move record id on model from→to.
-// Prefers sys.workflow.transition; falls back to sys.approval_rule.
+// Prefers sys.workflow.transition; falls back to sys.approval.rule.
 func CanWorkflowTransition(ctx context.Context, model string, recordID int, fromState, toState string, uid int) error {
 	model = strings.TrimSpace(model)
 	toState = strings.TrimSpace(toState)
@@ -34,7 +34,7 @@ func checkWorkflowTransitionRows(ctx context.Context, model, fromState, toState 
 	if _, ok := Registry["sys.workflow.transition"]; !ok || DB == nil {
 		return errNoWorkflowRows
 	}
-	tbl := GetTableName("sys.workflow.transition")
+	tbl := MustQuotedTableName("sys.workflow.transition")
 	rows, err := DB.QueryContext(ctx,
 		`SELECT group_id, COALESCE(from_state,'') FROM `+tbl+
 			` WHERE model = $1 AND to_state = $2 AND active = true`, model, toState)
@@ -97,7 +97,7 @@ func CheckStageApproval(ctx context.Context, model string, id int, targetState s
 	}
 	currentState := AsString(before["state"])
 
-	appTbl := GetTableName("sys.approval_rule")
+	appTbl := MustQuotedTableName("sys.approval.rule")
 	// Find rules for this model and target state
 	q := `SELECT group_id, COALESCE(from_state, '') FROM ` + appTbl + ` WHERE model = $1 AND to_state = $2 AND require_approval = true`
 	rows, err := DB.QueryContext(ctx, q, model, targetState)

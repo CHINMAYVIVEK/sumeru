@@ -38,7 +38,7 @@ func SwitchCompanyPost(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
 		return
 	}
-	userTbl := orm.GetTableName("core.user")
+	userTbl := orm.MustQuotedTableName("core.user")
 	if _, err := orm.DB.ExecContext(ctx, `UPDATE `+userTbl+` SET company_id = $1 WHERE id = $2`, cid, uid); err != nil {
 		WebLogf(ctx, "/web/company/switch", "update company_id: %v", err)
 	}

@@ -8,7 +8,7 @@ type SysConfigParameter struct {
 	Value string `db:"value"`
 }
 
-func (SysConfigParameter) ModelName() string { return "sys.config_parameter" }
+func (SysConfigParameter) ModelName() string { return "sys.config.parameter" }
 
 func (SysConfigParameter) Fields() []sdk.FieldDefinition {
 	return []sdk.FieldDefinition{

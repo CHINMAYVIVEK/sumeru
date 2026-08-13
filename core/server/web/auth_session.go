@@ -31,7 +31,7 @@ func CreateSession(w http.ResponseWriter, userID int) error {
 		return err
 	}
 	exp := time.Now().UTC().Add(sessionDuration)
-	tbl := orm.GetTableName("sys.session")
+	tbl := orm.MustQuotedTableName("sys.session")
 	if _, err := orm.DB.Exec(`INSERT INTO `+tbl+` (sid, user_id, expires_at) VALUES ($1, $2, $3)`, sid, userID, exp); err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func SessionUserID(r *http.Request) int {
 	if err != nil || c.Value == "" {
 		return 0
 	}
-	tbl := orm.GetTableName("sys.session")
+	tbl := orm.MustQuotedTableName("sys.session")
 	var uid int
 	err = orm.DB.QueryRow(
 		`SELECT user_id FROM `+tbl+` WHERE sid = $1 AND expires_at > NOW()`,
@@ -83,7 +83,7 @@ func SessionUserID(r *http.Request) int {
 func DestroySession(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie(sessionCookieName)
 	if err == nil && c.Value != "" {
-		tbl := orm.GetTableName("sys.session")
+		tbl := orm.MustQuotedTableName("sys.session")
 		_, _ = orm.DB.Exec(`DELETE FROM `+tbl+` WHERE sid = $1`, c.Value)
 	}
 	ClearSessionCookie(w)

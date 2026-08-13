@@ -10,7 +10,7 @@ func UserCompanyIDsForUser(ctx context.Context, userID int) ([]int, error) {
 	if userID <= 0 || DB == nil {
 		return nil, nil
 	}
-	tbl := GetTableName("core.user.company.rel")
+	tbl := MustQuotedTableName("core.user.company.rel")
 	rows, err := DB.QueryContext(ctx, `SELECT company_id FROM `+tbl+` WHERE user_id = $1 ORDER BY company_id`, userID)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func SetUserCompanyLinks(ctx context.Context, userID int, companyIDs []int) erro
 	if userID <= 0 {
 		return fmt.Errorf("invalid user id")
 	}
-	tbl := GetTableName("core.user.company.rel")
+	tbl := MustQuotedTableName("core.user.company.rel")
 	if _, err := DB.ExecContext(ctx, `DELETE FROM `+tbl+` WHERE user_id = $1`, userID); err != nil {
 		return err
 	}

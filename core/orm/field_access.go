@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// CheckFieldWriteAccess errors if any key in values is write-denied by sys.field_access.
+// CheckFieldWriteAccess errors if any key in values is write-denied by sys.field.access.
 func CheckFieldWriteAccess(ctx context.Context, uid int, model string, values map[string]interface{}) error {
 	if SecurityBypass(ctx) || uid == superuserUID {
 		return nil
@@ -25,7 +25,7 @@ func CheckFieldWriteAccess(ctx context.Context, uid int, model string, values ma
 
 func fieldAccessDenied(ctx context.Context, uid int, model, op string) (map[string]bool, error) {
 	out := map[string]bool{}
-	if _, ok := Registry["sys.field_access"]; !ok || DB == nil {
+	if _, ok := Registry["sys.field.access"]; !ok || DB == nil {
 		return out, nil
 	}
 	col := "perm_write"
@@ -36,7 +36,7 @@ func fieldAccessDenied(ctx context.Context, uid int, model, op string) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	tbl := GetTableName("sys.field_access")
+	tbl := MustQuotedTableName("sys.field.access")
 	rows, err := DB.QueryContext(ctx,
 		`SELECT field_name, group_id, `+col+` FROM `+tbl+` WHERE model = $1`, model)
 	if err != nil {

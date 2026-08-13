@@ -14,7 +14,7 @@ func NextSequence(ctx context.Context, code string) (string, error) {
 		return "", fmt.Errorf("sequence code required")
 	}
 	bypass := ContextWithBypass(ctx, true)
-	tbl := GetTableName("sys.sequence")
+	tbl := MustQuotedTableName("sys.sequence")
 	tx, err := DB.BeginTx(bypass, nil)
 	if err != nil {
 		return "", err
@@ -50,7 +50,7 @@ func NextSequence(ctx context.Context, code string) (string, error) {
 	return prefix.String + num + suffix.String, nil
 }
 
-// GetConfig returns sys.config_parameter value for key, or def if missing.
+// GetConfig returns sys.config.parameter value for key, or def if missing.
 func GetConfig(ctx context.Context, key, def string) string {
 	key = strings.TrimSpace(key)
 	if key == "" || DB == nil {
@@ -58,7 +58,7 @@ func GetConfig(ctx context.Context, key, def string) string {
 	}
 	var val sql.NullString
 	err := DB.QueryRowContext(ContextWithBypass(ctx, true),
-		`SELECT value FROM `+GetTableName("sys.config_parameter")+` WHERE key = $1`, key,
+		`SELECT value FROM `+MustQuotedTableName("sys.config.parameter")+` WHERE key = $1`, key,
 	).Scan(&val)
 	if err != nil || !val.Valid {
 		return def
@@ -73,7 +73,7 @@ func SetConfig(ctx context.Context, key, value string) error {
 		return fmt.Errorf("config key required")
 	}
 	bypass := ContextWithBypass(ctx, true)
-	tbl := GetTableName("sys.config_parameter")
+	tbl := MustQuotedTableName("sys.config.parameter")
 	res, err := DB.ExecContext(bypass, `UPDATE `+tbl+` SET value = $1 WHERE key = $2`, value, key)
 	if err != nil {
 		return err
@@ -82,9 +82,9 @@ func SetConfig(ctx context.Context, key, value string) error {
 	if n > 0 {
 		return nil
 	}
-	inst, ok := Registry["sys.config_parameter"]
+	inst, ok := Registry["sys.config.parameter"]
 	if !ok {
-		return fmt.Errorf("unknown model %q", "sys.config_parameter")
+		return fmt.Errorf("unknown model %q", "sys.config.parameter")
 	}
 	_, err = Create(bypass, inst, map[string]interface{}{"key": key, "value": value})
 	return err

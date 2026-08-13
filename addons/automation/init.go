@@ -21,11 +21,11 @@ func runServerActionsForEvent(ctx context.Context, ev event.Event) error {
 	if orm.DB == nil {
 		return nil
 	}
-	if _, ok := orm.Registry["sys.server_action"]; !ok {
+	if _, ok := orm.Registry["sys.server.action"]; !ok {
 		return nil
 	}
 	bypass := orm.ContextWithBypass(ctx, true)
-	rows, err := orm.Search(bypass, "sys.server_action", [][]interface{}{
+	rows, err := orm.Search(bypass, "sys.server.action", [][]interface{}{
 		{"event_name", "=", ev.Name},
 		{"active", "=", true},
 	})

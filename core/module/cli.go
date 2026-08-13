@@ -36,7 +36,7 @@ func UpdateModuleData(ctx context.Context, name string) error {
 		return nil
 	}
 	if _, err := orm.DB.ExecContext(ctx,
-		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'to_upgrade' WHERE name = $1`, name,
+		`UPDATE `+orm.MustQuotedTableName("sys.module")+` SET state = 'to_upgrade' WHERE name = $1`, name,
 	); err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func UpdateModuleData(ctx context.Context, name string) error {
 		return err
 	}
 	if _, err := orm.DB.ExecContext(ctx,
-		`UPDATE `+orm.GetTableName("sys.module")+` SET state = 'installed' WHERE name = $1`, name,
+		`UPDATE `+orm.MustQuotedTableName("sys.module")+` SET state = 'installed' WHERE name = $1`, name,
 	); err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func RunModuleCLI(installCSV, updateCSV string) error {
 }
 
 func listInstalledModuleNames(ctx context.Context) ([]string, error) {
-	q := `SELECT name FROM ` + orm.GetTableName("sys.module") +
+	q := `SELECT name FROM ` + orm.MustQuotedTableName("sys.module") +
 		` WHERE state IN ('installed', 'to_upgrade') ORDER BY name`
 	rows, err := orm.DB.QueryContext(ctx, q)
 	if err != nil {

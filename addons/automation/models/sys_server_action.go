@@ -12,7 +12,7 @@ type SysServerAction struct {
 	Active    bool   `db:"active"`
 }
 
-func (SysServerAction) ModelName() string { return "sys.server_action" }
+func (SysServerAction) ModelName() string { return "sys.server.action" }
 
 func (SysServerAction) Fields() []sdk.FieldDefinition {
 	return []sdk.FieldDefinition{

@@ -9,7 +9,7 @@ type SysModelData struct {
 	CoreID int    `orm:"core_id"`
 }
 
-func (d SysModelData) ModelName() string { return "sys.model_data" }
+func (d SysModelData) ModelName() string { return "sys.model.data" }
 func (d SysModelData) Fields() []FieldDefinition {
 	return []FieldDefinition{
 		{Name: "module", Type: Char, Required: true},

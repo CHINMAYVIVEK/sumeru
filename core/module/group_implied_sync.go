@@ -41,7 +41,7 @@ func syncCoreGroupImpliedFromEval(ctx context.Context, moduleName string, groupI
 	if len(refs) == 0 {
 		return fmt.Errorf("no (4, ref('…')) implied link commands in %q", evalStr)
 	}
-	implTbl := orm.GetTableName("core.group.implied")
+	implTbl := orm.MustQuotedTableName("core.group.implied")
 	for _, ref := range refs {
 		impliedID, err := resolveXMLIDInModule(ctx, moduleName, ref)
 		if err != nil {
@@ -72,7 +72,7 @@ func syncSysRuleGroupsFromEval(ctx context.Context, moduleName string, ruleID in
 	if len(refs) == 0 {
 		return fmt.Errorf("no (4, ref('…')) group link commands in %q", evalStr)
 	}
-	relTbl := orm.GetTableName("sys.rule.group.rel")
+	relTbl := orm.MustQuotedTableName("sys.rule.group.rel")
 	if _, err := orm.DB.ExecContext(ctx, `DELETE FROM `+relTbl+` WHERE rule_id = $1`, ruleID); err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func EnsureSystemImpliesManagerGroup(ctx context.Context, moduleName, recordXMLI
 	if sysGID == groupID {
 		return nil
 	}
-	implTbl := orm.GetTableName("core.group.implied")
+	implTbl := orm.MustQuotedTableName("core.group.implied")
 	_, err = orm.DB.ExecContext(ctx,
 		`INSERT INTO `+implTbl+` (group_id, implied_group_id) VALUES ($1, $2) ON CONFLICT (group_id, implied_group_id) DO NOTHING`,
 		sysGID, groupID)

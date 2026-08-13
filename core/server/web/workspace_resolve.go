@@ -44,7 +44,7 @@ func actionIDFromMenu(ctx context.Context, menuID int) int {
 // of children ordered by sequence, then id.
 func firstDescendantActionID(ctx context.Context, parentID int) int {
 	rows, err := orm.DB.QueryContext(ctx,
-		`SELECT id, action_id FROM `+orm.GetTableName("sys.menu")+
+		`SELECT id, action_id FROM `+orm.MustQuotedTableName("sys.menu")+
 			` WHERE parent_id = $1 ORDER BY sequence ASC, id ASC`,
 		parentID,
 	)

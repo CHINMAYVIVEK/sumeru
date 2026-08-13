@@ -108,7 +108,7 @@ func addonModuleInstalled(technicalName string) bool {
 	if orm.DB == nil {
 		return false
 	}
-	tbl := orm.GetTableName("sys.module")
+	tbl := orm.MustQuotedTableName("sys.module")
 	var state string
 	err := orm.DB.QueryRow(`SELECT state FROM `+tbl+` WHERE name = $1 AND active = true`, strings.TrimSpace(technicalName)).Scan(&state)
 	return err == nil && strings.TrimSpace(state) == "installed"

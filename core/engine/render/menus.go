@@ -26,8 +26,8 @@ func sanitizeMenuIcon(s string) string {
 
 func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser.MenuItem, sidebarMenus []SidebarMenu, activeModuleID, shellModuleTitle string) {
 	shellModuleTitle = AppDisplayName
-	modTbl := orm.GetTableName("sys.module")
-	menuTbl := orm.GetTableName("sys.menu")
+	modTbl := orm.MustQuotedTableName("sys.module")
+	menuTbl := orm.MustQuotedTableName("sys.menu")
 	query := fmt.Sprintf(
 		`SELECT m.id, m.name, m.parent_id, m.action_id, m.sequence,
 		        COALESCE(NULLIF(TRIM(m.module), ''), '') AS module,
@@ -219,7 +219,7 @@ func queryInstalledApplicationNames(ctx context.Context) (map[string]struct{}, e
 	if orm.DB == nil {
 		return out, fmt.Errorf("database not initialized")
 	}
-	q := `SELECT name FROM ` + orm.GetTableName("sys.module") + ` WHERE state = 'installed' AND active = true AND application = true`
+	q := `SELECT name FROM ` + orm.MustQuotedTableName("sys.module") + ` WHERE state = 'installed' AND active = true AND application = true`
 	rows, err := orm.DB.QueryContext(ctx, q)
 	if err != nil {
 		return nil, err
