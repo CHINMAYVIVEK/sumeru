@@ -13,14 +13,14 @@ import (
 var templateFS embed.FS
 
 type ScaffoldConfig struct {
-	Name         string
-	HumanTitle   string
-	TypeName     string
-	ModelDotted  string
-	ModelImport  string
-	OutDir       string
-	RepoRoot     string
-	ModPath      string
+	Name        string
+	HumanTitle  string
+	TypeName    string
+	ModelDotted string
+	ModelImport string
+	OutDir      string
+	RepoRoot    string
+	ModPath     string
 }
 
 func RunScaffold(cfg *ScaffoldConfig) {
@@ -50,7 +50,7 @@ func RunScaffold(cfg *ScaffoldConfig) {
 	renderTemplate(cfg, "manifest.json.tmpl", filepath.Join(target, "manifest.json"))
 	renderTemplate(cfg, "init.go.tmpl", filepath.Join(target, "init.go"))
 	renderTemplate(cfg, "models.go.tmpl", filepath.Join(target, "models", "models.go"))
-	
+
 	// Security
 	renderTemplate(cfg, "security.xml.tmpl", filepath.Join(target, "security", "security.xml"))
 	renderTemplate(cfg, "sys.access.csv.tmpl", filepath.Join(target, "security", "sys.access.csv"))
@@ -66,7 +66,7 @@ func RunScaffold(cfg *ScaffoldConfig) {
 	fmt.Printf("Next steps:\n")
 	if cfg.ModPath == "sumeru_custom_addons" {
 		fmt.Printf("  1. Run 'make generate' in the workspace\n")
-		fmt.Printf("  2. Run './sumeru-workspace.sh -i %s'\n", cfg.Name)
+		fmt.Printf("  2. Run 'make install MODULES=%s'\n", cfg.Name)
 	} else {
 		fmt.Printf("  1. Run 'make generate'\n")
 		fmt.Printf("  2. Run 'go run ./cmd/sumeru -- -i %s'\n", cfg.Name)
