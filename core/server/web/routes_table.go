@@ -28,6 +28,7 @@ func init() {
 //   - Session POST: /web/company/switch, /web/module/action, /web/record/save|delete
 //   - Session POST: /web/action/{reset_password,create_api_key,object}, /web/chatter/post, /web/import/csv
 //   - API: GET /api/health (none), POST /api/rpc (handler enforces session or API key)
+//   - Session + base.group_system: GET /metrics
 //
 // Alias redirects (direct mux; legacy/trailing-slash normalization):
 //   - /web/apps/ → /web/apps
@@ -58,6 +59,7 @@ func RegisterAppRoutes(mux *http.ServeMux) {
 	router.Register(http.MethodGet, "/web/settings/app-logs", router.AuthSession, AppLogsHandler)
 	router.Register(http.MethodGet, "/api/health", router.AuthNone, APIHealthHandler)
 	router.Register(http.MethodPost, "/api/rpc", router.AuthNone, RPCJSONHandler)
+	router.Register(http.MethodGet, "/metrics", router.AuthSession, MetricsHandler)
 	router.Register(http.MethodPost, "/web/import/csv", router.AuthSession, ImportCSVHandler)
 
 	router.Apply(reg)

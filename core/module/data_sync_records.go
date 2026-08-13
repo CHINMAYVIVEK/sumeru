@@ -2,6 +2,7 @@ package module
 
 import (
 	"context"
+	"sumeru/core/applog"
 	"fmt"
 	"strconv"
 	"strings"
@@ -93,15 +94,10 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 		if existing, err := orm.SearchOne(ctx, xmlRecord.Model, criteria); err == nil {
 			if eid, ok := orm.CoerceInt64(existing["id"]); ok && eid > 0 {
 				if err := orm.UpdateRecordByID(ctx, xmlRecord.Model, int(eid), fieldValues); err != nil {
-					fmt.Printf(platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
+					syncWarn(ctx, platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
 					return
 				}
-				_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-					"module":  moduleName,
-					"name":    xmlRecord.ID,
-					"model":   xmlRecord.Model,
-					"core_id": int(eid),
-				}, "name")
+				_ = linkXMLRecord(ctx, moduleName, xmlRecord.ID, xmlRecord.Model, int(eid))
 				return
 			}
 		}
@@ -118,32 +114,27 @@ func syncRegistryRecordByModel(ctx context.Context, moduleName string, xmlRecord
 		id, err = orm.Upsert(ctx, modelInstance, fieldValues, conflictColumn)
 	}
 	if err != nil {
-		fmt.Printf(platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
+		syncWarn(ctx, platformmsg.FmtGenericUpsertWarn, xmlRecord.Model, xmlRecord.ID, err)
 		return
 	}
 	if xmlRecord.Model == "core.group" {
 		if impliedEval != "" {
 			if err := syncCoreGroupImpliedFromEval(ctx, moduleName, id, impliedEval); err != nil {
-				fmt.Printf("Warning: core.group implied_ids %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+				applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: core.group implied_ids %s (%s): %v", xmlRecord.ID, moduleName, err))
 			}
 		}
 		if err := EnsureSystemImpliesManagerGroup(ctx, moduleName, xmlRecord.ID, id); err != nil {
-			fmt.Printf("Warning: system→manager imply %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+			applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: system→manager imply %s (%s): %v", xmlRecord.ID, moduleName, err))
 		}
 	}
 	if xmlRecord.Model == "sys.rule" {
 		if groupsEval := strings.TrimSpace(fieldMapStrings["groups"]); groupsEval != "" {
 			if err := syncSysRuleGroupsFromEval(ctx, moduleName, id, groupsEval); err != nil {
-				fmt.Printf("Warning: sys.rule groups %s (%s): %v\n", xmlRecord.ID, moduleName, err)
+				applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.rule groups %s (%s): %v", xmlRecord.ID, moduleName, err))
 			}
 		}
 	}
-	_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-		"module":  moduleName,
-		"name":    xmlRecord.ID,
-		"model":   xmlRecord.Model,
-		"core_id": id,
-	}, "name")
+	_ = linkXMLRecord(ctx, moduleName, xmlRecord.ID, xmlRecord.Model, id)
 }
 
 // ConvertRecordScalar coerces XML/form string values into types used for registry upserts.

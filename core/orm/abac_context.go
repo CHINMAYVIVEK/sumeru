@@ -24,12 +24,12 @@ func UserCompanyIDs(ctx context.Context, uid int) ([]int64, error) {
 	}
 	var companyID sql.NullInt64
 	_ = DB.QueryRowContext(ctx,
-		`SELECT company_id FROM `+GetTableName("core.user")+` WHERE id = $1`, uid,
+		`SELECT company_id FROM `+MustQuotedTableName("core.user")+` WHERE id = $1`, uid,
 	).Scan(&companyID)
 	if companyID.Valid {
 		add(companyID.Int64)
 	}
-	rel := GetTableName("core.user.company.rel")
+	rel := MustQuotedTableName("core.user.company.rel")
 	rows, err := DB.QueryContext(ctx, `SELECT company_id FROM `+rel+` WHERE user_id = $1`, uid)
 	if err != nil {
 		// Join table may not exist yet during early bootstrap.

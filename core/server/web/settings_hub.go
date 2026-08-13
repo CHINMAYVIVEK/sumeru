@@ -1,18 +1,12 @@
 package web
 
 import (
-	"bytes"
 	"fmt"
-	"html/template"
-	"log"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"sumeru/core/engine/render"
 	"sumeru/core/orm"
-	"sumeru/core/sdk/platformmsg"
-	"sumeru/core/server/config"
 )
 
 type settingsHubLink struct {
@@ -60,7 +54,7 @@ func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	menuIDStr := fmt.Sprintf("%d", rootID)
 
-	topMenus, sidebarMenus, activeModuleID, moduleName := render.LoadShellMenus(ctx, menuIDStr)
+	_, sidebarMenus, _, _ := render.LoadShellMenus(ctx, menuIDStr)
 	var sections []settingsHubSection
 	for _, sec := range sidebarMenus {
 		var links []settingsHubLink
@@ -87,7 +81,8 @@ func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 
 	raw, err := loadInstalledAppTiles(ctx, "")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to list modules: %v", err), http.StatusInternalServerError)
+		WebLogEvent(ctx, r.URL.Path, "Failed to list modules for settings hub", "load", "failure", err, nil)
+		http.Error(w, "Failed to list modules", http.StatusInternalServerError)
 		return
 	}
 	var appTiles []settingsHubAppTile
@@ -106,46 +101,21 @@ func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 		companiesHref = fmt.Sprintf("/web?menu_id=%d", mid)
 	}
 
-	innerPath := filepath.Join(config.AppConfig.TemplatesPath, "settings_hub_inner.html")
-	tmpl, err := template.ParseFiles(innerPath)
-	if err != nil {
-		log.Printf("settings hub: parse %s: %v", innerPath, err)
-		http.Error(w, platformmsg.MsgHTTPTemplateError, http.StatusInternalServerError)
-		return
-	}
-	var innerBuf bytes.Buffer
-	data := settingsHubData{
-		Sections:          sections,
-		AppTiles:          appTiles,
-		CompaniesMenuHref: companiesHref,
-	}
-	if err := tmpl.Execute(&innerBuf, data); err != nil {
-		log.Printf("settings hub: execute: %v", err)
-		http.Error(w, "Template error", http.StatusInternalServerError)
-		return
-	}
-
-	page := render.PageData{
-		Title:                "Settings",
-		ModuleName:           moduleName,
-		Content:              template.HTML(innerBuf.String()),
-		TopMenus:             topMenus,
-		SidebarMenus:         sidebarMenus,
-		ActiveModuleID:       activeModuleID,
-		ActiveMenuID:         menuIDStr,
-		SettingsNavActive:    true,
-		SuppressActivityDock: true,
-		BreadcrumbItems:      render.BuildSettingsHubBreadcrumbs(ctx),
-		ViewStylesheetURLs:   []string{"/static/css/sumeru-settings-hub.css"},
-		ExtraStylesheetURLs:  render.ExtraStylesheetURLs,
-		ExtraBodyClasses:     " sum-body--settings-hub",
-	}
-
-	html, err := render.RenderPage(ctx, config.AppConfig.TemplatesPath, page)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Layout: %v", err), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(html))
+	renderShellPage(w, r, shellPageOpts{
+		Route:         r.URL.Path,
+		InnerTemplate: "settings_hub_inner.html",
+		InnerData: settingsHubData{
+			Sections: sections, AppTiles: appTiles, CompaniesMenuHref: companiesHref,
+		},
+		MenuIDStr: menuIDStr,
+		Page: render.PageData{
+			Title:                "Settings",
+			SettingsNavActive:    true,
+			ActiveMenuID:         menuIDStr,
+			SuppressActivityDock: true,
+			BreadcrumbItems:      render.BuildSettingsHubBreadcrumbs(ctx),
+			ViewStylesheetURLs:   []string{"/static/css/sumeru-settings-hub.css"},
+			ExtraBodyClasses:     " sum-body--settings-hub",
+		},
+	})
 }

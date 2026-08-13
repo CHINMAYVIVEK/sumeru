@@ -12,12 +12,15 @@ import (
 
 // PublicMethods is the allowlist of model methods callable via RPC.
 var PublicMethods = map[string]bool{
-	"search":      true,
-	"search_read": true,
-	"read":        true,
-	"create":      true,
-	"write":       true,
-	"unlink":      true,
+	"search":       true,
+	"search_read":  true,
+	"read":         true,
+	"create":       true,
+	"write":        true,
+	"unlink":       true,
+	"create_many":  true,
+	"write_many":   true,
+	"unlink_many":  true,
 }
 
 // rpcRequest is the JSON body for POST /api/rpc.
@@ -78,6 +81,12 @@ func dispatchRPC(ctx context.Context, body []byte) (interface{}, error) {
 		return rpcWrite(ctx, model, in.Args)
 	case "unlink":
 		return rpcUnlink(ctx, model, in.Args)
+	case "create_many":
+		return rpcCreateMany(ctx, model, in.Args)
+	case "write_many":
+		return rpcWriteMany(ctx, model, in.Args)
+	case "unlink_many":
+		return rpcUnlinkMany(ctx, model, in.Args)
 	default:
 		return nil, newRPCError(CodeMethodNotAllowed, fmt.Sprintf("unsupported method %q", method), map[string]interface{}{"method": method})
 	}

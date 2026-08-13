@@ -5,36 +5,48 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
+
+	"sumeru/core/applog"
 )
 
 func skipAuditModel(model string) bool {
 	switch model {
-	case "sys.audit", "sys.session", "app.log", "core.user.log", "mail.message":
+	case "sys.audit", "sys.session", "app.log", "core.user.log", "mail.message", "sys.outbox.event":
 		return true
 	default:
 		return false
 	}
 }
 
-// AppendAudit writes an immutable audit row (best-effort; never fails the caller).
-func AppendAudit(ctx context.Context, action, model string, resID int64, before, after map[string]interface{}, detail string) {
-	if DB == nil || strings.TrimSpace(action) == "" || skipAuditModel(model) {
-		return
-	}
-	inst, ok := Registry["sys.audit"]
-	if !ok {
-		return
-	}
+func auditValues(ctx context.Context, action, model string, resID int64, before, after map[string]interface{}, detail string) map[string]interface{} {
 	uid := SecurityUID(ctx)
 	var beforeJSON, afterJSON string
 	if before != nil {
 		if b, err := json.Marshal(scrubAuditMap(before)); err == nil {
 			beforeJSON = string(b)
+		} else {
+			applog.Warn(ctx, applog.Event{
+				Message:   "Audit before_json marshal failed",
+				Component: "orm",
+				Operation: "audit",
+				Status:    "partial",
+				Context:   map[string]interface{}{"resource": model, "resource_id": resID},
+				Err:       err,
+			})
 		}
 	}
 	if after != nil {
 		if b, err := json.Marshal(scrubAuditMap(after)); err == nil {
 			afterJSON = string(b)
+		} else {
+			applog.Warn(ctx, applog.Event{
+				Message:   "Audit after_json marshal failed",
+				Component: "orm",
+				Operation: "audit",
+				Status:    "partial",
+				Context:   map[string]interface{}{"resource": model, "resource_id": resID},
+				Err:       err,
+			})
 		}
 	}
 	vals := map[string]interface{}{
@@ -49,8 +61,21 @@ func AppendAudit(ctx context.Context, action, model string, resID int64, before,
 	if uid > 0 {
 		vals["user_id"] = uid
 	}
-	bypass := ContextWithBypass(ctx, true)
-	_, _ = Create(bypass, inst, vals)
+	return vals
+}
+
+// AppendAudit writes an immutable audit row (best-effort; never fails the caller).
+func AppendAudit(ctx context.Context, action, model string, resID int64, before, after map[string]interface{}, detail string) {
+	AppendAuditTx(ctx, nil, action, model, resID, before, after, detail)
+}
+
+// AppendAuditTx writes an audit row on tx when non-nil; otherwise uses the pool.
+func AppendAuditTx(ctx context.Context, tx TxWrapper, action, model string, resID int64, before, after map[string]interface{}, detail string) {
+	if strings.TrimSpace(action) == "" || skipAuditModel(model) {
+		return
+	}
+	vals := auditValues(ctx, action, model, resID, before, after, detail)
+	_ = insertSideEffectRow(ctx, tx, "sys.audit", vals)
 }
 
 func scrubAuditMap(m map[string]interface{}) map[string]interface{} {

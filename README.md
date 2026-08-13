@@ -43,7 +43,7 @@ sumeru_custom_addons  ──replace + make generate──►  sumeru (core)
 
 | Repository                 | Role                                                                                    | Remote                                                |
 | -------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| **`sumeru`**               | Core engine + kernel addons (`base`, `mail`, `sumeru_ai`, …). Pull-only for most teams. | `git@github.com:ProjectMeru/sumeru.git`               |
+| **`sumeru`**               | Core engine + kernel addons (`base`, `mail`, …). Pull-only for most teams. | `git@github.com:ProjectMeru/sumeru.git`               |
 | **`sumeru_addons`**        | Standard business apps (CRM, Sales, Inventory, …). Pull-only.                           | `git@github.com:ProjectMeru/sumeru_addons.git`        |
 | **`sumeru_custom_addons`** | Your workspace: custom addons, local INI, generated imports, and the process you run.   | `git@github.com:ProjectMeru/sumeru_custom_addons.git` |
 
@@ -130,7 +130,7 @@ Copy **`sumeru.conf.example`** → **`sumeru.conf`**.
 | `brand_css`                                 | Optional extra CSS; linked as **`/static/brand.css`**                                                                           |
 | `dev_mode`                                  | Default **false**. When **true**, debug-level logs and dev-only behavior                                                        |
 
-**Logging:** `log_enabled`, `log_timezone`, `log_stdout`, `log_file`, `log_rolling`, and related rotation keys are documented in **`sumeru.conf.example`**.
+**Logging:** structured JSON via stdlib `log/slog` (`sumeru/core/applog`). When `log_enabled=true`, logs always go to **stdout**; `log_file` is optional (with `log_rolling` / size keys). See **`sumeru.conf.example`**.
 
 ### HTTP API
 
@@ -199,8 +199,15 @@ Legacy clients may ignore `ok` and continue checking `error == null`.
 | `create`      | `[values]`         | —                 | `int` (new id)                   |
 | `write`       | `[ids, values]`    | —                 | `true`                           |
 | `unlink`      | `[ids]`            | —                 | `true`                           |
+| `create_many` | `[[values], …]`    | —                 | `[id, …]`                        |
+| `write_many`  | `[ids, values]`    | —                 | `true`                           |
+| `unlink_many` | `[ids]`            | —                 | `true`                           |
 
-Default `kwargs.limit` is **500**. `offset` skips rows after the ORM fetch (in-memory slice).
+Default `kwargs.limit` is **500** (hard cap). `offset` is applied in SQL via ORM `SearchPage` (`LIMIT`/`OFFSET`), not an in-memory slice. Deep offsets are clamped (max 1_000_000).
+
+Observability: every response includes `X-Request-ID` (echoed from the request header when set). Prometheus-style metrics are at `GET /metrics` (`sumeru_rpc_*`, `sumeru_orm_ops_total`, `sumeru_db_query_duration_seconds`) and require a session in `base.group_system`.
+
+Architecture boundaries (ORM vs ERP modules): see [docs/architecture/orm-boundaries.md](docs/architecture/orm-boundaries.md).
 
 **Error codes** (representative HTTP status)
 
@@ -245,6 +252,16 @@ make run EXTRA_RUN_FLAGS='-u sales -p 9090'
 
 Use **`-u`** after changing `views/*.xml`, `menus.xml`, or `manifest.json` data lists for an already-installed module.
 
+### Optional: Sumeru AI (`sumeru_ai`)
+
+`sumeru_ai` is **not** linked into the default server binary (`auto_import: false` in its manifest). The setup wizard and platform spine install **base** only; AI hooks (ORM interceptors, shell FAB) run only after you opt in:
+
+1. Set `"auto_import": true` in `addons/sumeru_ai/manifest.json` **or** add `_ "sumeru/addons/sumeru_ai"` to your workspace `zimports.go`.
+2. Run `make generate && make build` (relink Go hooks).
+3. Install the module: Apps **Install** or `go run ./cmd/sumeru -- -i sumeru_ai`.
+
+Without steps 1–2, installing via Apps alone loads XML/data but does not register Go interceptors.
+
 ---
 
 ## Makefile (this repo)
@@ -256,6 +273,7 @@ Use **`-u`** after changing `views/*.xml`, `menus.xml`, or `manifest.json` data 
 | `make build`             | Generate, then `go build -o sumeru ./cmd/sumeru`                                         |
 | `make bp NAME=my_module` | Scaffold a core-tree addon (`WITH_MODELS=1` optional)                                    |
 | `make css`               | Reminder: plain CSS under `core/engine/assets/css/` (no Sass build)                      |
+| `make check-logs`        | Forbid stdlib `log` and operational `fmt.Printf` in server paths                         |
 | `make help`              | List targets                                                                             |
 
 In **`sumeru_custom_addons`**, use that repo’s Makefile (`make generate`, `make run`, `make replace-sumeru`, …) so imports are written under `addonimports/`, not into this tree.

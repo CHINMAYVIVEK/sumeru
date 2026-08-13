@@ -77,7 +77,7 @@ func rootMenuIDForModule(ctx context.Context, moduleName string) int {
 	if orm.DB == nil || strings.TrimSpace(moduleName) == "" {
 		return 0
 	}
-	tbl := orm.GetTableName("sys.menu")
+	tbl := orm.MustQuotedTableName("sys.menu")
 	q := `SELECT id FROM ` + tbl + ` WHERE module = $1 AND parent_id IS NULL ORDER BY sequence ASC, id ASC LIMIT 1`
 	var id int
 	if err := orm.DB.QueryRowContext(ctx, q, strings.TrimSpace(moduleName)).Scan(&id); err != nil {

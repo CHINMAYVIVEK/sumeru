@@ -1,18 +1,12 @@
 package web
 
 import (
-	"bytes"
 	"fmt"
-	"html/template"
-	"log"
 	"net/http"
-	"path/filepath"
 	"strings"
 
-	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/render"
 	"sumeru/core/orm"
-	"sumeru/core/server/config"
 )
 
 type dashAppTile struct {
@@ -50,7 +44,8 @@ func HomeDashboardHandler(w http.ResponseWriter, r *http.Request) {
 
 	raw, err := loadInstalledAppTiles(ctx, searchQ)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to list modules: %v", err), http.StatusInternalServerError)
+		WebLogEvent(ctx, r.URL.Path, "Failed to list modules for home dashboard", "load", "failure", err, nil)
+		http.Error(w, "Failed to list modules", http.StatusInternalServerError)
 		return
 	}
 
@@ -73,49 +68,29 @@ func HomeDashboardHandler(w http.ResponseWriter, r *http.Request) {
 		emptyMsg = "No installed applications match your search. Install apps from Apps or clear the search."
 	}
 
-	innerPath := filepath.Join(config.AppConfig.TemplatesPath, "home_dashboard_inner.html")
-	tmpl, err := template.ParseFiles(innerPath)
-	if err != nil {
-		log.Printf("home dashboard: parse %s: %v", innerPath, err)
-		http.Error(w, platformmsg.MsgHTTPTemplateError, http.StatusInternalServerError)
-		return
-	}
-	var innerBuf bytes.Buffer
-	if err := tmpl.Execute(&innerBuf, homeDashData{MenuID: menuIDStr, Search: searchQ, Tiles: tiles, EmptyMsg: emptyMsg}); err != nil {
-		log.Printf("home dashboard: execute: %v", err)
-		http.Error(w, "Template error", http.StatusInternalServerError)
-		return
-	}
-
 	activeMenu := menuIDStr
 	if activeMenu == "" {
 		if hid, _, err := orm.ResolveXmlId(ctx, "base.menu_home_root"); err == nil {
 			activeMenu = fmt.Sprintf("%d", hid)
 		}
 	}
-	topMenus, sidebarMenus, activeModuleID, moduleName := render.LoadShellMenus(ctx, activeMenu)
-	page := render.PageData{
-		Title:                "Home",
-		ViewBreadcrumb:       "Dashboard",
-		ModuleName:           moduleName,
-		Content:              template.HTML(innerBuf.String()),
-		TopMenus:             topMenus,
-		SidebarMenus:         sidebarMenus,
-		ActiveModuleID:       activeModuleID,
-		ActiveMenuID:         activeMenu,
-		ViewStylesheetURLs:   []string{"/static/css/sumeru-home.css"},
-		ExtraStylesheetURLs:  render.ExtraStylesheetURLs,
-		SuppressActivityDock: true,
-		BreadcrumbItems:      render.BuildHomeDashboardBreadcrumbs(ctx),
-	}
 
-	html, err := render.RenderPage(ctx, config.AppConfig.TemplatesPath, page)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Layout: %v", err), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(html))
+	renderShellPage(w, r, shellPageOpts{
+		Route:         r.URL.Path,
+		InnerTemplate: "home_dashboard_inner.html",
+		InnerData: homeDashData{
+			MenuID: menuIDStr, Search: searchQ, Tiles: tiles, EmptyMsg: emptyMsg,
+		},
+		MenuIDStr: activeMenu,
+		Page: render.PageData{
+			Title:                "Home",
+			ViewBreadcrumb:       "Dashboard",
+			ActiveMenuID:         activeMenu,
+			ViewStylesheetURLs:   []string{"/static/css/sumeru-home.css"},
+			SuppressActivityDock: true,
+			BreadcrumbItems:      render.BuildHomeDashboardBreadcrumbs(ctx),
+		},
+	})
 }
 
 // homeSearchMatches returns true if every whitespace-separated token in q appears

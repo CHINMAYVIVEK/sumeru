@@ -4,15 +4,34 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
-
-	"sumeru/core/applog"
+	"sort"
+	"time"
 )
 
-// SearchOne finds a single record matching the criteria
+// CriteriaToDomain converts a SearchOne equality map into a conjunctive domain
+// (sorted keys so SQL placeholder order is stable).
+func CriteriaToDomain(criteria map[string]interface{}) [][]interface{} {
+	if len(criteria) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(criteria))
+	for k := range criteria {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	domain := make([][]interface{}, 0, len(keys))
+	for _, k := range keys {
+		domain = append(domain, []interface{}{k, "=", criteria[k]})
+	}
+	return domain
+}
+
+// SearchOne finds a single record matching the criteria.
+// Record rules are compiled into the WHERE clause (same SQL as Search), not checked after fetch.
 func SearchOne(ctx context.Context, modelName string, criteria map[string]interface{}) (result map[string]interface{}, err error) {
+	start := time.Now()
 	defer func() {
-		applog.ORMOp(ctx, "search_one", modelName, err, "has_row", result != nil)
+		logORMOperationKV(ctx, start, "search_one", modelName, err, "has_row", result != nil)
 	}()
 	if _, ok := Registry[modelName]; !ok {
 		return nil, fmt.Errorf("model %s not registered", modelName)
@@ -24,16 +43,22 @@ func SearchOne(ctx context.Context, modelName string, criteria map[string]interf
 		}
 	}
 
-	var where []string
-	var args []interface{}
-	i := 1
-	for col, val := range criteria {
-		where = append(where, fmt.Sprintf("%s = $%d", col, i))
-		args = append(args, val)
-		i++
+	domain := CriteriaToDomain(criteria)
+	if len(domain) == 0 {
+		return nil, fmt.Errorf("search criteria required")
 	}
 
-	query := fmt.Sprintf("SELECT * FROM %s WHERE %s LIMIT 1", GetTableName(modelName), strings.Join(where, " AND "))
+	whereClause, args, err := BuildWhereWithRecordRules(ctx, uid, modelName, "read", domain)
+	if err != nil {
+		return nil, err
+	}
+
+	table, err := QuotedTableForModel(modelName)
+	if err != nil {
+		return nil, err
+	}
+
+	query := fmt.Sprintf("SELECT * FROM %s WHERE %s LIMIT 1", table, whereClause)
 	rows, err := DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -50,13 +75,5 @@ func SearchOne(ctx context.Context, modelName string, criteria map[string]interf
 	if err != nil {
 		return nil, err
 	}
-
-	if !SecurityBypass(ctx) && uid > 0 {
-		if e := CheckRecordRules(ctx, uid, modelName, "read", result); e != nil {
-			err = sql.ErrNoRows
-			return nil, err
-		}
-	}
-
 	return result, nil
 }

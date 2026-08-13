@@ -43,13 +43,13 @@
             </sheet>
         </view>
 
-        <view id="view_sys.server_action_tree" model="sys.server_action" type="tree">
+        <view id="view_sys.server.action_tree" model="sys.server.action" type="tree">
             <field name="name" string="Name"/>
             <field name="model" string="Model"/>
             <field name="event_name" string="Event"/>
             <field name="active" string="Active"/>
         </view>
-        <view id="view_sys.server_action_form" model="sys.server_action" type="form">
+        <view id="view_sys.server.action_form" model="sys.server.action" type="form">
             <sheet>
                 <group>
                     <field name="name" string="Name"/>
@@ -71,9 +71,9 @@
             <field name="core_model">sys.workflow.transition</field>
             <field name="view_mode">tree,form</field>
         </record>
-        <record id="action_sys.server_action" model="sys.action.window">
-            <field name="name">action_sys.server_action</field>
-            <field name="core_model">sys.server_action</field>
+        <record id="action_sys.server.action" model="sys.action.window">
+            <field name="name">action_sys.server.action</field>
+            <field name="core_model">sys.server.action</field>
             <field name="view_mode">tree,form</field>
         </record>
     </data>

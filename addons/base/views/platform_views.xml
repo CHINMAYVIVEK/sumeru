@@ -70,11 +70,11 @@
             </sheet>
         </view>
 
-        <view id="view_sys.config_parameter_tree" model="sys.config_parameter" type="tree">
+        <view id="view_sys.config.parameter_tree" model="sys.config.parameter" type="tree">
             <field name="key" string="Key"/>
             <field name="value" string="Value"/>
         </view>
-        <view id="view_sys.config_parameter_form" model="sys.config_parameter" type="form">
+        <view id="view_sys.config.parameter_form" model="sys.config.parameter" type="form">
             <sheet>
                 <group>
                     <field name="key" string="Key"/>
@@ -98,9 +98,9 @@
             <field name="core_model">sys.sequence</field>
             <field name="view_mode">tree,form</field>
         </record>
-        <record id="action_sys.config_parameter" model="sys.action.window">
-            <field name="name">action_sys.config_parameter</field>
-            <field name="core_model">sys.config_parameter</field>
+        <record id="action_sys.config.parameter" model="sys.action.window">
+            <field name="name">action_sys.config.parameter</field>
+            <field name="core_model">sys.config.parameter</field>
             <field name="view_mode">tree,form</field>
         </record>
 
@@ -108,6 +108,6 @@
         <menuitem id="menu_sys_audit" name="Audit Trail" parent="menu_audit_section" sequence="10" action="base.action_sys.audit" web_icon="log"/>
         <menuitem id="menu_sys_attachment" name="Attachments" parent="menu_company_configuration" sequence="40" action="base.action_sys.attachment" web_icon="settings"/>
         <menuitem id="menu_sys_sequence" name="Sequences" parent="menu_company_configuration" sequence="50" action="base.action_sys.sequence" web_icon="settings"/>
-        <menuitem id="menu_sys_config" name="System Parameters" parent="menu_company_configuration" sequence="60" action="base.action_sys.config_parameter" web_icon="settings"/>
+        <menuitem id="menu_sys_config" name="System Parameters" parent="menu_company_configuration" sequence="60" action="base.action_sys.config.parameter" web_icon="settings"/>
     </data>
 </sumeru>

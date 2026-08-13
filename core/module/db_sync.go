@@ -9,7 +9,7 @@ import (
 )
 
 func countSysModules(context context.Context) (int, error) {
-	countRow := orm.DB.QueryRowContext(context, "SELECT COUNT(*) FROM "+orm.GetTableName("sys.module"))
+	countRow := orm.DB.QueryRowContext(context, "SELECT COUNT(*) FROM "+orm.MustQuotedTableName("sys.module"))
 	var moduleCount int
 	if err := countRow.Scan(&moduleCount); err != nil {
 		return 0, err
@@ -61,7 +61,7 @@ func syncSysModuleRows(context context.Context, discovered map[string]*Addon) er
 			return err
 		}
 		_, err = orm.DB.ExecContext(context,
-			`UPDATE `+orm.GetTableName("sys.module")+
+			`UPDATE `+orm.MustQuotedTableName("sys.module")+
 				` SET display_name = $1, author = $2, version = $3, description = $4, application = $5 WHERE name = $6`,
 			irModuleDisplayName(addon),
 			addon.Manifest.Author,

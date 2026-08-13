@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"html/template"
-	"log"
 	"strings"
 	"time"
 
-	"sumeru/core/engine/parser"
 	"sumeru/addons/mail"
+	"sumeru/core/applog"
+	"sumeru/core/engine/parser"
 )
 
 func writeActivityChatterPanel(ctx context.Context, sb *strings.Builder, c *parser.Chatter, vr *ViewRecordData, viewModel string) {
@@ -27,7 +27,8 @@ func writeActivityChatterPanel(ctx context.Context, sb *strings.Builder, c *pars
 
 	msgs, err := mail.ListCommentsForRecord(ctx, model, int64(vr.RecordID), 120)
 	if err != nil {
-		log.Printf("activity chatter list %s %d: %v", model, vr.RecordID, err)
+		applog.WarnMsg(ctx, "render", "chatter", "activity chatter list failed", err,
+			map[string]interface{}{"model": model, "record_id": vr.RecordID})
 		msgs = nil
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -12,6 +11,7 @@ import (
 
 	"sumeru/core/applog"
 	"sumeru/core/orm"
+	"sumeru/core/runtime"
 	"sumeru/core/scheduler"
 	"sumeru/core/server/config"
 	"sumeru/core/server/web"
@@ -33,17 +33,18 @@ func Run() {
 	flag.Parse()
 
 	if err := LoadConfig(*configPath); err != nil {
-		log.Fatalf("Critical Error: Failed to load configuration: %v", err)
+		applog.BootstrapFatal("Critical Error: Failed to load configuration: %v", err)
 	}
 	if err := AbsPaths(); err != nil {
-		log.Fatalf("Resolve paths: %v", err)
+		applog.BootstrapFatal("Resolve paths: %v", err)
 	}
 
 	if err := applog.SetupFromConfig(&config.AppConfig); err != nil {
-		log.Fatalf("Logging: %v", err)
+		applog.BootstrapFatal("Logging: %v", err)
 	}
 	defer applog.Sync()
 	applog.RegisterUIDResolver(orm.UIDFromContext)
+	ctx := context.Background()
 
 	if s := strings.TrimSpace(*dbNameLong); s != "" {
 		config.AppConfig.DbName = s
@@ -56,13 +57,16 @@ func Run() {
 		config.AppConfig.HttpPort = s
 	}
 	if strings.TrimSpace(*dbName) != "" || strings.TrimSpace(*dbNameLong) != "" {
-		applog.L(context.Background()).Infow("server", "msg", "database override", "db", config.AppConfig.DbName)
+		applog.InfoMsg(ctx, "server", "config", "Database name override applied",
+			map[string]interface{}{"db": config.AppConfig.DbName})
 	}
 	if strings.TrimSpace(*httpPort) != "" || strings.TrimSpace(*httpPortShort) != "" {
-		applog.L(context.Background()).Infow("server", "msg", "http port override", "port", config.AppConfig.HttpPort)
+		applog.InfoMsg(ctx, "server", "config", "HTTP port override applied",
+			map[string]interface{}{"port": config.AppConfig.HttpPort})
 	}
 
-	applog.L(context.Background()).Infow("server", "msg", "addon roots", "paths", config.AppConfig.AddonPaths)
+	applog.InfoMsg(ctx, "server", "startup", "Addon roots configured",
+		map[string]interface{}{"paths": config.AppConfig.AddonPaths})
 
 	databaseSource := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		config.AppConfig.DbHost, config.AppConfig.DbPort, config.AppConfig.DbUser,
@@ -70,64 +74,62 @@ func Run() {
 	InitDB(databaseSource)
 
 	if err := LoadAddonPaths(config.AppConfig.AddonPaths); err != nil {
-		log.Fatalf("Addon load / convention: %v", err)
+		applog.Fatal(ctx, "Addon load failed", "err", err)
 	}
 
 	if !orm.IsInitialized() {
-		log.Println("Database is not initialized. Starting in SETUP MODE.")
-		log.Println("Visit http://localhost:" + config.AppConfig.HttpPort + "/setup to initialize the system.")
+		applog.InfoMsg(ctx, "server", "startup", "Database is not initialized; starting in setup mode", nil)
+		applog.InfoMsg(ctx, "server", "startup", "Visit setup URL to initialize the system",
+			map[string]interface{}{"url": "http://localhost:" + config.AppConfig.HttpPort + "/setup"})
 
 		registerBrandingAndStatic()
 		registerSetupRoutes()
 
-		log.Printf("Server starting on :%s (SETUP MODE)...", config.AppConfig.HttpPort)
-		// Use default mux for setup
-		if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, nil); err != nil {
-			log.Fatalf("Server failed: %v", err)
+		applog.InfoMsg(ctx, "server", "listen", "Server starting in setup mode",
+			map[string]interface{}{"port": config.AppConfig.HttpPort})
+		setupHandler := web.SecurityMiddleware(nil)
+		if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, setupHandler); err != nil {
+			applog.Fatal(ctx, "Server failed in setup mode", "err", err)
 		}
 		return
 	}
 
-	// NORMAL STARTUP
 	if err := SyncModels(); err != nil {
-		log.Fatalf("Error syncing models: %v", err)
+		applog.Fatal(ctx, "Error syncing models", "err", err)
 	}
 
 	if err := orm.SyncRegistrySchema(); err != nil {
-		log.Fatalf("Schema sync (model-driven): %v", err)
+		applog.Fatal(ctx, "Schema sync failed", "err", err)
 	}
 
-	if err := orm.BackfillSysMenuModule(); err != nil {
-		log.Printf("Warning: backfill sys.menu.module: %v", err)
-	}
-	if err := orm.FixSysMenuSelfParent(); err != nil {
-		log.Printf("Warning: fix sys.menu self-parent: %v", err)
+	if err := orm.RunMenuDataFixes(); err != nil {
+		applog.WarnMsg(ctx, "server", "startup", "Menu data fixes reported issues", err, nil)
 	}
 	if err := orm.EnsureSysViewArchText(); err != nil {
-		log.Printf("Note: sys.view.arch column: %v", err)
+		applog.WarnMsg(ctx, "server", "startup", "sys.view.arch column migration note", err, nil)
 	}
 	if err := orm.EnsureCoreUserImageText(); err != nil {
-		log.Printf("Note: core.user.image column: %v", err)
+		applog.WarnMsg(ctx, "server", "startup", "core.user.image column migration note", err, nil)
 	}
 	if err := orm.EnsureMailMessageModelResIndex(); err != nil {
-		log.Fatalf("Schema migrate (mail.message index): %v", err)
+		applog.Fatal(ctx, "Schema migrate mail.message index failed", "err", err)
 	}
 
 	if err := orm.EnsureDefaultGroupsAndImplied(); err != nil {
-		log.Fatalf("Default security groups: %v", err)
+		applog.Fatal(ctx, "Default security groups failed", "err", err)
 	}
 
 	if err := RunModuleCLI(*installMods, *updateMods); err != nil {
-		log.Fatalf("Module CLI (-i / -u): %v", err)
+		applog.Fatal(ctx, "Module CLI failed", "err", err)
 	}
 
 	if err := orm.EnsureBootstrapSecurity(); err != nil {
-		log.Fatalf("Security bootstrap: %v", err)
+		applog.Fatal(ctx, "Security bootstrap failed", "err", err)
 	}
 
 	hadModuleOperations := strings.TrimSpace(*installMods) != "" || strings.TrimSpace(*updateMods) != ""
 	if *stopAfterInit && hadModuleOperations {
-		log.Println("stop-after-init: module operations finished, exiting.")
+		applog.InfoMsg(ctx, "server", "shutdown", "stop-after-init: module operations finished, exiting", nil)
 		os.Exit(0)
 	}
 
@@ -135,10 +137,12 @@ func Run() {
 	registerAppRoutes()
 	scheduler.Start(context.Background(), time.Minute)
 
-	log.Printf("Server starting on :%s...", config.AppConfig.HttpPort)
+	applog.InfoMsg(ctx, "server", "listen", "Server starting",
+		map[string]interface{}{"port": config.AppConfig.HttpPort})
+	runtime.SyncFromGlobals()
 	appHandler := web.SecurityMiddleware(nil)
 	if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, appHandler); err != nil {
-		log.Fatalf("Server failed: %v", err)
+		applog.Fatal(ctx, "Server failed", "err", err)
 	}
 }
 

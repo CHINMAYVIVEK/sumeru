@@ -10,13 +10,40 @@ import (
 	"sumeru/core/orm"
 )
 
+// WebLogEvent logs a structured web event using the applog contract.
+func WebLogEvent(ctx context.Context, route, message, operation, status string, err error, ctxFields map[string]interface{}) {
+	if ctxFields == nil {
+		ctxFields = map[string]interface{}{}
+	}
+	ctxFields["route"] = route
+	ev := applog.Event{
+		Message:   message,
+		Component: "web",
+		Operation: operation,
+		Status:    status,
+		Context:   ctxFields,
+		Err:       err,
+	}
+	if err != nil || status == "failure" {
+		if ev.Status == "" {
+			ev.Status = "failure"
+		}
+		applog.Error(ctx, ev)
+		return
+	}
+	if status == "partial" {
+		applog.Warn(ctx, ev)
+		return
+	}
+	applog.Info(ctx, ev)
+}
+
 func WebLogf(ctx context.Context, route, format string, args ...interface{}) {
 	route = strings.TrimSpace(route)
 	if route == "" {
 		route = "-"
 	}
-	msg := fmt.Sprintf(format, args...)
-	applog.L(ctx).Infow("web", "route", route, "msg", msg)
+	WebLogEvent(ctx, route, fmt.Sprintf(format, args...), "request", "success", nil, nil)
 }
 
 func SafePathNext(raw, fallback string) string {

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
@@ -70,26 +69,4 @@ func parseArgsArray(args json.RawMessage) ([]json.RawMessage, error) {
 		return nil, newRPCError(CodeInvalidArgs, fmt.Sprintf("args must be a JSON array: %v", err), nil)
 	}
 	return arr, nil
-}
-
-func applyOffset(rows []map[string]interface{}, offset int) []map[string]interface{} {
-	if offset <= 0 {
-		return rows
-	}
-	if offset >= len(rows) {
-		return []map[string]interface{}{}
-	}
-	return rows[offset:]
-}
-
-func searchLimitWithOffset(ctx context.Context, model string, domain [][]interface{}, limit, offset int) ([]map[string]interface{}, error) {
-	fetch := limit + offset
-	if fetch <= 0 {
-		fetch = 500
-	}
-	rows, err := orm.SearchLimit(ctx, model, domain, fetch)
-	if err != nil {
-		return nil, err
-	}
-	return applyOffset(rows, offset), nil
 }

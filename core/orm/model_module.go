@@ -58,7 +58,7 @@ func InstalledModuleNames(ctx context.Context) (map[string]struct{}, error) {
 	if DB == nil {
 		return out, nil
 	}
-	tbl := GetTableName("sys.module")
+	tbl := MustQuotedTableName("sys.module")
 	rows, err := DB.QueryContext(ctx, `SELECT name FROM `+tbl+` WHERE state = 'installed' AND active = true`)
 	if err != nil {
 		return nil, err

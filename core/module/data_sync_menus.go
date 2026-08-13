@@ -2,6 +2,7 @@ package module
 
 import (
 	"context"
+	"sumeru/core/applog"
 	"fmt"
 	"strings"
 
@@ -22,7 +23,7 @@ func syncMenusFromItems(ctx context.Context, moduleName string, menus []parser.M
 			if err == nil && actionID != 0 {
 				menuValues["action_id"] = actionID
 			} else {
-				fmt.Printf("Warning: sys.menu %s.%s action %q unresolved: %v\n", moduleName, menu.ID, menu.Action, err)
+				applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.menu %s.%s action %q unresolved: %v", moduleName, menu.ID, menu.Action, err))
 			}
 		}
 		if sanitizedIcon := sanitizeWebIcon(menu.WebIcon); sanitizedIcon != "" {
@@ -39,7 +40,7 @@ func syncMenusFromItems(ctx context.Context, moduleName string, menus []parser.M
 		menuValues := buildValues(menu)
 		menuValues["parent_id"] = nil
 		if _, err := upsertMenuRow(ctx, moduleName, menu.ID, menuValues); err != nil {
-			fmt.Printf("Warning: sys.menu root %s.%s: %v\n", moduleName, menu.ID, err)
+			applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.menu root %s.%s: %v", moduleName, menu.ID, err))
 		}
 	}
 
@@ -65,7 +66,7 @@ func syncMenusFromItems(ctx context.Context, moduleName string, menus []parser.M
 			menuValues := buildValues(menu)
 			menuValues["parent_id"] = parentID
 			if _, err := upsertMenuRow(ctx, moduleName, menu.ID, menuValues); err != nil {
-				fmt.Printf("Warning: sys.menu child %s.%s: %v\n", moduleName, menu.ID, err)
+				applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.menu child %s.%s: %v", moduleName, menu.ID, err))
 				next = append(next, menu)
 				continue
 			}
@@ -77,7 +78,7 @@ func syncMenusFromItems(ctx context.Context, moduleName string, menus []parser.M
 		}
 	}
 	for _, menu := range pending {
-		fmt.Printf("Warning: sys.menu %s.%s parent %q unresolved — skipped (not creating top-bar orphan)\n",
+		syncWarn(ctx, "Warning: sys.menu %s.%s parent %q unresolved — skipped (not creating top-bar orphan)",
 			moduleName, menu.ID, strings.TrimSpace(menu.ParentID))
 	}
 }
@@ -95,17 +96,12 @@ func upsertMenuRow(ctx context.Context, moduleName, xmlID string, menuValues map
 		}
 		rowID = id
 	}
-	_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
-		"module":  moduleName,
-		"name":    xmlID,
-		"model":   "sys.menu",
-		"core_id": rowID,
-	}, "name")
+	_ = linkXMLRecord(ctx, moduleName, xmlID, "sys.menu", rowID)
 	return rowID, nil
 }
 
 func menuRowID(ctx context.Context, moduleName, xmlID string) (int, error) {
-	md, err := orm.SearchOne(ctx, "sys.model_data", map[string]interface{}{
+	md, err := orm.SearchOne(ctx, "sys.model.data", map[string]interface{}{
 		"module": moduleName,
 		"model":  "sys.menu",
 		"name":   xmlID,

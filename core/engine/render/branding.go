@@ -91,7 +91,7 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 	}
 	if d.ShellUser == "" && config.AppConfig.DevMode {
 		if _, ok := orm.Registry["core.user"]; ok {
-			tn := orm.GetTableName("core.user")
+			tn := orm.MustQuotedTableName("core.user")
 			var nm string
 			q := `SELECT COALESCE(NULLIF(TRIM(name), ''), TRIM(login), '') FROM ` + tn + ` ORDER BY id ASC LIMIT 1`
 			if err := orm.DB.QueryRowContext(ctx, q).Scan(&nm); err == nil && strings.TrimSpace(nm) != "" {
@@ -156,7 +156,7 @@ func loadShellCompanies(ctx context.Context) []ShellCompanyOption {
 	if _, ok := orm.Registry["core.company"]; !ok {
 		return nil
 	}
-	tn := orm.GetTableName("core.company")
+	tn := orm.MustQuotedTableName("core.company")
 	rows, err := orm.DB.QueryContext(ctx, `SELECT id, name FROM `+tn+` ORDER BY id ASC`)
 	if err != nil {
 		return nil

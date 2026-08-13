@@ -1,13 +1,14 @@
 package server
 
 import (
-	"log"
+	"context"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"sumeru/core/applog"
 	"sumeru/core/engine/assets"
 	"sumeru/core/engine/render"
 	"sumeru/core/module"
@@ -18,6 +19,7 @@ import (
 // registerBrandingAndStatic wires core CSS (theme + layout slices), optional addon theme overrides,
 // optional brand CSS, logo, and the /static/ asset tree.
 func registerBrandingAndStatic() {
+	ctx := context.Background()
 	extraCSS := append([]string(nil), assets.DefaultStylesheetURLs()...)
 
 	addonNames := make([]string, 0, len(module.LoadedAddons))
@@ -49,7 +51,8 @@ func registerBrandingAndStatic() {
 			http.ServeFile(w, r, p)
 		})
 		extraCSS = append(extraCSS, urlPath)
-		log.Printf("Addon theme overrides: %s → %s", overridePath, urlPath)
+		applog.InfoMsg(ctx, "web", "static", "Registered addon theme overrides",
+			map[string]interface{}{"path": overridePath, "url": urlPath})
 	}
 
 	if config.AppConfig.BrandCSS != "" {
@@ -58,9 +61,11 @@ func registerBrandingAndStatic() {
 			http.HandleFunc("/static/brand.css", func(responseWriter http.ResponseWriter, request *http.Request) {
 				http.ServeFile(responseWriter, request, config.AppConfig.BrandCSS)
 			})
-			log.Printf("Brand stylesheet: %s → /static/brand.css", config.AppConfig.BrandCSS)
+			applog.InfoMsg(ctx, "web", "static", "Registered brand stylesheet",
+				map[string]interface{}{"path": config.AppConfig.BrandCSS})
 		} else {
-			log.Printf("Warning: brand_css path not found or not a file: %s", config.AppConfig.BrandCSS)
+			applog.WarnMsg(ctx, "web", "static", "brand_css path not found or not a file", nil,
+				map[string]interface{}{"path": config.AppConfig.BrandCSS})
 		}
 	}
 
@@ -87,9 +92,11 @@ func registerBrandingAndStatic() {
 				}
 				http.ServeFile(responseWriter, request, logoPath)
 			})
-			log.Printf("Logo: %s → /static/app-logo", logoPath)
+			applog.InfoMsg(ctx, "web", "static", "Registered application logo",
+				map[string]interface{}{"path": logoPath})
 		} else {
-			log.Printf("Warning: logo_path not found or not a file: %s", config.AppConfig.LogoPath)
+			applog.WarnMsg(ctx, "web", "static", "logo_path not found or not a file", nil,
+				map[string]interface{}{"path": config.AppConfig.LogoPath})
 		}
 	}
 
@@ -101,14 +108,15 @@ func registerBrandingAndStatic() {
 
 	fileServer := http.FileServer(http.Dir(config.AppConfig.AssetsPath))
 	http.Handle("/static/", http.StripPrefix("/static/", fileServer))
-	log.Printf("Serving static files from %s", filepath.Clean(config.AppConfig.AssetsPath))
+	applog.InfoMsg(ctx, "web", "static", "Serving static files",
+		map[string]interface{}{"path": filepath.Clean(config.AppConfig.AssetsPath)})
 }
 
 func addonModuleInstalled(technicalName string) bool {
 	if orm.DB == nil {
 		return false
 	}
-	tbl := orm.GetTableName("sys.module")
+	tbl := orm.MustQuotedTableName("sys.module")
 	var state string
 	err := orm.DB.QueryRow(`SELECT state FROM `+tbl+` WHERE name = $1 AND active = true`, strings.TrimSpace(technicalName)).Scan(&state)
 	return err == nil && strings.TrimSpace(state) == "installed"

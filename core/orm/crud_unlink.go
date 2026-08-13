@@ -3,33 +3,28 @@ package orm
 import (
 	"context"
 	"fmt"
-
-	"sumeru/core/applog"
+	"time"
 )
 
-// Unlink deletes a record by ID.
+// Unlink deletes a record by ID using domain-scoped UnlinkWhere.
 func Unlink(ctx context.Context, modelName string, id int) (err error) {
-	defer func() { applog.ORMOp(ctx, "unlink", modelName, err, "id", id) }()
+	start := time.Now()
+	defer func() {
+		logORMOperation(ctx, start, "delete", modelName, err, map[string]interface{}{"resource_id": id})
+	}()
 	if id <= 0 {
 		return fmt.Errorf("invalid id")
 	}
-	uid := SecurityUID(ctx)
-	if err := CheckModelAccess(ctx, uid, modelName, "unlink"); err != nil {
-		return err
-	}
-	rec, err := SearchOne(ctx, modelName, map[string]interface{}{"id": id})
-	if err != nil {
-		return err
-	}
-	if err := CheckRecordRules(ctx, uid, modelName, "unlink", rec); err != nil {
-		return err
-	}
-
-	tbl := GetTableName(modelName)
-	query := fmt.Sprintf("DELETE FROM %s WHERE id = $1", tbl)
-	_, err = DB.ExecContext(ctx, query, id)
-	if err == nil && !SecurityBypass(ctx) {
-		AppendAudit(ctx, "unlink", modelName, int64(id), rec, nil, "")
-	}
+	_, err = UnlinkWhere(ctx, modelName, [][]interface{}{{"id", "=", id}})
 	return err
+}
+
+// UnlinkWhere deletes rows matching domain inside a mandatory transaction.
+func UnlinkWhere(ctx context.Context, modelName string, domain [][]interface{}) (n int64, err error) {
+	start := time.Now()
+	defer func() {
+		logORMOperation(ctx, start, "delete", modelName, err, map[string]interface{}{"rows": n})
+	}()
+	res, err := executeDeleteMutation(ctx, modelName, domain)
+	return res.RowsAffected, err
 }

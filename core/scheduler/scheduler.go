@@ -64,7 +64,7 @@ func runDue(ctx context.Context) {
 		return
 	}
 	bypass := orm.ContextWithBypass(ctx, true)
-	tbl := orm.GetTableName("sys.cron")
+	tbl := orm.MustQuotedTableName("sys.cron")
 	now := time.Now().UTC()
 	rows, err := orm.DB.QueryContext(bypass,
 		`SELECT id, name, COALESCE(event_name,''), COALESCE(code,'') FROM `+tbl+
@@ -93,7 +93,7 @@ func runDue(ctx context.Context) {
 func cronInterval(ctx context.Context, id int64) time.Duration {
 	var mins sql.NullInt64
 	_ = orm.DB.QueryRowContext(ctx,
-		`SELECT interval_number FROM `+orm.GetTableName("sys.cron")+` WHERE id = $1`, id,
+		`SELECT interval_number FROM `+orm.MustQuotedTableName("sys.cron")+` WHERE id = $1`, id,
 	).Scan(&mins)
 	n := int(mins.Int64)
 	if n <= 0 {
@@ -103,7 +103,7 @@ func cronInterval(ctx context.Context, id int64) time.Duration {
 }
 
 func executeCron(ctx context.Context, id int64, name, eventName, code string) {
-	applog.L(ctx).Infow("scheduler.cron", "id", id, "name", name, "code", code)
+	applog.L(ctx).Info("scheduler.cron", "id", id, "name", name, "code", code)
 	payload := map[string]interface{}{"cron_id": id, "cron_name": name, "code": code}
 	_ = event.Publish(ctx, event.Event{Name: "cron.tick", Payload: payload})
 	if eventName = strings.TrimSpace(eventName); eventName != "" {

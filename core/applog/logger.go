@@ -2,21 +2,21 @@ package applog
 
 import (
 	"context"
+	"log/slog"
+	"os"
 	"sync"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 var (
 	uidMu       sync.RWMutex
 	uidFromCtx  func(context.Context) int
-	logLocation *time.Location // effective location for log_ts (set in SetupFromConfig)
-	logEnabled  bool           // false → Nop logger, no structured output
-	logTzName   string         // IANA or "UTC" / "Local" label for log_tz field
+	logLocation *time.Location
+	logEnabled  bool
+	logTzName   string
 )
 
-// RegisterUIDResolver wires user_id for L(ctx). Call once at process startup from server (e.g. orm.UIDFromContext).
+// RegisterUIDResolver wires user_id resolution for event context maps.
 func RegisterUIDResolver(fn func(context.Context) int) {
 	uidMu.Lock()
 	defer uidMu.Unlock()
@@ -33,39 +33,72 @@ func resolveUID(ctx context.Context) int {
 	return fn(ctx)
 }
 
-// L returns a sugared logger with enforced fields: user_id, log_ts (RFC3339Nano in configured TZ), log_tz.
-// When logging is disabled or Zap is not initialized, returns a no-op sugared logger.
-func L(ctx context.Context) *zap.SugaredLogger {
-	if !logEnabled {
-		return zap.NewNop().Sugar()
+func baseLogger() *slog.Logger {
+	if root != nil {
+		return root
 	}
-	s := Sugar()
-	if s == nil {
-		return zap.NewNop().Sugar()
-	}
-	loc := effectiveLocation()
-	now := time.Now().In(loc)
-	tzLabel := logTzName
-	if tzLabel == "" {
-		tzLabel = loc.String()
-	}
-	return s.With(
-		"user_id", resolveUID(ctx),
-		"log_ts", now.Format(time.RFC3339Nano),
-		"log_tz", tzLabel,
-	)
+	return slog.Default()
 }
 
-// ORMOp logs one ORM operation with enforced context fields (no-op when logging disabled).
-func ORMOp(ctx context.Context, op, model string, err error, keysAndValues ...interface{}) {
+// LoggerFromContext returns the base logger. Per-event fields use the Event API;
+// slog JSON handler supplies the canonical top-level "time" field (no log_ts duplication).
+func LoggerFromContext(ctx context.Context) *slog.Logger {
+	if !logEnabled {
+		return slog.New(slog.DiscardHandler)
+	}
+	return baseLogger()
+}
+
+// L is an alias for LoggerFromContext.
+func L(ctx context.Context) *slog.Logger {
+	return LoggerFromContext(ctx)
+}
+
+// LogORMOperation logs one ORM operation using the structured Event contract.
+func LogORMOperation(ctx context.Context, op, model string, err error, keysAndValues ...interface{}) {
 	if !logEnabled {
 		return
 	}
-	kvs := append([]interface{}{"op", op, "model", model}, keysAndValues...)
+	ctxMap := map[string]interface{}{"resource": model}
+	for i := 0; i+1 < len(keysAndValues); i += 2 {
+		if k, ok := keysAndValues[i].(string); ok {
+			ctxMap[k] = keysAndValues[i+1]
+		}
+	}
+	ev := Event{
+		Component: "orm",
+		Operation: op,
+		Context:   ctxMap,
+		Err:       err,
+	}
 	if err != nil {
-		kvs = append(kvs, "err", err)
-		L(ctx).Errorw("orm", kvs...)
+		ev.Message = op + " on " + model + " failed"
+		ev.Status = "failure"
+		Error(ctx, ev)
 		return
 	}
-	L(ctx).Infow("orm", kvs...)
+	ev.Message = op + " on " + model + " completed"
+	ev.Status = "success"
+	Info(ctx, ev)
+}
+
+// Fatal logs at error level and exits the process.
+func Fatal(ctx context.Context, msg string, keysAndValues ...interface{}) {
+	attrs := keysAndValues
+	if len(attrs) == 0 {
+		Error(ctx, Event{Message: msg, Component: "server", Status: "failure"})
+	} else {
+		Error(ctx, Event{Message: msg, Component: "server", Status: "failure", Context: kvPairsToMap(attrs)})
+	}
+	os.Exit(1)
+}
+
+func kvPairsToMap(pairs []interface{}) map[string]interface{} {
+	out := make(map[string]interface{})
+	for i := 0; i+1 < len(pairs); i += 2 {
+		if k, ok := pairs[i].(string); ok {
+			out[k] = pairs[i+1]
+		}
+	}
+	return out
 }

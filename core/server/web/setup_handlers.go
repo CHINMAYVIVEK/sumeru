@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
 
+	"sumeru/core/applog"
 	"sumeru/core/engine/assets"
 	"sumeru/core/module"
 	"sumeru/core/orm"
@@ -31,6 +31,7 @@ type setupInitRequest struct {
 
 // SetupInitHandler runs database sync, installs base, bootstraps security from the JSON wizard payload, then restarts.
 func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
 	if !RequirePOST(responseWriter, request) {
 		return
 	}
@@ -62,35 +63,41 @@ func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request)
 	securityContext := orm.ContextWithBypass(context.Background(), true)
 
 	if err := module.RunFirstTimeInstallSync(securityContext); err != nil {
-		log.Printf("Setup: RunFirstTimeInstallSync failed: %v", err)
+		applog.Error(ctx, applog.Event{
+			Message: "First-time install sync failed", Component: "web", Operation: "setup",
+			Status: "failure", Err: err,
+		})
 		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if err := module.InstallModuleByName(securityContext, "base"); err != nil {
-		log.Printf("Setup: Install base failed: %v", err)
+		applog.Error(ctx, applog.Event{
+			Message: "Install base module failed", Component: "web", Operation: "setup",
+			Status: "failure", Err: err,
+		})
 		http.Error(responseWriter, fmt.Sprintf("Install base failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	if err := orm.EnsureBootstrapSecurityFromSetup(params); err != nil {
-		log.Printf("Setup: Security bootstrap failed: %v", err)
+		applog.Error(ctx, applog.Event{
+			Message: "Security bootstrap failed", Component: "web", Operation: "setup",
+			Status: "failure", Err: err,
+		})
 		http.Error(responseWriter, fmt.Sprintf("Security bootstrap failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	if err := orm.BackfillSysMenuModule(); err != nil {
-		log.Printf("Warning: backfill sys.menu.module: %v", err)
-	}
-	if err := orm.FixSysMenuSelfParent(); err != nil {
-		log.Printf("Warning: fix sys.menu self-parent: %v", err)
+	if err := orm.RunMenuDataFixes(); err != nil {
+		applog.WarnMsg(ctx, "web", "setup", "Menu data fixes reported issues", err, nil)
 	}
 
 	go func() {
 		time.Sleep(400 * time.Millisecond)
-		log.Println("Setup: self-restarting server…")
+		applog.InfoMsg(context.Background(), "web", "setup", "Self-restarting server after setup", nil)
 		if err := syscall.Exec(os.Args[0], os.Args, os.Environ()); err != nil {
-			log.Fatalf("Setup: self-restart failed: %v", err)
+			applog.Fatal(context.Background(), "Setup self-restart failed", "err", err)
 		}
 	}()
 	fmt.Fprintln(responseWriter, "Setup complete — server is restarting…")
@@ -98,10 +105,14 @@ func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request)
 
 // SetupPageHandler renders the setup page from templates/setup.html.
 func SetupPageHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	tmplPath := filepath.Join(config.AppConfig.TemplatesPath, "setup.html")
 	tmpl, err := template.ParseFiles(tmplPath)
 	if err != nil {
-		log.Printf("Setup: parse %s: %v", tmplPath, err)
+		applog.Error(ctx, applog.Event{
+			Message: "Failed to parse setup template", Component: "web", Operation: "setup",
+			Status: "failure", Err: err, Context: map[string]interface{}{"template": tmplPath},
+		})
 		http.Error(w, "Setup template missing", http.StatusInternalServerError)
 		return
 	}
@@ -114,6 +125,9 @@ func SetupPageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.Execute(w, data); err != nil {
-		log.Printf("Setup: execute template: %v", err)
+		applog.Error(ctx, applog.Event{
+			Message: "Failed to execute setup template", Component: "web", Operation: "setup",
+			Status: "failure", Err: err,
+		})
 	}
 }

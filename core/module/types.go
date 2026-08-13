@@ -15,6 +15,14 @@ type Manifest struct {
 	Description string   `json:"description"`
 	Data        []string `json:"data"`        // XML files to load
 	Application *bool    `json:"application"` // nil = true (show in Apps)
+	AutoImport  *bool    `json:"auto_import"` // nil = true; false = omit from generated zimports blank imports
+}
+
+func (manifest *Manifest) IsAutoImport() bool {
+	if manifest.AutoImport == nil {
+		return true
+	}
+	return *manifest.AutoImport
 }
 
 func (manifest *Manifest) IsApplication() bool {

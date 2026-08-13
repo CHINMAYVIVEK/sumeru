@@ -190,7 +190,7 @@ func applyCoreUserSecurityPost(r *http.Request, modelName string, userID int) {
 				WebLogf(r.Context(), "/web/record/save", "bcrypt: %v", err)
 				return
 			}
-			tbl := orm.GetTableName("core.user")
+			tbl := orm.MustQuotedTableName("core.user")
 			if _, err := orm.DB.ExecContext(r.Context(), `UPDATE `+tbl+` SET password = $1 WHERE id = $2`, string(hash), userID); err != nil {
 				WebLogf(r.Context(), "/web/record/save", "password update user %d: %v", userID, err)
 			}

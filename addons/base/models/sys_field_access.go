@@ -12,7 +12,7 @@ type SysFieldAccess struct {
 	PermWrite bool   `db:"perm_write"`
 }
 
-func (SysFieldAccess) ModelName() string { return "sys.field_access" }
+func (SysFieldAccess) ModelName() string { return "sys.field.access" }
 
 func (SysFieldAccess) Fields() []sdk.FieldDefinition {
 	return []sdk.FieldDefinition{

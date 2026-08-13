@@ -38,7 +38,7 @@ func UIDFromAPIKey(ctx context.Context, raw string) int {
 		return 0
 	}
 	hash := HashAPIKey(raw)
-	tbl := GetTableName("core.user.apikey")
+	tbl := MustQuotedTableName("core.user.apikey")
 	var uid int
 	var active bool
 	err := DB.QueryRowContext(ctx,
@@ -50,7 +50,7 @@ func UIDFromAPIKey(ctx context.Context, raw string) int {
 	// Ensure user is active.
 	var userActive bool
 	err = DB.QueryRowContext(ctx,
-		`SELECT active FROM `+GetTableName("core.user")+` WHERE id = $1`, uid,
+		`SELECT active FROM `+MustQuotedTableName("core.user")+` WHERE id = $1`, uid,
 	).Scan(&userActive)
 	if err != nil || !userActive {
 		return 0

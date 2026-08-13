@@ -3,17 +3,14 @@ package sumeru_ai
 import (
 	"context"
 	"html/template"
-	"log"
+
 	"sumeru/core/engine/render"
 	"sumeru/core/orm"
 )
 
 func init() {
-	log.Println("Initializing Sumeru AI Addon...")
-
 	// Register ORM Search Interceptor
 	orm.RegisterSearchInterceptor(func(ctx context.Context, model string, domain [][]interface{}) ([][]interface{}, error) {
-		log.Printf("[AI INTERCEPT] Search on model: %s, Domain: %v", model, domain)
 		// Here we would call LLM to translate natural language if needed.
 		// For now, we just pass through.
 		return domain, nil

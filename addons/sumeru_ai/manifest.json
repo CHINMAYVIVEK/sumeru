@@ -6,5 +6,6 @@
   "description": "AI assistance and schema discovery for Sumeru ERP.",
   "depends": ["base"],
   "application": true,
+  "auto_import": false,
   "data": []
 }

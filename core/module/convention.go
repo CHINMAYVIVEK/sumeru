@@ -261,6 +261,9 @@ func AddonImportPaths(discoveredAddons map[string]*Addon) ([]string, error) {
 		if isBuiltinAddonPath(addon.Path) {
 			continue
 		}
+		if !addon.Manifest.IsAutoImport() {
+			continue
+		}
 		initPath := filepath.Join(addon.Path, "init.go")
 		if _, err := os.Stat(initPath); err != nil {
 			continue

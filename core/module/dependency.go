@@ -95,7 +95,7 @@ func missingInstalledDependencies(context context.Context, moduleName string) ([
 
 func installedModuleDependingOn(context context.Context, targetModuleName string) (string, error) {
 	moduleRows, err := orm.DB.QueryContext(context,
-		`SELECT name, state FROM `+orm.GetTableName("sys.module")+` WHERE state = 'installed' AND name <> $1`,
+		`SELECT name, state FROM `+orm.MustQuotedTableName("sys.module")+` WHERE state = 'installed' AND name <> $1`,
 		targetModuleName,
 	)
 	if err != nil {

@@ -5,8 +5,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"sumeru/core/applog"
+	"sumeru/core/metrics"
 	"sumeru/core/orm"
 	"sumeru/core/server/api"
 )
@@ -25,6 +27,12 @@ func APIHealthHandler(w http.ResponseWriter, r *http.Request) {
 
 // RPCJSONHandler is model RPC: POST JSON {"model","method","args","kwargs"} with session or API key auth.
 func RPCJSONHandler(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	metrics.Inc("sumeru_rpc_requests_total")
+	defer func() {
+		metrics.ObserveDuration("sumeru_rpc_duration_seconds", time.Since(start))
+	}()
+
 	if r.Method != http.MethodPost {
 		api.WriteResponse(w, http.StatusMethodNotAllowed, api.Fail(api.CodeMethodNotAllowed, "Method not allowed", nil))
 		return
@@ -50,8 +58,39 @@ func RPCJSONHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := orm.ContextWithUID(r.Context(), uid)
 	resp, status := api.Dispatch(ctx, body)
+
+	modelName, methodName := rpcModelMethod(body)
+	ev := applog.Event{
+		Component: "rpc",
+		Operation: methodName,
+		Duration:  time.Since(start),
+		Context: map[string]interface{}{
+			"resource":    modelName,
+			"method":      methodName,
+			"status_code": status,
+		},
+	}
 	if !resp.OK && resp.Error != nil {
-		applog.L(ctx).Warnw("api.rpc", "code", resp.Error.Code, "msg", resp.Error.Message)
+		ev.Message = "RPC call failed"
+		ev.Status = "failure"
+		ev.Context["error_code"] = resp.Error.Code
+		ev.Context["error"] = resp.Error.Message
+		applog.Error(ctx, ev)
+	} else {
+		ev.Message = "RPC call completed"
+		ev.Status = "success"
+		applog.Info(ctx, ev)
 	}
 	api.WriteResponse(w, status, resp)
+}
+
+func rpcModelMethod(body []byte) (model, method string) {
+	var req struct {
+		Model  string `json:"model"`
+		Method string `json:"method"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return "", ""
+	}
+	return req.Model, req.Method
 }

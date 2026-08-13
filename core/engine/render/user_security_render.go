@@ -37,7 +37,7 @@ func writeResUsersSecuritySection(ctx context.Context, sb *strings.Builder, vr *
 
 	selected := map[int]struct{}{}
 	if vr.RecordID > 0 {
-		rel := orm.GetTableName("core.group.user.rel")
+		rel := orm.MustQuotedTableName("core.group.user.rel")
 		rows, err := orm.DB.QueryContext(ctx, `SELECT group_id FROM `+rel+` WHERE user_id = $1`, vr.RecordID)
 		if err == nil {
 			for rows.Next() {
@@ -210,13 +210,13 @@ func writeResUsersSecuritySection(ctx context.Context, sb *strings.Builder, vr *
 	sb.WriteString(`</div>`)
 }
 
-// loadCoreGroupModules maps core.group id → declaring module from sys.model_data.
+// loadCoreGroupModules maps core.group id → declaring module from sys.model.data.
 func loadCoreGroupModules(ctx context.Context) map[int]string {
 	out := map[int]string{}
 	if orm.DB == nil {
 		return out
 	}
-	tbl := orm.GetTableName("sys.model_data")
+	tbl := orm.MustQuotedTableName("sys.model.data")
 	rows, err := orm.DB.QueryContext(ctx,
 		`SELECT core_id, module FROM `+tbl+` WHERE model = $1 AND core_id IS NOT NULL AND core_id > 0`,
 		"core.group")

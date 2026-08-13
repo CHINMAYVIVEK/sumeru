@@ -6,7 +6,9 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"sumeru/core/applog"
 	"sumeru/core/engine/assets"
 	"sumeru/core/engine/render"
 	"sumeru/core/orm"
@@ -42,16 +44,67 @@ func AuthenticatedUserID(r *http.Request) int {
 	return APIKeyUserID(r)
 }
 
-// SecurityMiddleware attaches orm.UIDFromContext from session cookie or API key.
+// SecurityMiddleware attaches request_id and orm.UIDFromContext from session cookie or API key.
 func SecurityMiddleware(next http.Handler) http.Handler {
 	if next == nil {
 		next = http.DefaultServeMux
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rid := strings.TrimSpace(r.Header.Get("X-Request-ID"))
+		if rid == "" {
+			rid = applog.NewRequestID()
+		}
+		w.Header().Set("X-Request-ID", rid)
+		ctx := applog.ContextWithRequestID(r.Context(), rid)
 		uid := AuthenticatedUserID(r)
-		ctx := orm.ContextWithUID(r.Context(), uid)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		ctx = orm.ContextWithUID(ctx, uid)
+		r = r.WithContext(ctx)
+
+		applog.Debug(ctx, applog.Event{
+			Message:   "HTTP request started",
+			Component: "web",
+			Operation: "request",
+			Status:    "success",
+			Context: map[string]interface{}{
+				"route":  r.URL.Path,
+				"method": r.Method,
+			},
+		})
+
+		rw := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rw, r)
+
+		ev := applog.Event{
+			Component: "web",
+			Operation: "request",
+			Duration:  time.Since(start),
+			Context: map[string]interface{}{
+				"route":       r.URL.Path,
+				"method":      r.Method,
+				"status_code": rw.status,
+			},
+		}
+		if rw.status >= 500 {
+			ev.Message = "HTTP request failed"
+			ev.Status = "failure"
+			applog.Error(ctx, ev)
+			return
+		}
+		ev.Message = "HTTP request completed"
+		ev.Status = "success"
+		applog.Debug(ctx, ev)
 	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (sr *statusRecorder) WriteHeader(code int) {
+	sr.status = code
+	sr.ResponseWriter.WriteHeader(code)
 }
 
 func requireLogin(w http.ResponseWriter, r *http.Request) bool {
@@ -112,7 +165,7 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 	login := strings.TrimSpace(r.PostFormValue("login"))
 	password := r.PostFormValue("password")
 	next := SafePathNext(r.PostFormValue("next"), "/web/home")
-	tbl := orm.GetTableName("core.user")
+	tbl := orm.MustQuotedTableName("core.user")
 	var id int
 	var hash string
 	var active bool
