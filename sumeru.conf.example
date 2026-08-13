@@ -12,7 +12,11 @@ db_sslmode = disable
 http_port = 8080
 
 # dev_mode        Default false. When true: slog debug level and dev-only behavior (e.g. branding fallbacks). Use false in production.
-# dev_mode = false
+# For local development, enable dev_mode to surface DEBUG logs (HTTP requests, ORM reads, view renders) on stdout.
+dev_mode = true
+
+# setup_localhost_only  Default true. When true, uninitialized setup mode listens on 127.0.0.1 only.
+# setup_token           Optional secret for POST /setup/init (header X-Setup-Token or JSON setup_token).
 
 # Core tree only: built-in apps under sumeru/addons/ (base, mail, contacts, …).
 # Addons with "auto_import": false in manifest.json (e.g. sumeru_ai) are omitted from generated zimports unless you opt in.

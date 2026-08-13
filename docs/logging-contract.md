@@ -49,11 +49,25 @@ On failure, set `status=failure` and include `context.error`.
 
 | Layer | Entry point | What is logged |
 |-------|-------------|----------------|
-| ORM | `logORMOperation` / `mutateRecord` | Every Create/Update/Delete |
+| ORM | `logORMOperation` / `mutateRecord` | Create/Update/Delete at INFO; Search/SearchOne at DEBUG |
 | Module sync | `syncWarn` / `linkXMLRecord` | XML upsert warnings |
-| Web | `WebLogEvent`, `renderShellPage` | Handler errors, shell render |
+| Web | `WebLogEvent`, `WebLogNavigation`, `renderShellPage` | Handler errors; navigation audit at INFO |
 | RPC | `rpc_json.go` | model/method/status |
-| HTTP | `SecurityMiddleware` | Request lifecycle (Debug) |
+| HTTP | `SecurityMiddleware` | Request lifecycle (Debug; visible when `dev_mode=true`) |
+
+### Web navigation audit (INFO)
+
+Successful UI navigation emits one structured line via `WebLogNavigation`:
+
+| `operation` | Handler | Context fields |
+|-------------|---------|----------------|
+| `view_open` | `WebHandler` | `menu_id`, `action_id`, `model`, `view_type`, `record_id`, `edit` |
+| `module_hub` | `HomeDashboardHandler` | `menu_id`, `tile_count`, `search` |
+| `apps_open` | `AppsHandler` | `layout`, `filter`, `scope`, `search`, optional `module` |
+| `company_switch` | `SwitchCompanyPost` | `company_id`, `user_id` |
+| `module_action` | `ModuleActionHandler` | `do`, `module` |
+
+Local development: set `dev_mode=true` in `sumeru.conf` to also see DEBUG logs for HTTP requests, ORM reads, and view renders on stdout.
 
 New addons inherit logging by calling ORM/RPC APIs — no extra logging code required for CRUD.
 

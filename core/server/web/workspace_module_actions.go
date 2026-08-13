@@ -28,6 +28,9 @@ func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, appsRedirectPath("invalid_form", r), http.StatusSeeOther)
 		return
 	}
+	if !validateSessionCSRF(w, r) {
+		return
+	}
 	layout := strings.ToLower(strings.TrimSpace(r.FormValue("apps_layout")))
 	appsFilter := normalizeAppsFilter(r.FormValue("apps_filter"))
 	appsScope := normalizeAppsScope(r.FormValue("apps_scope"))
@@ -78,6 +81,10 @@ func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, appsRedirectPath(err.Error(), r), http.StatusSeeOther)
 		return
 	}
+	WebLogNavigation(r.Context(), "/web/module/action", "module_action", "Module action completed", map[string]interface{}{
+		"do":     action,
+		"module": mod,
+	})
 	http.Redirect(w, r, appsRedirectPath(msg, r), http.StatusSeeOther)
 }
 
