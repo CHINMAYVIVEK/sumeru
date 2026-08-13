@@ -50,6 +50,18 @@ func RelNameSearchFiltered(ctx context.Context, modelName, query string, limit i
 	} else if !hasName && !hasLogin {
 		return nil, fmt.Errorf("model %s has no name/login field", modelName)
 	}
+	if filterField != "" && filterID <= 0 {
+		return []map[string]interface{}{}, nil
+	}
+
+	var baseDomain [][]interface{}
+	if filterField != "" && filterID > 0 {
+		baseDomain = append(baseDomain, []interface{}{filterField, "=", filterID})
+	}
+	ruleWhere, ruleArgs, err := BuildWhereWithRecordRules(ctx, uid, modelName, "read", baseDomain)
+	if err != nil {
+		return nil, err
+	}
 
 	tbl, err := QuotedTableForModel(modelName)
 	if err != nil {
@@ -68,21 +80,9 @@ func RelNameSearchFiltered(ctx context.Context, modelName, query string, limit i
 		selectCols += fmt.Sprintf(`, COALESCE(NULLIF(TRIM(%s::text), ''), '')`, phoneIdent)
 	}
 	q := strings.TrimSpace(query)
-	args := []interface{}{}
-	where := []string{}
-	n := 1
-	if filterField != "" && filterID > 0 {
-		filterIdent, err := QuotedColumnForModel(modelName, filterField)
-		if err != nil {
-			return nil, err
-		}
-		where = append(where, fmt.Sprintf(`%s = $%d`, filterIdent, n))
-		args = append(args, filterID)
-		n++
-	} else if filterField != "" && filterID <= 0 {
-		// Explicit empty parent → no rows.
-		return []map[string]interface{}{}, nil
-	}
+	customWhere := []string{}
+	customArgs := []interface{}{}
+	n := len(ruleArgs) + 1
 	if q != "" {
 		pat := "%" + q + "%"
 		if hasName && hasLogin {
@@ -94,18 +94,27 @@ func RelNameSearchFiltered(ctx context.Context, modelName, query string, limit i
 			if err != nil {
 				return nil, err
 			}
-			where = append(where, fmt.Sprintf(`(%s ILIKE $%d OR %s ILIKE $%d)`, nameForLike, n, loginIdent, n))
+			customWhere = append(customWhere, fmt.Sprintf(`(%s ILIKE $%d OR %s ILIKE $%d)`, nameForLike, n, loginIdent, n))
 		} else {
-			where = append(where, fmt.Sprintf(`%s::text ILIKE $%d`, nameIdent, n))
+			customWhere = append(customWhere, fmt.Sprintf(`%s::text ILIKE $%d`, nameIdent, n))
 		}
-		args = append(args, pat)
+		customArgs = append(customArgs, pat)
 		n++
 	}
-	sqlQ := fmt.Sprintf(`SELECT %s FROM %s`, selectCols, tbl)
-	if len(where) > 0 {
-		sqlQ += ` WHERE ` + strings.Join(where, ` AND `)
+	whereSQL := ruleWhere
+	args := append([]interface{}(nil), ruleArgs...)
+	if len(customWhere) > 0 {
+		customSQL := strings.Join(customWhere, " AND ")
+		shifted, _ := shiftPlaceholders(customSQL, len(args)+1)
+		if whereSQL == "1=1" && len(baseDomain) == 0 {
+			whereSQL = shifted
+		} else {
+			whereSQL = whereSQL + " AND (" + shifted + ")"
+		}
+		args = append(args, customArgs...)
 	}
-	sqlQ += fmt.Sprintf(` ORDER BY %s ASC, id ASC LIMIT $%d`, nameIdent, n)
+	sqlQ := fmt.Sprintf(`SELECT %s FROM %s WHERE %s`, selectCols, tbl, whereSQL)
+	sqlQ += fmt.Sprintf(` ORDER BY %s ASC, id ASC LIMIT $%d`, nameIdent, len(args)+1)
 	args = append(args, limit)
 
 	rows, err := DB.QueryContext(ctx, sqlQ, args...)

@@ -52,7 +52,7 @@ func upsertSysViewFromRecord(ctx context.Context, moduleName string, xmlRecord p
 
 	vt := strings.TrimSpace(strings.ToLower(orm.AsString(recordValues["type"])))
 	if vt == "" {
-		vt = inferSysViewTypeFromArch(arch)
+		vt = InferSysViewTypeFromArch(arch)
 	}
 	if vt == "list" {
 		vt = "tree"
@@ -71,7 +71,7 @@ func upsertSysViewFromRecord(ctx context.Context, moduleName string, xmlRecord p
 	_ = linkXMLRecord(ctx, moduleName, xmlRecord.ID, "sys.view", id)
 }
 
-func inferSysViewTypeFromArch(arch string) string {
+func InferSysViewTypeFromArch(arch string) string {
 	a := strings.TrimSpace(arch)
 	if a == "" {
 		return ""

@@ -70,6 +70,7 @@ func writeActivityChatterPanel(ctx context.Context, sb *strings.Builder, c *pars
 	sb.WriteString(`<input type="hidden" name="model" value="` + template.HTMLEscapeString(model) + `" />`)
 	sb.WriteString(`<input type="hidden" name="res_id" value="` + template.HTMLEscapeString(fmt.Sprintf("%d", vr.RecordID)) + `" />`)
 	sb.WriteString(`<input type="hidden" name="next" value="` + template.HTMLEscapeString(nextURL) + `" />`)
+	writeCSRFHidden(sb, vr.CSRFToken)
 	sb.WriteString(`<label class="sr-only" for="sum-chatter-body">Message</label>`)
 	sb.WriteString(`<textarea id="sum-chatter-body" name="body" rows="3" class="sum-msg-input" placeholder="Write a message…"></textarea>`)
 	sb.WriteString(`<div class="sum-msg-form-actions">`)

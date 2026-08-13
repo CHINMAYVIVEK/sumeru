@@ -19,6 +19,9 @@ func SwitchCompanyPost(w http.ResponseWriter, r *http.Request) {
 	if !ParsePostForm(w, r) {
 		return
 	}
+	if !validateSessionCSRF(w, r) {
+		return
+	}
 	cid, err := strconv.Atoi(strings.TrimSpace(r.PostFormValue("company_id")))
 	if err != nil || cid <= 0 {
 		http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
@@ -41,6 +44,11 @@ func SwitchCompanyPost(w http.ResponseWriter, r *http.Request) {
 	userTbl := orm.MustQuotedTableName("core.user")
 	if _, err := orm.DB.ExecContext(ctx, `UPDATE `+userTbl+` SET company_id = $1 WHERE id = $2`, cid, uid); err != nil {
 		WebLogf(ctx, "/web/company/switch", "update company_id: %v", err)
+	} else {
+		WebLogNavigation(ctx, "/web/company/switch", "company_switch", "Active company switched", map[string]interface{}{
+			"company_id": cid,
+			"user_id":    uid,
+		})
 	}
 	http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
 }

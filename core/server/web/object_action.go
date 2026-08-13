@@ -18,6 +18,12 @@ func ActionObjectHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
+	if !validateSessionCSRF(w, r) {
+		return
+	}
+	if !requireLogin(w, r) {
+		return
+	}
 	model := strings.TrimSpace(r.FormValue("model"))
 	method := strings.TrimSpace(r.FormValue("method"))
 	idStr := strings.TrimSpace(r.FormValue("id"))
@@ -45,5 +51,5 @@ func ActionObjectHandler(w http.ResponseWriter, r *http.Request) {
 	if redirect == "" {
 		redirect = "/web"
 	}
-	http.Redirect(w, r, redirect, http.StatusSeeOther)
+	http.Redirect(w, r, SafeWebNext(redirect, "/web/home"), http.StatusSeeOther)
 }

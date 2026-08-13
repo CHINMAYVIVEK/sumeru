@@ -7,8 +7,9 @@ import (
 type contextKey string
 
 const (
-	uidKey    contextKey = "uid"
-	bypassKey contextKey = "bypass"
+	uidKey       contextKey = "uid"
+	bypassKey    contextKey = "bypass"
+	companyIDKey contextKey = "company_id"
 )
 
 // ContextWithUID returns a new context with the given user ID.
@@ -23,6 +24,25 @@ func UIDFromContext(ctx context.Context) int {
 	}
 	if uid, ok := ctx.Value(uidKey).(int); ok {
 		return uid
+	}
+	return 0
+}
+
+// ContextWithCompanyID returns a context with the user's active company id.
+func ContextWithCompanyID(ctx context.Context, companyID int64) context.Context {
+	if companyID <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, companyIDKey, companyID)
+}
+
+// CompanyIDFromContext returns the active company id from context, or 0 if unset.
+func CompanyIDFromContext(ctx context.Context) int64 {
+	if ctx == nil {
+		return 0
+	}
+	if cid, ok := ctx.Value(companyIDKey).(int64); ok {
+		return cid
 	}
 	return 0
 }

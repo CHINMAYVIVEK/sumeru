@@ -75,5 +75,6 @@ func SearchOne(ctx context.Context, modelName string, criteria map[string]interf
 	if err != nil {
 		return nil, err
 	}
+	RedactRecordForRead(ctx, uid, modelName, result)
 	return result, nil
 }

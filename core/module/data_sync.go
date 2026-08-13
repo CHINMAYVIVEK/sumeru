@@ -12,28 +12,6 @@ import (
 	"sumeru/core/orm"
 )
 
-// resolveXMLIDInModule resolves module.external_id: uses full ref if it contains a dot,
-// else current module's xml id, then a global name-only lookup.
-func resolveXMLIDInModule(ctx context.Context, moduleName, ref string) (int, error) {
-	ref = strings.TrimSpace(ref)
-	if ref == "" {
-		return 0, nil
-	}
-	if strings.Contains(ref, ".") {
-		id, _, err := orm.ResolveXmlId(ctx, ref)
-		return id, err
-	}
-	if moduleName != "" {
-		if id, _, err := orm.ResolveXmlId(ctx, moduleName+"."+ref); id != 0 {
-			return id, nil
-		} else if err != nil {
-			return 0, err
-		}
-	}
-	id, _, err := orm.ResolveXmlId(ctx, ref)
-	return id, err
-}
-
 func upsertSysActionWindowFromRecord(ctx context.Context, moduleName string, xmlRecord parser.Record) {
 	fieldMap := parser.RecordFieldMap(xmlRecord)
 	recordValues := map[string]interface{}{}
@@ -69,6 +47,70 @@ func processXMLRecords(ctx context.Context, moduleName string, records []parser.
 	}
 }
 
+func RecordsFromActions(actions []parser.Action) []parser.Record {
+	if len(actions) == 0 {
+		return nil
+	}
+	out := make([]parser.Record, 0, len(actions))
+	for _, a := range actions {
+		out = append(out, a.ToRecord())
+	}
+	return out
+}
+
+// loadManifestDataFile parses one manifest XML path (view or menu layout) and syncs its content.
+func loadManifestDataFile(ctx context.Context, moduleName, xmlPath, relFile string, inheritQueue *[]parser.Record) []error {
+	parsedViewData, viewErr := parser.ParseViewList(xmlPath)
+	if viewErr == nil {
+		records := append([]parser.Record(nil), parsedViewData.Records...)
+		records = append(records, RecordsFromActions(parsedViewData.Actions)...)
+		if len(records) > 0 || len(parsedViewData.Views) > 0 || len(parsedViewData.MenuItems) > 0 {
+			processXMLRecords(ctx, moduleName, records, inheritQueue)
+			for i := range parsedViewData.Views {
+				upsertInlineViewDef(ctx, moduleName, &parsedViewData.Views[i])
+			}
+			if len(parsedViewData.MenuItems) > 0 {
+				syncMenusFromItems(ctx, moduleName, parsedViewData.MenuItems)
+			}
+			return nil
+		}
+	} else if !AllowMenuParseFallback(viewErr) {
+		return []error{RecoverableSync(moduleName, "ParseViewList "+relFile, viewErr)}
+	}
+
+	menuList, menuErr := parser.ParseMenuList(xmlPath)
+	if menuErr == nil {
+		records := append([]parser.Record(nil), menuList.Records...)
+		records = append(records, RecordsFromActions(menuList.Actions)...)
+		if len(menuList.MenuItems) > 0 || len(records) > 0 {
+			if len(menuList.MenuItems) > 0 {
+				syncMenusFromItems(ctx, moduleName, menuList.MenuItems)
+			}
+			processXMLRecords(ctx, moduleName, records, inheritQueue)
+			return nil
+		}
+		return nil
+	}
+
+	if viewErr != nil {
+		return []error{RecoverableSync(moduleName, "parse "+relFile,
+			fmt.Errorf("ParseViewList: %v; ParseMenuList: %v", viewErr, menuErr))}
+	}
+	return []error{RecoverableSync(moduleName, "ParseMenuList "+relFile, menuErr)}
+}
+
+func AllowMenuParseFallback(viewErr error) bool {
+	if viewErr == nil {
+		return true
+	}
+	msg := viewErr.Error()
+	// Invalid module root will fail menu parse the same way — do not double-warn.
+	if strings.Contains(msg, "module XML root must be") {
+		return false
+	}
+	return true
+}
+
 func (addon *Addon) SyncToDB(ctx context.Context) error {
 	moduleName := addon.Manifest.Name
 	var errs []error
@@ -95,38 +137,17 @@ func (addon *Addon) SyncToDB(ctx context.Context) error {
 	var inheritQueue []parser.Record
 
 	for _, xmlFile := range addon.Manifest.Data {
+		if strings.HasSuffix(strings.ToLower(strings.TrimSpace(xmlFile)), ".csv") {
+			continue // ACL CSV is loaded by syncCSVModelAccess above
+		}
 		xmlPath := filepath.Join(addon.Path, xmlFile)
 		if _, err := os.Stat(xmlPath); err != nil {
 			errs = append(errs, RecoverableSync(moduleName, "data file missing "+xmlFile, err))
 			continue
 		}
 
-		parsedViewData, err := parser.ParseViewList(xmlPath)
-		if err == nil {
-			hasContent := len(parsedViewData.Records) > 0 || len(parsedViewData.Views) > 0 ||
-				len(parsedViewData.MenuItems) > 0 || len(parsedViewData.Actions) > 0
-			if hasContent {
-				processXMLRecords(ctx, moduleName, parsedViewData.Records, &inheritQueue)
-				for _, viewDef := range parsedViewData.Views {
-					upsertInlineViewDef(ctx, moduleName, &viewDef)
-				}
-				if len(parsedViewData.MenuItems) > 0 {
-					syncMenusFromItems(ctx, moduleName, parsedViewData.MenuItems)
-				}
-				continue
-			}
-		} else {
-			errs = append(errs, RecoverableSync(moduleName, "ParseViewList "+xmlFile, err))
-		}
-
-		menuList, err := parser.ParseMenuList(xmlPath)
-		if err == nil {
-			if len(menuList.MenuItems) > 0 {
-				syncMenusFromItems(ctx, moduleName, menuList.MenuItems)
-			}
-			processXMLRecords(ctx, moduleName, menuList.Records, &inheritQueue)
-		} else if err != nil {
-			errs = append(errs, RecoverableSync(moduleName, "ParseMenuList "+xmlFile, err))
+		if fileErrs := loadManifestDataFile(ctx, moduleName, xmlPath, xmlFile, &inheritQueue); len(fileErrs) > 0 {
+			errs = append(errs, fileErrs...)
 		}
 	}
 

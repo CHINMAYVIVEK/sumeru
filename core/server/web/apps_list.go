@@ -34,6 +34,7 @@ type appsModule struct {
 type appsPageData struct {
 	Title          string
 	Message        string
+	CSRFToken      string
 	Modules        []appsModule
 	AppModules     []appsModule
 	TechModules    []appsModule
@@ -147,6 +148,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	data := appsPageData{
 		Title:          "Apps",
 		Message:        msg,
+		CSRFToken:      CSRFTokenForRequest(r),
 		Modules:        mods,
 		AppModules:     appMods,
 		TechModules:    techMods,
@@ -187,6 +189,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		ExtraStylesheetURLs: render.ExtraStylesheetURLs,
 		ViewTabs:            render.AppsViewTabs(layout, msg, moduleParam, filter, scope, searchQ),
 		BreadcrumbItems:     render.BuildAppsBreadcrumbs(r.Context(), listHref, detailTitle),
+		CSRFToken:           CSRFTokenForRequest(r),
 	}
 	if detail != nil {
 		page.ActivityContextModel = "sys.module"
@@ -198,5 +201,15 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Layout render error", http.StatusInternalServerError)
 		return
 	}
+	navFields := map[string]interface{}{
+		"layout": layout,
+		"filter": filter,
+		"scope":  scope,
+		"search": searchQ,
+	}
+	if moduleParam != "" {
+		navFields["module"] = moduleParam
+	}
+	WebLogNavigation(ctx, r.URL.Path, "apps_open", "Apps page opened", navFields)
 	writeHTML(w, ctx, r.URL.Path, html)
 }

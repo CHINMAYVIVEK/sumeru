@@ -126,6 +126,14 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	editing := strings.TrimSpace(r.URL.Query().Get("edit")) == "1"
 
 	vr := &render.ViewRecordData{ActionID: actionID}
+	vr.CSRFToken = CSRFTokenForRequest(r)
+	for _, f := range ConsumePageFlashes(r, w) {
+		vr.FlashMessages = append(vr.FlashMessages, render.FlashMessage{
+			Kind:  f.Kind,
+			Title: f.Title,
+			Body:  f.Body,
+		})
+	}
 	// ResModel + RecordID drive readonly vs edit (?edit=1) for workspace forms; keep both in sync whenever loading a record.
 	vr.ResModel = targetModel
 	vr.FormEditing = editing
@@ -182,6 +190,21 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	html := render.RenderView(r.Context(), view, menuID, config.AppConfig.TemplatesPath, vr)
+
+	recordID := 0
+	if idQ != "" {
+		if rid, err := strconv.Atoi(idQ); err == nil {
+			recordID = rid
+		}
+	}
+	WebLogNavigation(r.Context(), r.URL.Path, "view_open", "Workspace view opened", map[string]interface{}{
+		"menu_id":    menuID,
+		"action_id":  actionID,
+		"model":      targetModel,
+		"view_type":  selectedMode,
+		"record_id":  recordID,
+		"edit":       editing,
+	})
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(html))

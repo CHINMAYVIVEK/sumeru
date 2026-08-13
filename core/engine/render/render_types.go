@@ -82,6 +82,12 @@ type PageData struct {
 	// ExtraBodyClasses is appended to the shell body class list (leading space recommended, e.g. " sum-body--settings-hub").
 	ExtraBodyClasses string
 
+	// CSRFToken is injected into POST forms when the user is logged in.
+	CSRFToken string
+
+	// FlashMessages are one-time banners (e.g. newly created API key).
+	FlashMessages []FlashMessage
+
 	// Right activity panel: Log tab (audit); Messages tab HTML set in RenderView when chatter applies.
 	ActivityEnabled         bool
 	ActivityLogItems        []ActivityItem
@@ -94,6 +100,13 @@ type PageData struct {
 type ActivityItem struct {
 	Meta string // author · relative time
 	Body string
+}
+
+// FlashMessage is a one-time banner in the shell layout.
+type FlashMessage struct {
+	Kind  string
+	Title string
+	Body  string
 }
 
 // SidebarMenu is a sidebar group with child menu links.
@@ -117,4 +130,6 @@ type ViewRecordData struct {
 	FormEditing    bool   // true when URL contains edit=1
 	FormBaseQuery  string // query string for /web without leading "?" and without edit= (action, menu_id, view_type, id)
 	FormSaveAction string // POST URL; default "/web/record/save"
+	CSRFToken      string // per-session CSRF hidden field value
+	FlashMessages  []FlashMessage
 }

@@ -39,6 +39,16 @@ func RunObjectAction(ctx context.Context, model string, id int, method string, v
 	if model == "" || method == "" {
 		return "", fmt.Errorf("model and method are required")
 	}
+	if id <= 0 {
+		return "", fmt.Errorf("invalid record id")
+	}
+	uid := SecurityUID(ctx)
+	if err := CheckModelAccess(ctx, uid, model, "write"); err != nil {
+		return "", err
+	}
+	if _, err := SearchOne(ctx, model, map[string]interface{}{"id": id}); err != nil {
+		return "", fmt.Errorf("record not found")
+	}
 	objectActionMu.RLock()
 	var fn ObjectActionFunc
 	if byMethod := objectActions[model]; byMethod != nil {

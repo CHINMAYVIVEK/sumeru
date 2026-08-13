@@ -1,8 +1,7 @@
 package assets
 
 // DefaultStylesheetURLs is the ordered list of core CSS files for the web UI.
-// When adding a sheet: append here and add a row to the UI assets table in ../../../README.md (canonical).
-// sumeru-theme.css must load first (design tokens). Structural sheets use var(--sum-*).
+// sumeru-ai.css is omitted; append via AIStylesheetURL when the sumeru_ai module is installed.
 func DefaultStylesheetURLs() []string {
 	return []string{
 		"/static/css/sumeru-theme.css",
@@ -11,8 +10,12 @@ func DefaultStylesheetURLs() []string {
 		"/static/css/sumeru-messages.css",
 		"/static/css/sumeru-views.css",
 		"/static/css/sumeru-compat.css",
-		"/static/css/sumeru-ai.css",
 		"/static/css/sumeru-login.css",
 		"/static/css/sumeru-pages.css",
 	}
+}
+
+// AIStylesheetURL is the optional AI assistant stylesheet path.
+func AIStylesheetURL() string {
+	return "/static/css/sumeru-ai.css"
 }

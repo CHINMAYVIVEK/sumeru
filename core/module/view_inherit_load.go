@@ -20,7 +20,7 @@ func applySysUIViewInherit(context context.Context, moduleName string, xmlRecord
 	if strings.TrimSpace(architectureFragment) == "" {
 		return fmt.Errorf("arch missing on inherit record %q", xmlRecord.ID)
 	}
-	parentID, _, err := orm.ResolveXmlId(context, inheritReference)
+	parentID, err := resolveXMLIDInModule(context, moduleName, inheritReference)
 	if err != nil || parentID == 0 {
 		return fmt.Errorf("resolve inherit_id %q: %w", inheritReference, err)
 	}

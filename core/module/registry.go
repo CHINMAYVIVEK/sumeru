@@ -1,7 +1,6 @@
 package module
 
 import (
-	"sumeru/core/engine/parser"
 	"sync"
 )
 
@@ -10,8 +9,6 @@ var (
 	LoadedAddons = map[string]*Addon{}
 	// DiscoveredAddons contains all addons found on the filesystem during discovery.
 	DiscoveredAddons = map[string]*Addon{}
-	// MenuRegistry contains all menu items parsed from XML.
-	MenuRegistry = []parser.MenuItem{}
 	// installMu ensures serial execution of module install/uninstall/update operations.
 	installMu sync.Mutex
 )

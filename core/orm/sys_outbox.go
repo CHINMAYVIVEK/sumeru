@@ -58,11 +58,6 @@ func outboxValues(name string, actor int, payload map[string]interface{}) map[st
 	}
 }
 
-// EnqueueOutbox inserts an outbox row (best-effort; never fails the caller).
-func EnqueueOutbox(ctx context.Context, name string, actor int, payload map[string]interface{}) {
-	EnqueueOutboxTx(ctx, nil, name, actor, payload)
-}
-
 // EnqueueOutboxTx inserts on tx when non-nil.
 func EnqueueOutboxTx(ctx context.Context, tx TxWrapper, name string, actor int, payload map[string]interface{}) {
 	if name == "" {

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -27,6 +28,7 @@ type setupInitRequest struct {
 	AdminName   string `json:"admin_name"`
 	Email       string `json:"email"`
 	Password    string `json:"password"`
+	SetupToken  string `json:"setup_token"`
 }
 
 // SetupInitHandler runs database sync, installs base, bootstraps security from the JSON wizard payload, then restarts.
@@ -49,6 +51,9 @@ func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request)
 	var payload setupInitRequest
 	if err := json.Unmarshal(body, &payload); err != nil {
 		http.Error(responseWriter, "Expected JSON with company_name, lang, admin_name, email, password", http.StatusBadRequest)
+		return
+	}
+	if !allowSetupRequest(responseWriter, request, payload.SetupToken) {
 		return
 	}
 
@@ -106,6 +111,14 @@ func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request)
 // SetupPageHandler renders the setup page from templates/setup.html.
 func SetupPageHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	if orm.IsInitialized() {
+		http.Error(w, "Setup already completed", http.StatusForbidden)
+		return
+	}
+	if config.AppConfig.SetupLocalhostOnly && !isLoopbackIP(clientIP(r)) {
+		http.Error(w, "Setup is restricted to localhost", http.StatusForbidden)
+		return
+	}
 	tmplPath := filepath.Join(config.AppConfig.TemplatesPath, "setup.html")
 	tmpl, err := template.ParseFiles(tmplPath)
 	if err != nil {
@@ -117,11 +130,13 @@ func SetupPageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := struct {
-		DbName      string
-		Stylesheets []string
+		DbName             string
+		Stylesheets        []string
+		SetupTokenRequired bool
 	}{
-		DbName:      config.AppConfig.DbName,
-		Stylesheets: assets.DefaultStylesheetURLs(),
+		DbName:             config.AppConfig.DbName,
+		Stylesheets:        assets.DefaultStylesheetURLs(),
+		SetupTokenRequired: strings.TrimSpace(config.AppConfig.SetupToken) != "",
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.Execute(w, data); err != nil {

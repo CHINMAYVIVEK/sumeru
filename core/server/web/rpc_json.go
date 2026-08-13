@@ -57,6 +57,11 @@ func RPCJSONHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := orm.ContextWithUID(r.Context(), uid)
+	if cid := orm.CompanyIDFromContext(r.Context()); cid > 0 {
+		ctx = orm.ContextWithCompanyID(ctx, cid)
+	} else if uid > 0 {
+		ctx = orm.ContextWithCompanyID(ctx, orm.ActiveCompanyIDForUser(ctx, uid))
+	}
 	resp, status := api.Dispatch(ctx, body)
 
 	modelName, methodName := rpcModelMethod(body)

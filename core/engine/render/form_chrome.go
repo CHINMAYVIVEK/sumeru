@@ -25,8 +25,12 @@ func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, re
 				next = "/web?" + q
 			}
 		}
+		csrf := ""
+		if vr != nil {
+			csrf = vr.CSRFToken
+		}
 		for _, b := range h.Button {
-			writeObjectActionButton(sb, b, model, id, next, false)
+			writeObjectActionButton(sb, b, model, id, next, csrf, false)
 		}
 		sb.WriteString(`</div>`)
 	}
@@ -156,9 +160,13 @@ func renderFormFooter(sb *strings.Builder, ft *parser.Footer, vr *ViewRecordData
 			next = "/web?" + q
 		}
 	}
+	csrf := ""
+	if vr != nil {
+		csrf = vr.CSRFToken
+	}
 	sb.WriteString(`<div class="sum-form-footer" role="group" aria-label="Form actions">`)
 	for _, b := range ft.Button {
-		writeObjectActionButton(sb, b, model, id, next, true)
+		writeObjectActionButton(sb, b, model, id, next, csrf, true)
 	}
 	sb.WriteString(`</div>`)
 }

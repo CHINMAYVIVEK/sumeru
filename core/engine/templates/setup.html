@@ -66,6 +66,12 @@
 
         <section class="sum-setup-step" data-step="4" hidden>
             <p class="sum-setup-hint">Review</p>
+            {{if .SetupTokenRequired}}
+            <div class="field">
+                <label for="setup_token">Setup token</label>
+                <input id="setup_token" name="setup_token" type="password" autocomplete="off" required maxlength="200" placeholder="From sumeru.conf setup_token"/>
+            </div>
+            {{end}}
             <dl class="sum-setup-review">
                 <dt>Company</dt><dd id="rev_company"></dd>
                 <dt>Language</dt><dd id="rev_lang"></dd>
@@ -106,6 +112,7 @@
     const email = document.getElementById('email');
     const password = document.getElementById('password');
     const password2 = document.getElementById('password2');
+    const setupToken = document.getElementById('setup_token');
 
     const revCompany = document.getElementById('rev_company');
     const revLang = document.getElementById('rev_lang');
@@ -207,11 +214,18 @@
             email: email.value.trim(),
             password: password.value
         };
+        if (setupToken) {
+            payload.setup_token = setupToken.value;
+        }
 
         try {
+            var headers = { 'Content-Type': 'application/json' };
+            if (setupToken && setupToken.value) {
+                headers['X-Setup-Token'] = setupToken.value;
+            }
             var response = await fetch('/setup/init', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: headers,
                 body: JSON.stringify(payload)
             });
             var text = await response.text();

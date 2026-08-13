@@ -82,6 +82,13 @@ func PostMessage(ctx context.Context, model string, coreID int64, body, subtype,
 	if _, ok := orm.Registry[model]; !ok {
 		return fmt.Errorf("unknown model %q", model)
 	}
+	uid := orm.SecurityUID(ctx)
+	if err := orm.CheckModelAccess(ctx, uid, model, "write"); err != nil {
+		return err
+	}
+	if _, err := orm.SearchOne(ctx, model, map[string]interface{}{"id": int(coreID)}); err != nil {
+		return fmt.Errorf("record not found or access denied")
+	}
 	inst, ok := orm.Registry["mail.message"]
 	if !ok {
 		return fmt.Errorf("unknown model %q", "mail.message")
@@ -116,6 +123,12 @@ func ListCommentsForRecord(ctx context.Context, model string, coreID int64, limi
 	}
 	if _, ok := orm.Registry[model]; !ok {
 		return nil, fmt.Errorf("unknown model %q", model)
+	}
+	if err := orm.CheckModelAccess(ctx, orm.SecurityUID(ctx), model, "read"); err != nil {
+		return nil, err
+	}
+	if _, err := orm.SearchOne(ctx, model, map[string]interface{}{"id": int(coreID)}); err != nil {
+		return nil, fmt.Errorf("record not found or access denied")
 	}
 	if limit <= 0 || limit > 500 {
 		limit = 120

@@ -252,6 +252,8 @@ make run EXTRA_RUN_FLAGS='-u sales -p 9090'
 
 Use **`-u`** after changing `views/*.xml`, `menus.xml`, or `manifest.json` data lists for an already-installed module.
 
+**ACL CSV:** `security/sys.access.csv` is loaded automatically during sync; you do not need to list it in manifest `data` (XML entries only).
+
 ### Optional: Sumeru AI (`sumeru_ai`)
 
 `sumeru_ai` is **not** linked into the default server binary (`auto_import: false` in its manifest). The setup wizard and platform spine install **base** only; AI hooks (ORM interceptors, shell FAB) run only after you opt in:

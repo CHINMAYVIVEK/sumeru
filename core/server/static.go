@@ -21,6 +21,13 @@ import (
 func registerBrandingAndStatic() {
 	ctx := context.Background()
 	extraCSS := append([]string(nil), assets.DefaultStylesheetURLs()...)
+	if addonModuleInstalled("sumeru_ai") {
+		withAI := make([]string, 0, len(extraCSS)+1)
+		withAI = append(withAI, extraCSS[:6]...)
+		withAI = append(withAI, assets.AIStylesheetURL())
+		withAI = append(withAI, extraCSS[6:]...)
+		extraCSS = withAI
+	}
 
 	addonNames := make([]string, 0, len(module.LoadedAddons))
 	for name := range module.LoadedAddons {

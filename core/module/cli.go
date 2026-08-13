@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"sumeru/addons/mail"
 	"sumeru/core/applog"
 	"sumeru/core/orm"
 )
@@ -16,8 +15,7 @@ func UpdateModuleData(ctx context.Context, name string) error {
 	installMu.Lock()
 	defer installMu.Unlock()
 
-	a, ok := DiscoveredAddons[name]
-	if !ok {
+	if _, ok := DiscoveredAddons[name]; !ok {
 		return fmt.Errorf("unknown module %q", name)
 	}
 	row, err := moduleRow(ctx, name)
@@ -36,23 +34,7 @@ func UpdateModuleData(ctx context.Context, name string) error {
 		// e.g. -u all while a leaf is marked installed without its deps — skip reload (no DB churn).
 		return nil
 	}
-	if err := setModuleStateOnly(ctx, name, "to_upgrade"); err != nil {
-		return err
-	}
-	if err := orm.SyncRegistrySchemaForModule(name); err != nil {
-		return fmt.Errorf("schema sync: %w", err)
-	}
-	if err := deleteModuleMetadata(ctx, name); err != nil {
-		return err
-	}
-	if err := a.SyncToDB(ctx); err != nil {
-		return err
-	}
-	if err := setModuleStateOnly(ctx, name, "installed"); err != nil {
-		return err
-	}
-	mail.LogModuleEvent(ctx, name, "Updated", "module data reloaded")
-	return nil
+	return reloadModuleData(ctx, name, moduleReloadUpdate)
 }
 
 // RunModuleCLI runs -i (install) and -u (update) lists. Install runs before update.
@@ -154,6 +136,10 @@ func expandUpdateModuleNames(ctx context.Context, parts []string) ([]string, err
 		}
 		// Explicitly named module in -u
 		if _, ok := seen[p]; ok {
+			continue
+		}
+		if _, onDisk := DiscoveredAddons[p]; !onDisk {
+			syncWarn(ctx, "Warning: module %q is installed in DB but not on disk — skipped for -u", p)
 			continue
 		}
 		// Check if it's actually installed

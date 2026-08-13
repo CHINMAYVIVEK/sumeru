@@ -1,6 +1,10 @@
-package module
+package module_test
 
-import "testing"
+import (
+	"testing"
+
+	"sumeru/core/module"
+)
 
 func TestInferSysViewTypeFromArch(t *testing.T) {
 	tests := []struct {
@@ -15,8 +19,8 @@ func TestInferSysViewTypeFromArch(t *testing.T) {
 		{"<unknown/>", ""},
 	}
 	for _, tt := range tests {
-		if got := inferSysViewTypeFromArch(tt.arch); got != tt.want {
-			t.Errorf("inferSysViewTypeFromArch(%q) = %q; want %q", tt.arch, got, tt.want)
+		if got := module.InferSysViewTypeFromArch(tt.arch); got != tt.want {
+			t.Errorf("InferSysViewTypeFromArch(%q) = %q; want %q", tt.arch, got, tt.want)
 		}
 	}
 }

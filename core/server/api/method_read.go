@@ -21,10 +21,18 @@ func rpcRead(ctx context.Context, model string, args json.RawMessage) (interface
 	if err := json.Unmarshal(arr[0], &ids); err != nil {
 		return nil, newRPCError(CodeInvalidArgs, fmt.Sprintf("ids: %v", err), map[string]interface{}{"method": "read"})
 	}
+	if err := capRPCIDs(ids); err != nil {
+		return nil, err
+	}
 	var fields []string
 	if len(arr) >= 2 && len(arr[1]) > 0 && string(arr[1]) != "null" {
 		if err := json.Unmarshal(arr[1], &fields); err != nil {
 			return nil, newRPCError(CodeInvalidArgs, fmt.Sprintf("args[1] fields: %v", err), map[string]interface{}{"method": "read"})
+		}
+	}
+	if len(fields) > 0 {
+		if err := orm.CheckFieldReadAccess(ctx, orm.SecurityUID(ctx), model, fields); err != nil {
+			return nil, err
 		}
 	}
 	var out []map[string]interface{}

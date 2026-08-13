@@ -2,7 +2,6 @@ package web
 
 import (
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -10,7 +9,7 @@ import (
 )
 
 // ActionCreateAPIKey generates a one-time raw API key for a user (POST user_id, name).
-// The raw key is returned once via the redirect query param api_key (show immediately in UI).
+// The raw key is returned once via an HttpOnly flash cookie (never in redirect URLs).
 func ActionCreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	if !requireLoginAndPOST(w, r) {
 		return
@@ -36,5 +35,6 @@ func ActionCreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(next, "?") {
 		sep = "&"
 	}
-	http.Redirect(w, r, next+sep+"msg=api_key_created&api_key="+url.QueryEscape(raw), http.StatusSeeOther)
+	SetAPIKeyFlash(w, raw)
+	http.Redirect(w, r, next+sep+"msg=api_key_created", http.StatusSeeOther)
 }

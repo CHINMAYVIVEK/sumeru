@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"sumeru/core/orm"
+	"sumeru/core/server/config"
 )
 
 const sessionCookieName = "sumeru_session"
@@ -42,6 +43,7 @@ func CreateSession(w http.ResponseWriter, userID int) error {
 		MaxAge:   int(sessionDuration.Seconds()),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
+		Secure:   !config.AppConfig.DevMode,
 	})
 	return nil
 }
@@ -55,6 +57,7 @@ func ClearSessionCookie(w http.ResponseWriter) {
 		MaxAge:   -1,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
+		Secure:   !config.AppConfig.DevMode,
 	})
 }
 

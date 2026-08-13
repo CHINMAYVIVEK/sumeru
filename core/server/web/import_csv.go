@@ -26,6 +26,9 @@ func ImportCSVHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
 	}
+	if !validateSessionCSRF(w, r) {
+		return
+	}
 	model := strings.TrimSpace(r.FormValue("model"))
 	if model == "" {
 		http.Error(w, "model required", http.StatusBadRequest)

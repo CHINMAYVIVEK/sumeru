@@ -91,6 +91,11 @@ func HomeDashboardHandler(w http.ResponseWriter, r *http.Request) {
 			BreadcrumbItems:      render.BuildHomeDashboardBreadcrumbs(ctx),
 		},
 	})
+	WebLogNavigation(ctx, r.URL.Path, "module_hub", "Home dashboard opened", map[string]interface{}{
+		"menu_id":    menuIDStr,
+		"tile_count": len(tiles),
+		"search":     searchQ,
+	})
 }
 
 // homeSearchMatches returns true if every whitespace-separated token in q appears

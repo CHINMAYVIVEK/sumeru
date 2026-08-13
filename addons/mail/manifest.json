@@ -7,7 +7,6 @@
   "depends": ["base"],
   "application": false,
   "data": [
-    "security/sys.access.csv",
     "views/mail_message_views.xml",
     "views/menus.xml"
   ]

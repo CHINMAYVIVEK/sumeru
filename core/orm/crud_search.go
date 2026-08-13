@@ -69,6 +69,7 @@ func execSearchQuery(ctx context.Context, modelName string, domain [][]interface
 		if err != nil {
 			return nil, err
 		}
+		RedactRecordForRead(ctx, uid, modelName, m)
 		results = append(results, m)
 	}
 	return results, rows.Err()

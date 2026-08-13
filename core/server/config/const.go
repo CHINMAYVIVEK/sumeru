@@ -33,6 +33,8 @@ const (
 	keyLogEnabled         = "log_enabled"
 	keyLogTimezone        = "log_timezone"
 	keyDevMode            = "dev_mode"
+	keySetupToken         = "setup_token"
+	keySetupLocalhostOnly = "setup_localhost_only"
 )
 
 const (

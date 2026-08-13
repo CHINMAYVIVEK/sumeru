@@ -28,6 +28,12 @@ manifest.json keys
   application    bool     — optional; default true. false = hidden from Apps cards (e.g. base)
   data           []string — paths relative to addon root; XML load order is list order
 
+ACL CSV (sys.access)
+--------------------
+  Model access rules load from security/sys.access.csv (or sys.access.csv at the addon root)
+  automatically during module sync. Listing the CSV in manifest data is optional and is not
+  parsed as XML (Odoo-style manifests may still include it for documentation only).
+
 Multiple addon roots (sumeru.conf)
 ----------------------------------
   addons_path = addons,/opt/sumeru/extra-addons

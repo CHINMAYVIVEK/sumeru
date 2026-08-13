@@ -62,3 +62,18 @@ func UserAllowedCompany(ctx context.Context, uid int, cid int64) bool {
 	}
 	return false
 }
+
+// ActiveCompanyIDForUser reads core.user.company_id directly (no ORM Search/log path).
+func ActiveCompanyIDForUser(ctx context.Context, uid int) int64 {
+	if uid <= 0 || DB == nil {
+		return 0
+	}
+	var companyID sql.NullInt64
+	_ = DB.QueryRowContext(ctx,
+		`SELECT company_id FROM `+MustQuotedTableName("core.user")+` WHERE id = $1`, uid,
+	).Scan(&companyID)
+	if !companyID.Valid {
+		return 0
+	}
+	return companyID.Int64
+}

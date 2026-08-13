@@ -59,6 +59,9 @@ func SecurityMiddleware(next http.Handler) http.Handler {
 		ctx := applog.ContextWithRequestID(r.Context(), rid)
 		uid := AuthenticatedUserID(r)
 		ctx = orm.ContextWithUID(ctx, uid)
+		if uid > 0 {
+			ctx = orm.ContextWithCompanyID(ctx, orm.ActiveCompanyIDForUser(ctx, uid))
+		}
 		r = r.WithContext(ctx)
 
 		applog.Debug(ctx, applog.Event{
