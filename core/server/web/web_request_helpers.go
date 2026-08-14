@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"sumeru/core/applog"
@@ -70,6 +71,20 @@ func SafeWebNext(raw, fallback string) string {
 	return s
 }
 
+// redirectWithWebMessage redirects to a safe /web path with a msg query parameter.
+func redirectWithWebMessage(w http.ResponseWriter, r *http.Request, rawNext, message string) {
+	next := SafeWebNext(rawNext, homeRoute)
+	parsed, err := url.Parse(next)
+	if err != nil {
+		http.Redirect(w, r, homeRoute+"?msg="+url.QueryEscape(message), http.StatusSeeOther)
+		return
+	}
+	query := parsed.Query()
+	query.Set("msg", message)
+	parsed.RawQuery = query.Encode()
+	http.Redirect(w, r, parsed.String(), http.StatusSeeOther)
+}
+
 func RequirePOST(w http.ResponseWriter, r *http.Request) bool {
 	if r.Method == http.MethodPost {
 		return true
@@ -92,7 +107,36 @@ func requireLoginAndPOST(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	if !ValidateCSRF(r) {
-		http.Error(w, "Invalid CSRF token", http.StatusForbidden)
+		http.Error(w, invalidCSRFMessage, http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+// requireLoginJSONPost checks login, POST method, and CSRF for JSON API handlers.
+func requireLoginJSONPost(w http.ResponseWriter, r *http.Request) bool {
+	if !requireLogin(w, r) || !RequirePOST(w, r) {
+		return false
+	}
+	if !ValidateCSRF(r) {
+		http.Error(w, invalidCSRFMessage, http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+// requireLoginMultipartPost checks login, POST method, CSRF, and parses a bounded multipart form.
+func requireLoginMultipartPost(w http.ResponseWriter, r *http.Request, maxBytes int64) bool {
+	if !requireLogin(w, r) || !RequirePOST(w, r) {
+		return false
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+	if err := r.ParseMultipartForm(maxBytes); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return false
+	}
+	if !ValidateCSRF(r) {
+		http.Error(w, invalidCSRFMessage, http.StatusForbidden)
 		return false
 	}
 	return true
@@ -100,7 +144,7 @@ func requireLoginAndPOST(w http.ResponseWriter, r *http.Request) bool {
 
 func validateSessionCSRF(w http.ResponseWriter, r *http.Request) bool {
 	if !ValidateCSRF(r) {
-		http.Error(w, "Invalid CSRF token", http.StatusForbidden)
+		http.Error(w, invalidCSRFMessage, http.StatusForbidden)
 		return false
 	}
 	return true
