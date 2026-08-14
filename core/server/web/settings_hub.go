@@ -1,8 +1,8 @@
 package web
 
 import (
-	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"sumeru/core/engine/render"
@@ -48,7 +48,7 @@ func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/web/apps", http.StatusFound)
 		return
 	}
-	menuIDStr := fmt.Sprintf("%d", rootID)
+	menuIDStr := strconv.Itoa(rootID)
 
 	_, sidebarMenus, _, _ := render.LoadShellMenus(ctx, menuIDStr)
 	var sections []settingsHubSection
@@ -75,21 +75,14 @@ func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	raw, err := loadInstalledAppTiles(ctx, "")
+	appTiles, err := loadInstalledAppTiles(ctx, false)
 	if err != nil {
 		WebLogEvent(ctx, r.URL.Path, "Failed to list modules for settings hub", "load", "failure", err, nil)
 		http.Error(w, "Failed to list modules", http.StatusInternalServerError)
 		return
 	}
-	var appTiles []settingsHubAppTile
-	for _, t := range raw {
-		appTiles = append(appTiles, t)
-	}
 
-	companiesHref := ""
-	if mid, _, err := orm.ResolveXmlId(ctx, "base.menu_company_companies"); err == nil && mid > 0 {
-		companiesHref = fmt.Sprintf("/web?menu_id=%d", mid)
-	}
+	companiesHref := menuHrefFromXMLID(ctx, "base.menu_company_companies")
 
 	renderShellPage(w, r, shellPageOpts{
 		Route:         r.URL.Path,

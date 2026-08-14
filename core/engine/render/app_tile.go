@@ -2,6 +2,9 @@ package render
 
 import "strings"
 
+// DefaultAppIconURL is the fallback module tile image on the home dashboard.
+const DefaultAppIconURL = "/static/img/projectmeru_icon.png"
+
 // AppTile describes an installed application module for home/settings hub tiles.
 type AppTile struct {
 	Name         string
@@ -11,6 +14,8 @@ type AppTile struct {
 	Author       string
 	IconLetter   string
 	IconHue      int // 0–359 HSL hue for per-app icon tint
+	IconURL      string // /static/module-icon/<module> when manifest icon file exists
+	WebIcon      string // root menu sprite key fallback
 	OpenMenuHref string
 }
 

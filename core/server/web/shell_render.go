@@ -27,7 +27,8 @@ func renderShellPage(w http.ResponseWriter, r *http.Request, opts shellPageOpts)
 		route = r.URL.Path
 	}
 	innerPath := filepath.Join(config.AppConfig.TemplatesPath, opts.InnerTemplate)
-	tmpl, err := template.ParseFiles(innerPath)
+	partialsPath := filepath.Join(config.AppConfig.TemplatesPath, "shell_partials.html")
+	tmpl, err := template.ParseFiles(innerPath, partialsPath)
 	if err != nil {
 		WebLogEvent(ctx, route, "Failed to parse inner template", "render", "failure", err,
 			map[string]interface{}{"template": opts.InnerTemplate})
@@ -50,6 +51,9 @@ func renderShellPage(w http.ResponseWriter, r *http.Request, opts shellPageOpts)
 	page.TopMenus = topMenus
 	page.SidebarMenus = sidebarMenus
 	page.ActiveModuleID = activeModuleID
+	if !page.SuppressSidebar && !render.SidebarHasMenus(sidebarMenus) {
+		page.SuppressSidebar = true
+	}
 	if page.ModuleName == "" {
 		page.ModuleName = moduleName
 	}
