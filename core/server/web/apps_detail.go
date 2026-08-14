@@ -44,7 +44,10 @@ func loadAppsModuleDetail(
 
 	// Action flags come from the pre-built list entry when available (same rules as the grid/list).
 	listEntry, _ := findAppsModule(listedModules, parsed.Name)
-	browseQuery := appsBrowseQuery(layout, filter, scope, searchQuery)
+	browse := appsBrowseState{
+		Layout: layout, Filter: filter, Scope: scope, SearchQuery: searchQuery,
+	}
+	browseQuery := appsBrowseQuery(browse)
 
 	detail = &appsModuleDetailVM{
 		Layout:        layout,
@@ -62,8 +65,8 @@ func loadAppsModuleDetail(
 		CanDeactivate: listEntry.CanDeactivate,
 		CanActivate:   listEntry.CanActivate,
 		BackAppsQuery: browseQuery,
-		EditURL:       appsDetailURL(layout, filter, scope, searchQuery, parsed.Name, true),
-		CancelURL:     appsDetailURL(layout, filter, scope, searchQuery, parsed.Name, false),
+		EditURL:       appsDetailPageURL(withModuleName(browse, parsed.Name), true),
+		CancelURL:     appsDetailPageURL(withModuleName(browse, parsed.Name), false),
 	}
 	breadcrumb = "Apps · " + detail.DisplayName
 	return detail, breadcrumb, true

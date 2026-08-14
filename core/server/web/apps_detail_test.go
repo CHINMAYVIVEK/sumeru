@@ -1,12 +1,13 @@
-package web
+package web_test
 
 import (
 	"net/url"
+	"sumeru/core/server/web"
 	"testing"
 )
 
 func TestAppsDetailURL(t *testing.T) {
-	assertQueryContains(t, appsDetailURL("grid", "installed", "apps", "crm", "sale", true), map[string]string{
+	assertQueryContains(t, web.AppsDetailURL("grid", "installed", "apps", "crm", "sale", true), map[string]string{
 		"layout": "grid",
 		"filter": "installed",
 		"scope":  "apps",
@@ -15,7 +16,7 @@ func TestAppsDetailURL(t *testing.T) {
 		"edit":   "1",
 	})
 
-	assertQueryContains(t, appsDetailURL("list", "all", "all", "", "base", false), map[string]string{
+	assertQueryContains(t, web.AppsDetailURL("list", "all", "all", "", "base", false), map[string]string{
 		"layout": "list",
 		"module": "base",
 	})
@@ -41,15 +42,15 @@ func assertQueryContains(t *testing.T, rawURL string, want map[string]string) {
 }
 
 func TestFindAppsModule(t *testing.T) {
-	modules := []appsModule{
+	modules := []web.AppsModule{
 		{Name: "sale", CanInstall: false},
 		{Name: "crm", CanInstall: true},
 	}
-	found, ok := findAppsModule(modules, "crm")
+	found, ok := web.FindAppsModule(modules, "crm")
 	if !ok || !found.CanInstall {
 		t.Fatalf("expected crm entry, got %+v ok=%v", found, ok)
 	}
-	_, ok = findAppsModule(modules, "missing")
+	_, ok = web.FindAppsModule(modules, "missing")
 	if ok {
 		t.Fatal("expected false for missing module")
 	}

@@ -74,7 +74,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	listHref := appsLink(browse.Layout, browse.Filter, browse.Scope, browse.SearchQuery)
+	listHref := appsLinkFromBrowse(browse)
 	detailTitle := ""
 	if detail != nil {
 		detailTitle = detail.DisplayName
@@ -116,7 +116,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 			Filter:         browse.Filter,
 			Scope:          browse.Scope,
 			Search:         browse.SearchQuery,
-			Nav:            buildAppsNavVM(browse.Layout, browse.Filter, browse.Scope, browse.SearchQuery),
+			Nav:            buildAppsNavVM(browse),
 			ModuleDetail:   detail,
 			ViewBreadcrumb: breadcrumb,
 		},

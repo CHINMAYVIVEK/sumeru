@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -12,7 +11,7 @@ import (
 	"sumeru/core/orm"
 )
 
-// ModuleActionHandler handles POST actions: install, uninstall, activate, deactivate, save.
+// ModuleActionHandler handles POST install, uninstall, activate, deactivate, and save on sys.module.
 func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLoginAndPOST(w, r) {
 		return
@@ -21,92 +20,115 @@ func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	browse := parseAppsBrowseStateFromForm(r)
-	action := strings.TrimSpace(r.FormValue("do"))
-	moduleName := strings.TrimSpace(r.FormValue("module"))
-	if moduleName == "" {
-		http.Redirect(w, r, appsRedirectURL("missing_module", browse), http.StatusSeeOther)
+	form := parseModuleActionForm(r)
+	if form.ModuleName == "" {
+		redirectToAppsList(w, r, moduleMsgMissingModule, form.Browse)
 		return
 	}
 
-	switch action {
+	switch form.Action {
 	case moduleActionSaveModule:
-		if err := saveModuleFromForm(r); err != nil {
-			http.Redirect(w, r, appsRedirectURL(err.Error(), browse), http.StatusSeeOther)
-			return
-		}
-		saveBrowse := browse
-		saveBrowse.ModuleName = moduleName
-		http.Redirect(w, r, appsDetailRedirectURL("saved", saveBrowse), http.StatusSeeOther)
-		return
+		handleModuleSaveAction(w, r, form)
 	case moduleActionInstall, moduleActionUninstall, moduleActionDeactivate, moduleActionActivate:
-		message, err := runModuleLifecycleAction(r.Context(), action, moduleName)
-		if err != nil {
-			http.Redirect(w, r, appsRedirectURL(err.Error(), browse), http.StatusSeeOther)
-			return
-		}
-		WebLogNavigation(r.Context(), moduleActionRoute, "module_action", "Module action completed", map[string]interface{}{
-			"do":     action,
-			"module": moduleName,
-		})
-		http.Redirect(w, r, appsRedirectURL(message, browse), http.StatusSeeOther)
-		return
+		handleModuleLifecycleAction(w, r, form)
 	default:
-		http.Redirect(w, r, appsRedirectURL("unknown_action", browse), http.StatusSeeOther)
+		redirectToAppsList(w, r, moduleMsgUnknownAction, form.Browse)
 	}
 }
 
-// appsDetailRedirectURL redirects back to a module detail view after save.
-func appsDetailRedirectURL(message string, browse appsBrowseState) string {
-	query := url.Values{}
-	if strings.TrimSpace(message) != "" {
-		query.Set("msg", strings.TrimSpace(message))
-	}
-	appendAppsQueryBase(query, browse.Layout, browse.Filter, browse.Scope, browse.SearchQuery)
-	query.Set("module", browse.ModuleName)
-	return appsRoute + "?" + query.Encode()
+type moduleActionForm struct {
+	Action     string
+	ModuleName string
+	Browse     appsBrowseState
 }
 
-func runModuleLifecycleAction(ctx context.Context, action, moduleName string) (message string, err error) {
+func parseModuleActionForm(r *http.Request) moduleActionForm {
+	return moduleActionForm{
+		Action:     strings.TrimSpace(r.FormValue(moduleActionField)),
+		ModuleName: strings.TrimSpace(r.FormValue(moduleNameField)),
+		Browse:     parseAppsBrowseStateFromForm(r),
+	}
+}
+
+func redirectToAppsList(w http.ResponseWriter, r *http.Request, message string, browse appsBrowseState) {
+	http.Redirect(w, r, appsRedirectURL(message, browse), http.StatusSeeOther)
+}
+
+func redirectToAppsDetail(w http.ResponseWriter, r *http.Request, message string, browse appsBrowseState) {
+	http.Redirect(w, r, appsDetailRedirectURL(message, browse), http.StatusSeeOther)
+}
+
+func handleModuleSaveAction(w http.ResponseWriter, r *http.Request, form moduleActionForm) {
+	if err := saveModuleFromForm(r, form.ModuleName); err != nil {
+		redirectToAppsList(w, r, err.Error(), form.Browse)
+		return
+	}
+	redirectToAppsDetail(w, r, moduleMsgSaved, withModuleName(form.Browse, form.ModuleName))
+}
+
+func handleModuleLifecycleAction(w http.ResponseWriter, r *http.Request, form moduleActionForm) {
+	flashMessage, err := runModuleLifecycleAction(r.Context(), form.Action, form.ModuleName)
+	if err != nil {
+		redirectToAppsList(w, r, err.Error(), form.Browse)
+		return
+	}
+	WebLogNavigation(r.Context(), moduleActionRoute, "module_action", "Module action completed", map[string]interface{}{
+		"do":     form.Action,
+		"module": form.ModuleName,
+	})
+	redirectToAppsList(w, r, flashMessage, form.Browse)
+}
+
+func runModuleLifecycleAction(ctx context.Context, action, moduleName string) (flashMessage string, err error) {
+	var run func(context.Context, string) error
+	var outcomeVerb string
+
 	switch action {
 	case moduleActionInstall:
-		err = module.InstallModuleByName(ctx, moduleName)
-		message = "installed_" + moduleName
+		run = module.InstallModuleByName
+		outcomeVerb = "installed"
 	case moduleActionUninstall:
-		err = module.UninstallModuleByName(ctx, moduleName)
-		message = "uninstalled_" + moduleName
+		run = module.UninstallModuleByName
+		outcomeVerb = "uninstalled"
 	case moduleActionDeactivate:
-		err = module.SetModuleActive(ctx, moduleName, false)
-		message = "deactivated_" + moduleName
+		run = func(ctx context.Context, name string) error {
+			return module.SetModuleActive(ctx, name, false)
+		}
+		outcomeVerb = "deactivated"
 	case moduleActionActivate:
-		err = module.SetModuleActive(ctx, moduleName, true)
-		message = "activated_" + moduleName
+		run = func(ctx context.Context, name string) error {
+			return module.SetModuleActive(ctx, name, true)
+		}
+		outcomeVerb = "activated"
 	default:
-		return "", fmt.Errorf("unknown_action")
+		return "", fmt.Errorf(moduleMsgUnknownAction)
 	}
-	return message, err
+
+	if err = run(ctx, moduleName); err != nil {
+		return "", err
+	}
+	return outcomeVerb + "_" + moduleName, nil
 }
 
-func saveModuleFromForm(r *http.Request) error {
-	moduleName := strings.TrimSpace(r.FormValue("module"))
-	if moduleName == "" {
-		return fmt.Errorf("missing_module")
-	}
-	recordID, err := strconv.Atoi(strings.TrimSpace(r.FormValue("module_row_id")))
+func saveModuleFromForm(r *http.Request, moduleName string) error {
+	recordID, err := strconv.Atoi(strings.TrimSpace(r.FormValue(moduleRowIDField)))
 	if err != nil || recordID <= 0 {
-		return fmt.Errorf("invalid_module_row")
+		return fmt.Errorf(moduleMsgInvalidModuleRow)
 	}
+
 	row, err := orm.SearchOne(r.Context(), appsModuleModel, map[string]interface{}{"id": recordID})
 	if err != nil {
-		return fmt.Errorf("module_not_found")
+		return fmt.Errorf(moduleMsgModuleNotFound)
 	}
-	if strings.TrimSpace(orm.AsString(row["name"])) != moduleName {
-		return fmt.Errorf("module_mismatch")
+
+	parsed, ok := parseModuleRow(row)
+	if !ok || parsed.Name != moduleName {
+		return fmt.Errorf(moduleMsgModuleMismatch)
 	}
-	values := map[string]interface{}{
-		"display_name": strings.TrimSpace(r.FormValue("display_name")),
-		"author":       strings.TrimSpace(r.FormValue("author")),
-		"description":  strings.TrimSpace(r.FormValue("description")),
-	}
-	return orm.UpdateRecordByID(r.Context(), appsModuleModel, recordID, values)
+
+	return orm.UpdateRecordByID(r.Context(), appsModuleModel, recordID, map[string]interface{}{
+		"display_name": strings.TrimSpace(r.FormValue(moduleDisplayNameField)),
+		"author":       strings.TrimSpace(r.FormValue(moduleAuthorField)),
+		"description":  strings.TrimSpace(r.FormValue(moduleDescriptionField)),
+	})
 }

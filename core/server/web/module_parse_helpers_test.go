@@ -1,13 +1,14 @@
-package web
+package web_test
 
 import (
+	"sumeru/core/server/web"
 	"testing"
 
 	"sumeru/core/orm"
 )
 
 func TestParseModuleRowFields(t *testing.T) {
-	row, ok := parseModuleRow(map[string]interface{}{
+	row, ok := web.ParseModuleRow(map[string]interface{}{
 		"name":         "sale",
 		"display_name": "Sales",
 		"author":       "Meru",
@@ -29,7 +30,7 @@ func TestParseModuleRowFields(t *testing.T) {
 }
 
 func TestParseModuleRowMissingName(t *testing.T) {
-	_, ok := parseModuleRow(map[string]interface{}{
+	_, ok := web.ParseModuleRow(map[string]interface{}{
 		"display_name": "No technical name",
 	})
 	if ok {
@@ -38,7 +39,7 @@ func TestParseModuleRowMissingName(t *testing.T) {
 }
 
 func TestModuleDisplayNameFallback(t *testing.T) {
-	if got := moduleDisplayName("crm", orm.AsString(nil)); got != "crm" {
+	if got := web.ModuleDisplayName("crm", orm.AsString(nil)); got != "crm" {
 		t.Fatalf("got %q", got)
 	}
 }

@@ -24,7 +24,7 @@ func loadInstalledAppTiles(ctx context.Context, forHome bool) ([]render.AppTile,
 		if !ok || !parsed.Application || parsed.State != "installed" || !parsed.Active {
 			continue
 		}
-		openHref := "/web/apps"
+		openHref := appsRoute
 		if menuID := render.RootMenuIDForModule(ctx, parsed.Name); menuID > 0 {
 			openHref = menuHrefFromMenuID(menuID)
 		}
