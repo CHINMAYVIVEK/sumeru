@@ -5,12 +5,15 @@ import (
 	"strings"
 )
 
+// Security-related join tables and indexes (M2M groups, companies, implied groups).
+//
+// Complements column sync in schema_sync.go; these tables are not full ORM models.
+
 // EnsureSecurityJoinIndexes creates composite unique indexes for M2M-style tables.
 func EnsureSecurityJoinIndexes() error {
 	if DB == nil {
 		return nil
 	}
-	// 1. Ensure Join Tables exist
 	joinTables := []string{
 		`CREATE TABLE IF NOT EXISTS ` + MustQuotedTableName(tableGroupUserRel) + ` (user_id BIGINT NOT NULL, group_id BIGINT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS ` + MustQuotedTableName(tableGroupImplied) + ` (group_id BIGINT NOT NULL, implied_group_id BIGINT NOT NULL)`,
@@ -23,14 +26,13 @@ func EnsureSecurityJoinIndexes() error {
 		}
 	}
 
-	// 2. Ensure Composite Unique Indexes
-	stmts := []string{
+	indexStatements := []string{
 		`CREATE UNIQUE INDEX IF NOT EXISTS core_group_users_rel_user_group_uq ON ` + MustQuotedTableName(tableGroupUserRel) + ` (user_id, group_id)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS core_group_implied_gid_hid_uq ON ` + MustQuotedTableName(tableGroupImplied) + ` (group_id, implied_group_id)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS sys_rule_group_rel_rule_group_uq ON ` + MustQuotedTableName(tableRuleGroupRel) + ` (rule_id, group_id)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS core_user_company_rel_uq ON ` + MustQuotedTableName(tableUserCompanyRel) + ` (user_id, company_id)`,
 	}
-	for _, q := range stmts {
+	for _, q := range indexStatements {
 		if _, err := DB.Exec(q); err != nil {
 			return fmt.Errorf("%s: %w", q, err)
 		}

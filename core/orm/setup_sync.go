@@ -6,6 +6,13 @@ import (
 	"sort"
 )
 
+// Scoped schema sync for initial /setup and per-module install/update.
+//
+// InitialSetupModelNames limits table creation during setup wizard; full registry sync
+// runs on normal startup via SyncRegistrySchema in schema_sync.go.
+
+// --- Setup model lists ---
+
 // InitialSetupModelNames lists ORM models whose tables are created during /setup/init
 // (platform metadata + base addon core models only). Other addon models are synced on
 // normal startup or when their module is installed, once they appear in the binary.

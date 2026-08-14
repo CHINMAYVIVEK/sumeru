@@ -9,12 +9,14 @@ import (
 	"sumeru/core/applog"
 )
 
-// SyncRegistrySchema adds missing columns and indexes for every model in Registry
-// by comparing FieldDefinition to information_schema (PostgreSQL). Safe on populated tables:
-// new columns are nullable unless a DEFAULT is declared (booleans, defaults).
+// Additive DDL from model FieldDefinition definitions (PostgreSQL information_schema).
 //
-// Call after SyncModels() on startup, and on module install (-i) / update (-u) so schema
-// tracks Go model definitions without hand-written ALTER lists.
+// Compares registered models to live columns and creates missing columns/indexes.
+// For one-off repairs and legacy upgrades, see schema_migrate.go.
+//
+// Called after SyncModels() on startup and on module install (-i) / update (-u).
+
+// SyncRegistrySchema adds missing columns and indexes for every model in Registry.
 func SyncRegistrySchema() error {
 	if DB == nil {
 		return nil
@@ -187,18 +189,6 @@ func pgIdentOK(name string) bool {
 	return true
 }
 
-func tableExists(tableName string) (bool, error) {
-	var n int
-	err := DB.QueryRow(`
-		SELECT COUNT(*) FROM information_schema.tables
-		WHERE table_schema = 'public' AND table_name = $1
-	`, tableName).Scan(&n)
-	if err != nil {
-		return false, err
-	}
-	return n > 0, nil
-}
-
 func loadTableColumns(tableName string) (map[string]struct{}, error) {
 	rows, err := DB.Query(`
 		SELECT column_name FROM information_schema.columns
@@ -240,32 +230,4 @@ func FormatAddColumnDefinition(f FieldDefinition, baseType string) string {
 		return baseType + " DEFAULT " + lit
 	}
 	return baseType
-}
-
-func sqlDefaultLiteral(v interface{}) (string, bool) {
-	if v == nil {
-		return "", false
-	}
-	switch t := v.(type) {
-	case bool:
-		if t {
-			return "TRUE", true
-		}
-		return "FALSE", true
-	case int:
-		return fmt.Sprintf("%d", t), true
-	case int64:
-		return fmt.Sprintf("%d", t), true
-	case float32:
-		return fmt.Sprintf("%g", float64(t)), true
-	case float64:
-		return fmt.Sprintf("%g", t), true
-	case string:
-		if strings.Contains(t, ";") || strings.Contains(t, "--") || strings.Contains(t, "/*") {
-			return "", false
-		}
-		return "'" + strings.ReplaceAll(t, "'", "''") + "'", true
-	default:
-		return "'" + strings.ReplaceAll(fmt.Sprint(t), "'", "''") + "'", true
-	}
 }

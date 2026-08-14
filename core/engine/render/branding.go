@@ -14,6 +14,7 @@ import (
 
 // AppDisplayName is the product name shown in the shell, document title, and manifests.
 const AppDisplayName = "Sumeru"
+const AppDocumentationURL = "https://projectmeru.github.io/sumeru/docs/"
 
 // ShellBranding is header chrome (logo + labels) set once at process start from config.
 type ShellBranding struct {
@@ -47,11 +48,17 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 	if strings.TrimSpace(d.BrandLockupHref) == "" {
 		d.BrandLockupHref = "/web/home"
 	}
+	if strings.TrimSpace(d.HomeNavHref) == "" {
+		d.HomeNavHref = d.BrandLockupHref
+	}
+	if len(d.AppLauncherJSON) == 0 {
+		d.AppLauncherJSON = BuildAppLauncherJSON(ctx)
+	}
 	if strings.TrimSpace(d.UserProfileHref) == "" {
 		d.UserProfileHref = "/web/settings"
 	}
 	if strings.TrimSpace(d.UserDocsHref) == "" {
-		d.UserDocsHref = "https://github.com"
+		d.UserDocsHref = AppDocumentationURL
 	}
 	d.ShellCompany = strings.TrimSpace(shell.Company)
 	d.ShellUser = strings.TrimSpace(shell.User)

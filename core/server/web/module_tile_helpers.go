@@ -3,29 +3,18 @@ package web
 import (
 	"context"
 	"fmt"
-	"strings"
 
+	"sumeru/core/engine/render"
 	"sumeru/core/module"
 	"sumeru/core/orm"
 )
 
-type appTile struct {
-	Name         string
-	DisplayName  string
-	Version      string
-	Description  string
-	Author       string
-	IconLetter   string
-	IconHue      int
-	OpenMenuHref string
-}
-
-func loadInstalledAppTiles(ctx context.Context, searchQ string) ([]appTile, error) {
+func loadInstalledAppTiles(ctx context.Context, searchQ string) ([]render.AppTile, error) {
 	raw, err := module.ListModules(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var tiles []appTile
+	var tiles []render.AppTile
 	for _, row := range raw {
 		name := orm.AsString(row["name"])
 		if name == "" {
@@ -40,59 +29,28 @@ func loadInstalledAppTiles(ctx context.Context, searchQ string) ([]appTile, erro
 		if !orm.AsBool(row["active"]) {
 			continue
 		}
-		dn := orm.AsString(row["display_name"])
-		if dn == "" {
-			dn = name
+		displayName := orm.AsString(row["display_name"])
+		if displayName == "" {
+			displayName = name
 		}
-		desc := orm.AsString(row["description"])
-		if searchQ != "" && !homeSearchMatches(searchQ, name, dn, desc) {
+		description := orm.AsString(row["description"])
+		if searchQ != "" && !homeSearchMatches(searchQ, name, displayName, description) {
 			continue
 		}
 		openHref := "/web/apps"
-		if mid := rootMenuIDForModule(ctx, name); mid > 0 {
-			openHref = fmt.Sprintf("/web?menu_id=%d", mid)
+		if menuID := render.RootMenuIDForModule(ctx, name); menuID > 0 {
+			openHref = fmt.Sprintf("/web?menu_id=%d", menuID)
 		}
-		tiles = append(tiles, appTile{
+		tiles = append(tiles, render.AppTile{
 			Name:         name,
-			DisplayName:  dn,
+			DisplayName:  displayName,
 			Version:      orm.AsString(row["version"]),
-			Description:  desc,
+			Description:  description,
 			Author:       orm.AsString(row["author"]),
-			IconLetter:   iconLetterFromName(dn),
-			IconHue:      iconHueFromString(name),
+			IconLetter:   render.IconLetterFromName(displayName),
+			IconHue:      render.IconHueFromString(name),
 			OpenMenuHref: openHref,
 		})
 	}
 	return tiles, nil
-}
-
-func iconLetterFromName(name string) string {
-	if r := []rune(strings.TrimSpace(name)); len(r) > 0 {
-		return strings.ToUpper(string(r[0]))
-	}
-	return "?"
-}
-
-func rootMenuIDForModule(ctx context.Context, moduleName string) int {
-	if orm.DB == nil || strings.TrimSpace(moduleName) == "" {
-		return 0
-	}
-	tbl := orm.MustQuotedTableName("sys.menu")
-	q := `SELECT id FROM ` + tbl + ` WHERE module = $1 AND parent_id IS NULL ORDER BY sequence ASC, id ASC LIMIT 1`
-	var id int
-	if err := orm.DB.QueryRowContext(ctx, q, strings.TrimSpace(moduleName)).Scan(&id); err != nil {
-		return 0
-	}
-	return id
-}
-
-func iconHueFromString(s string) int {
-	h := 265
-	for _, c := range strings.TrimSpace(s) {
-		h = (h*31 + int(c)) % 360
-		if h < 0 {
-			h += 360
-		}
-	}
-	return h
 }

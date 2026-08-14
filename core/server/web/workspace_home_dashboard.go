@@ -9,21 +9,10 @@ import (
 	"sumeru/core/orm"
 )
 
-type dashAppTile struct {
-	Name         string
-	DisplayName  string
-	Version      string
-	Description  string
-	Author       string
-	IconLetter   string
-	IconHue      int    // 0–359 for per-app icon tint (HSL hue)
-	OpenMenuHref string // /web?menu_id=… or /web/apps fallback
-}
-
 type homeDashData struct {
 	MenuID   string
 	Search   string
-	Tiles    []dashAppTile
+	Tiles    []render.AppTile
 	EmptyMsg string
 }
 
@@ -49,19 +38,7 @@ func HomeDashboardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tiles []dashAppTile
-	for _, t := range raw {
-		tiles = append(tiles, dashAppTile{
-			Name:         t.Name,
-			DisplayName:  t.DisplayName,
-			Version:      t.Version,
-			Description:  t.Description,
-			Author:       t.Author,
-			IconLetter:   t.IconLetter,
-			IconHue:      t.IconHue,
-			OpenMenuHref: t.OpenMenuHref,
-		})
-	}
+	tiles := raw
 
 	emptyMsg := ""
 	if len(tiles) == 0 {
