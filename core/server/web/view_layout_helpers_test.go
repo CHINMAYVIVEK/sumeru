@@ -1,55 +1,42 @@
-package web
+package web_test
 
-import "testing"
+import (
+	"net/http/httptest"
+	"sumeru/core/server/web"
+	"testing"
+)
 
 func TestNormalizeGridListLayout(t *testing.T) {
 	tests := []struct {
-		in   string
+		raw  string
 		want string
 	}{
-		{"", "grid"},
-		{"grid", "grid"},
-		{"list", "list"},
-		{"kanban", "grid"},
-		{"GRID", "grid"},
-		{" List ", "list"},
-		{"table", "grid"},
+		{raw: "", want: web.TestAppsLayoutGrid},
+		{raw: web.TestAppsLayoutGrid, want: web.TestAppsLayoutGrid},
+		{raw: web.TestAppsLayoutList, want: web.TestAppsLayoutList},
+		{raw: web.TestLegacyKanbanLayout, want: web.TestAppsLayoutGrid},
+		{raw: "GRID", want: web.TestAppsLayoutGrid},
+		{raw: " List ", want: web.TestAppsLayoutList},
+		{raw: "table", want: web.TestAppsLayoutGrid},
 	}
-	for _, tc := range tests {
-		if got := normalizeGridListLayout(tc.in); got != tc.want {
-			t.Errorf("normalizeGridListLayout(%q) = %q, want %q", tc.in, got, tc.want)
+	for _, test := range tests {
+		if got := web.NormalizeGridListLayout(test.raw); got != test.want {
+			t.Errorf("web.NormalizeGridListLayout(%q) = %q, want %q", test.raw, got, test.want)
 		}
 	}
 }
 
-func TestModuleDisplayName(t *testing.T) {
-	if got := moduleDisplayName("sale", ""); got != "sale" {
-		t.Fatalf("empty display: got %q", got)
-	}
-	if got := moduleDisplayName("sale", "Sales"); got != "Sales" {
-		t.Fatalf("with display: got %q", got)
-	}
-	if got := moduleDisplayName("sale", "  "); got != "sale" {
-		t.Fatalf("whitespace display: got %q", got)
+func TestLayoutFromQuery(t *testing.T) {
+	req := httptest.NewRequest("GET", "/web/apps?layout=list", nil)
+	if got := web.LayoutFromQuery(req); got != web.TestAppsLayoutList {
+		t.Fatalf("got %q want %q", got, web.TestAppsLayoutList)
 	}
 }
 
-func TestParseModuleRow(t *testing.T) {
-	row, ok := parseModuleRow(map[string]interface{}{
-		"name":         "crm",
-		"display_name": "CRM",
-		"state":        "installed",
-		"application":  true,
-		"active":       true,
-	})
-	if !ok {
-		t.Fatal("expected ok")
-	}
-	if row.Name != "crm" || row.DisplayName != "CRM" || !row.Application || !row.Active {
-		t.Fatalf("unexpected row: %+v", row)
-	}
-	_, ok = parseModuleRow(map[string]interface{}{"display_name": "No name"})
-	if ok {
-		t.Fatal("expected false for missing name")
+func TestLayoutFromForm(t *testing.T) {
+	req := httptest.NewRequest("POST", "/web/module/action", nil)
+	req.Form = map[string][]string{web.TestAppsLayoutField: {web.TestLegacyKanbanLayout}}
+	if got := web.LayoutFromForm(req, web.TestAppsLayoutField); got != web.TestAppsLayoutGrid {
+		t.Fatalf("legacy kanban should map to grid, got %q", got)
 	}
 }

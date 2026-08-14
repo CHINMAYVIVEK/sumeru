@@ -5,24 +5,19 @@ import (
 	"strings"
 )
 
-// normalizeGridListLayout returns "grid" or "list". Maps legacy "kanban" to "grid".
+// normalizeGridListLayout returns grid or list; empty, kanban, and unknown values default to grid.
 func normalizeGridListLayout(raw string) string {
-	layout := strings.ToLower(strings.TrimSpace(raw))
-	if layout == "" || layout == "kanban" {
-		return "grid"
+	normalizedLayout := strings.ToLower(strings.TrimSpace(raw))
+	if normalizedLayout == appsLayoutList {
+		return appsLayoutList
 	}
-	if layout != "list" {
-		return "grid"
-	}
-	return layout
+	return appsLayoutGrid
 }
 
-// layoutFromQuery reads ?layout= from the request query string.
 func layoutFromQuery(r *http.Request) string {
-	return normalizeGridListLayout(r.URL.Query().Get("layout"))
+	return normalizeGridListLayout(r.URL.Query().Get(layoutQueryParam))
 }
 
-// layoutFromForm reads a layout value from POST form fields (e.g. apps_layout).
-func layoutFromForm(r *http.Request, field string) string {
-	return normalizeGridListLayout(r.FormValue(field))
+func layoutFromForm(r *http.Request, fieldName string) string {
+	return normalizeGridListLayout(r.FormValue(fieldName))
 }
