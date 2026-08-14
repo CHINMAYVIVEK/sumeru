@@ -59,6 +59,9 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 		CSRFToken:               recData.CSRFToken,
 		FlashMessages:           recData.FlashMessages,
 	}
+	if !SidebarHasMenus(sidebarMenus) {
+		pageData.SuppressSidebar = true
+	}
 	if strings.EqualFold(view.Type, "form") && view.Chatter != nil && recData.RecordID > 0 &&
 		mail.CompanyChatterEnabled(ctx) && mail.CompanyActivityPanelEnabled(ctx) {
 		pageData.ActivityPanelChatter = true

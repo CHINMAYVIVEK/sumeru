@@ -13,6 +13,7 @@ type Manifest struct {
 	Depends     []string `json:"depends"`
 	Author      string   `json:"author"`
 	Description string   `json:"description"`
+	Icon        string   `json:"icon"`        // optional relative path under addon, e.g. static/icon.png
 	Data        []string `json:"data"`        // XML files to load
 	Application *bool    `json:"application"` // nil = true (show in Apps)
 	AutoImport  *bool    `json:"auto_import"` // nil = true; false = omit from generated zimports blank imports

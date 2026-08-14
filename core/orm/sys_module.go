@@ -8,6 +8,7 @@ type SysModule struct {
 	Author      string `orm:"author"`
 	Version     string `orm:"version"`
 	Description string `orm:"description"`
+	Icon        string `orm:"icon"` // optional relative path to module icon image
 	State       string `orm:"state"` // uninstalled | to_install | installed | to_upgrade | to_remove
 	Application bool   `orm:"application"`
 	Active      bool   `orm:"active"`
@@ -22,6 +23,7 @@ func (m SysModule) Fields() []FieldDefinition {
 		{Name: "author", Type: Char},
 		{Name: "version", Type: Char},
 		{Name: "description", Type: Text},
+		{Name: "icon", Type: Char},
 		{Name: "state", Type: Char, Required: true},
 		{Name: "application", Type: Boolean, Required: true},
 		{Name: "active", Type: Boolean, Required: true},

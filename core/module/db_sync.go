@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"sumeru/core/orm"
 )
@@ -47,6 +48,7 @@ func syncSysModuleRows(ctx context.Context, discovered map[string]*Addon) error 
 				"author":       addon.Manifest.Author,
 				"version":      addon.Manifest.Version,
 				"description":  addon.Manifest.Description,
+				"icon":         strings.TrimSpace(addon.Manifest.Icon),
 				"state":        state,
 				"application":  addon.Manifest.IsApplication(),
 				"active":       true,
@@ -61,11 +63,12 @@ func syncSysModuleRows(ctx context.Context, discovered map[string]*Addon) error 
 		}
 		_, err = orm.DB.ExecContext(ctx,
 			`UPDATE `+orm.MustQuotedTableName("sys.module")+
-				` SET display_name = $1, author = $2, version = $3, description = $4, application = $5 WHERE name = $6`,
+				` SET display_name = $1, author = $2, version = $3, description = $4, icon = $5, application = $6 WHERE name = $7`,
 			irModuleDisplayName(addon),
 			addon.Manifest.Author,
 			addon.Manifest.Version,
 			addon.Manifest.Description,
+			strings.TrimSpace(addon.Manifest.Icon),
 			addon.Manifest.IsApplication(),
 			addon.Manifest.Name,
 		)

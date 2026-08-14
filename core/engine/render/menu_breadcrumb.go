@@ -15,13 +15,9 @@ type BreadcrumbItem struct {
 	Href  string // empty = current page (no link)
 }
 
-// HomeWebURL returns the canonical Home dashboard URL including menu_id when resolvable.
+// HomeWebURL returns the canonical Home dashboard URL.
 func HomeWebURL(ctx context.Context) string {
-	id, _, err := orm.ResolveXmlId(ctx, "base.menu_home_root")
-	if err != nil || id == 0 {
-		return "/web/home"
-	}
-	return fmt.Sprintf("/web/home?menu_id=%d", id)
+	return "/web/home"
 }
 
 // SettingsHomeURL is the canonical Settings hub URL.
