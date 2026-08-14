@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <!-- sys.view : core.user (list) -->
+        <view id="view_core.user_list" model="core.user" type="list">
+            <field name="name" string="Name"/>
+            <field name="login" string="Login"/>
+            <field name="email" string="Email"/>
+            <field name="company_id" string="Company"/>
+            <field name="lang" string="Language"/>
+            <field name="active" string="Active"/>
+        </view>
+    </data>
+</sumeru>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <sumeru>
     <data>
-        <view id="view_sys.audit_tree" model="sys.audit" type="tree">
+        <view id="view_sys.audit_list" model="sys.audit" type="list">
             <field name="create_date" string="When"/>
             <field name="user_id" string="User"/>
             <field name="action" string="Action"/>
@@ -28,7 +28,7 @@
             </sheet>
         </view>
 
-        <view id="view_sys.attachment_tree" model="sys.attachment" type="tree">
+        <view id="view_sys.attachment_list" model="sys.attachment" type="list">
             <field name="name" string="Name"/>
             <field name="model" string="Model"/>
             <field name="res_id" string="Record"/>
@@ -49,7 +49,7 @@
             </sheet>
         </view>
 
-        <view id="view_sys.sequence_tree" model="sys.sequence" type="tree">
+        <view id="view_sys.sequence_list" model="sys.sequence" type="list">
             <field name="name" string="Name"/>
             <field name="code" string="Code"/>
             <field name="prefix" string="Prefix"/>
@@ -70,7 +70,7 @@
             </sheet>
         </view>
 
-        <view id="view_sys.config.parameter_tree" model="sys.config.parameter" type="tree">
+        <view id="view_sys.config.parameter_list" model="sys.config.parameter" type="list">
             <field name="key" string="Key"/>
             <field name="value" string="Value"/>
         </view>
@@ -86,22 +86,22 @@
         <record id="action_sys.audit" model="sys.action.window">
             <field name="name">action_sys.audit</field>
             <field name="core_model">sys.audit</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
         <record id="action_sys.attachment" model="sys.action.window">
             <field name="name">action_sys.attachment</field>
             <field name="core_model">sys.attachment</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
         <record id="action_sys.sequence" model="sys.action.window">
             <field name="name">action_sys.sequence</field>
             <field name="core_model">sys.sequence</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
         <record id="action_sys.config.parameter" model="sys.action.window">
             <field name="name">action_sys.config.parameter</field>
             <field name="core_model">sys.config.parameter</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <menuitem id="menu_audit_section" name="Audit" parent="menu_settings_root" sequence="80" web_icon="log"/>

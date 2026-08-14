@@ -10,95 +10,135 @@ import (
 )
 
 // ResolveWindowActionID returns sys.action.window id from query action (numeric or xml id) and/or menu_id.
-func ResolveWindowActionID(ctx context.Context, actionIDStr, menuIDStr string) int {
-	var actionID int
-	if actionIDStr != "" {
-		if id, err := strconv.Atoi(actionIDStr); err == nil {
-			actionID = id
-		} else {
-			if resID, _, err := orm.ResolveXmlId(ctx, actionIDStr); err == nil {
-				actionID = resID
-			}
-		}
+func ResolveWindowActionID(ctx context.Context, actionQuery, menuQuery string) int {
+	if actionID := resolveActionIDFromQuery(ctx, actionQuery); actionID != 0 {
+		return actionID
 	}
-	if actionID == 0 && menuIDStr != "" {
-		if menuID, err := strconv.Atoi(menuIDStr); err == nil {
-			actionID = actionIDFromMenu(ctx, menuID)
-		}
+	return resolveActionIDFromMenuQuery(ctx, menuQuery)
+}
+
+func resolveActionIDFromQuery(ctx context.Context, actionQuery string) int {
+	actionQuery = strings.TrimSpace(actionQuery)
+	if actionQuery == "" {
+		return 0
+	}
+	if actionID, err := strconv.Atoi(actionQuery); err == nil {
+		return actionID
+	}
+	actionID, _, err := orm.ResolveXmlId(ctx, actionQuery)
+	if err != nil {
+		return 0
 	}
 	return actionID
 }
 
-func actionIDFromMenu(ctx context.Context, menuID int) int {
-	menuData, err := orm.SearchOne(ctx, "sys.menu", map[string]interface{}{"id": menuID})
+func resolveActionIDFromMenuQuery(ctx context.Context, menuQuery string) int {
+	menuID, ok := parseMenuIDString(menuQuery)
+	if !ok {
+		return 0
+	}
+	return windowActionIDFromMenu(ctx, menuID)
+}
+
+func windowActionIDFromMenu(ctx context.Context, menuID int) int {
+	menuRecord, err := orm.SearchOne(ctx, sysMenuModel, map[string]interface{}{"id": menuID})
 	if err != nil {
 		return 0
 	}
-	if aID64, ok := orm.CoerceInt64(menuData["action_id"]); ok && aID64 != 0 {
-		return int(aID64)
+	if actionID, ok := menuRecordActionID(menuRecord); ok {
+		return actionID
 	}
-	return firstDescendantActionID(ctx, menuID)
+	return firstDescendantWindowActionID(ctx, menuID)
 }
 
-// firstDescendantActionID returns the first non-zero action_id in a depth-first walk
+func menuRecordActionID(menuRecord map[string]interface{}) (actionID int, ok bool) {
+	actionID64, hasAction := orm.CoerceInt64(menuRecord["action_id"])
+	if !hasAction || actionID64 == 0 {
+		return 0, false
+	}
+	return int(actionID64), true
+}
+
+// firstDescendantWindowActionID returns the first non-zero action_id in a depth-first walk
 // of children ordered by sequence, then id.
-func firstDescendantActionID(ctx context.Context, parentID int) int {
+func firstDescendantWindowActionID(ctx context.Context, parentMenuID int) int {
+	menuTable := orm.MustQuotedTableName(sysMenuModel)
 	rows, err := orm.DB.QueryContext(ctx,
-		`SELECT id, action_id FROM `+orm.MustQuotedTableName("sys.menu")+
-			` WHERE parent_id = $1 ORDER BY sequence ASC, id ASC`,
-		parentID,
+		`SELECT id, action_id FROM `+menuTable+` WHERE parent_id = $1 ORDER BY sequence ASC, id ASC`,
+		parentMenuID,
 	)
 	if err != nil {
 		return 0
 	}
 	defer rows.Close()
+
 	for rows.Next() {
-		var cid int
-		var aid sql.NullInt64
-		if err := rows.Scan(&cid, &aid); err != nil {
+		var childMenuID int
+		var childActionID sql.NullInt64
+		if err := rows.Scan(&childMenuID, &childActionID); err != nil {
 			continue
 		}
-		if aid.Valid && aid.Int64 != 0 {
-			return int(aid.Int64)
+		if childActionID.Valid && childActionID.Int64 != 0 {
+			return int(childActionID.Int64)
 		}
-		if sub := firstDescendantActionID(ctx, cid); sub != 0 {
-			return sub
+		if descendantActionID := firstDescendantWindowActionID(ctx, childMenuID); descendantActionID != 0 {
+			return descendantActionID
 		}
 	}
 	return 0
 }
 
-func menuIDPointsToAppLogs(ctx context.Context, menuIDStr string) bool {
-	menuIDStr = strings.TrimSpace(menuIDStr)
-	if menuIDStr == "" {
+func menuIDPointsToAppLogs(ctx context.Context, menuQuery string) bool {
+	return menuIDMatchesXML(ctx, menuQuery, appLogsMenuXMLID)
+}
+
+func menuIDMatchesXML(ctx context.Context, menuQuery, menuXMLID string) bool {
+	expectedMenuID, ok := resolvedMenuIDFromXML(ctx, menuXMLID)
+	if !ok {
 		return false
 	}
-	want, _, err := orm.ResolveXmlId(ctx, "base.menu_app_logs")
-	if err != nil || want == 0 {
+	actualMenuID, ok := parseMenuIDString(menuQuery)
+	if !ok {
 		return false
 	}
-	got, err := strconv.Atoi(menuIDStr)
-	if err != nil {
-		return false
-	}
-	return got == want
+	return actualMenuID == expectedMenuID
 }
 
 // isHomeMenuTree reports whether menu_id is base.menu_home_root or a descendant.
-func isHomeMenuTree(ctx context.Context, menuIDStr string) bool {
-	menuIDStr = strings.TrimSpace(menuIDStr)
-	if menuIDStr == "" {
+// An empty menu_id is treated as the home root (default landing behavior).
+func isHomeMenuTree(ctx context.Context, menuQuery string) bool {
+	if strings.TrimSpace(menuQuery) == "" {
 		return true
 	}
-	rootID, _, err := orm.ResolveXmlId(ctx, "base.menu_home_root")
-	if err != nil || rootID == 0 {
+	return menuIsUnderXMLRoot(ctx, menuQuery, homeMenuRootXMLID)
+}
+
+func menuIsUnderXMLRoot(ctx context.Context, menuQuery, rootMenuXMLID string) bool {
+	rootMenuID, ok := resolvedMenuIDFromXML(ctx, rootMenuXMLID)
+	if !ok {
 		return false
 	}
-	cur, err := strconv.Atoi(menuIDStr)
-	if err != nil || cur <= 0 {
+	menuID, ok := parseMenuIDString(menuQuery)
+	if !ok {
 		return false
 	}
-	return orm.MenuHasAncestor(ctx, cur, rootID)
+	return orm.MenuHasAncestor(ctx, menuID, rootMenuID)
+}
+
+func resolvedMenuIDFromXML(ctx context.Context, menuXMLID string) (menuID int, ok bool) {
+	menuID, _, err := orm.ResolveXmlId(ctx, menuXMLID)
+	if err != nil || menuID <= 0 {
+		return 0, false
+	}
+	return menuID, true
+}
+
+func parseMenuIDString(menuQuery string) (menuID int, ok bool) {
+	menuID, err := strconv.Atoi(strings.TrimSpace(menuQuery))
+	if err != nil || menuID <= 0 {
+		return 0, false
+	}
+	return menuID, true
 }
 
 // actionWindowTargetModel returns the ORM technical model for a sys.action.window row (core_model).

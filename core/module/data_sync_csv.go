@@ -11,7 +11,7 @@ import (
 	"sumeru/core/orm"
 )
 
-func (addon *Addon) syncCSVModelAccess(context context.Context) error {
+func (addon *Addon) syncCSVModelAccess(ctx context.Context) error {
 	csvPath := filepath.Join(addon.Path, "sys.access.csv")
 	if _, err := os.Stat(csvPath); err != nil {
 		csvPath = filepath.Join(addon.Path, "security", "sys.access.csv")
@@ -55,11 +55,11 @@ func (addon *Addon) syncCSVModelAccess(context context.Context) error {
 
 		var groupId int
 		if groupXmlId != "" {
-			gid, _, err := orm.ResolveXmlId(context, groupXmlId)
+			gid, _, err := orm.ResolveXmlId(ctx, groupXmlId)
 			if err != nil {
 				// Try with module prefix if not absolute
 				if !strings.Contains(groupXmlId, ".") {
-					gid, _, _ = orm.ResolveXmlId(context, addon.Manifest.Name+"."+groupXmlId)
+					gid, _, _ = orm.ResolveXmlId(ctx, addon.Manifest.Name+"."+groupXmlId)
 				}
 			}
 			groupId = gid
@@ -77,9 +77,9 @@ func (addon *Addon) syncCSVModelAccess(context context.Context) error {
 			accessValues["group_id"] = groupId
 		}
 
-		id, err := orm.Upsert(context, orm.SysAccess{}, accessValues, "name")
+		id, err := orm.Upsert(ctx, orm.SysAccess{}, accessValues, "name")
 		if err == nil {
-			_, _ = orm.Upsert(context, orm.SysModelData{}, map[string]interface{}{
+			_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
 				"module":  addon.Manifest.Name,
 				"name":    recordXmlId,
 				"model":   "sys.access",

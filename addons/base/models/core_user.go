@@ -20,6 +20,7 @@ type CoreUser struct {
 	TOTPSecret   string `db:"totp_secret"`
 	TOTPEnabled  bool   `db:"totp_enabled"`
 	PasswordMinLen int  `db:"password_min_len"`
+	PinnedApps     string `db:"pinned_apps"` // JSON array of pinned module technical names
 	// company_ids: M2M via core.user.company.rel (join table; not a SQL column)
 }
 
@@ -45,6 +46,7 @@ func (CoreUser) Fields() []sdk.FieldDefinition {
 		{Name: "totp_secret", Type: sdk.Char, String: "TOTP Secret"},
 		{Name: "totp_enabled", Type: sdk.Boolean, DefaultVal: false, String: "2FA Enabled"},
 		{Name: "password_min_len", Type: sdk.Integer, DefaultVal: 8, String: "Min Password Length"},
+		{Name: "pinned_apps", Type: sdk.Text, String: "Pinned Apps"},
 	}
 }
 

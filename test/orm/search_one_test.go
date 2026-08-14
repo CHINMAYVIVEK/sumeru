@@ -45,7 +45,7 @@ func TestFindUIDefaultViewDomain_compiles(t *testing.T) {
 	ctx := orm.ContextWithBypass(orm.BackgroundBypass(), true)
 	domain := [][]interface{}{
 		{"model", "=", "sys.module"},
-		{"type", "=", "tree"},
+		{"type", "=", "list"},
 	}
 	sql, args, err := orm.BuildWhereWithRecordRules(ctx, 0, "sys.view", "read", domain)
 	if err != nil {

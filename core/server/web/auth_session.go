@@ -22,43 +22,39 @@ func randomSessionID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+func buildSessionCookie(value string, maxAge int) *http.Cookie {
+	return &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   !config.AppConfig.DevMode,
+	}
+}
+
 // CreateSession stores a new session and sets an HttpOnly cookie.
 func CreateSession(w http.ResponseWriter, userID int) error {
 	if orm.DB == nil {
 		return fmt.Errorf("no database")
 	}
-	sid, err := randomSessionID()
+	sessionID, err := randomSessionID()
 	if err != nil {
 		return err
 	}
-	exp := time.Now().UTC().Add(sessionDuration)
-	tbl := orm.MustQuotedTableName("sys.session")
-	if _, err := orm.DB.Exec(`INSERT INTO `+tbl+` (sid, user_id, expires_at) VALUES ($1, $2, $3)`, sid, userID, exp); err != nil {
+	expiresAt := time.Now().UTC().Add(sessionDuration)
+	sessionTable := orm.MustQuotedTableName("sys.session")
+	if _, err := orm.DB.Exec(`INSERT INTO `+sessionTable+` (sid, user_id, expires_at) VALUES ($1, $2, $3)`, sessionID, userID, expiresAt); err != nil {
 		return err
 	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    sid,
-		Path:     "/",
-		MaxAge:   int(sessionDuration.Seconds()),
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   !config.AppConfig.DevMode,
-	})
+	http.SetCookie(w, buildSessionCookie(sessionID, int(sessionDuration.Seconds())))
 	return nil
 }
 
 // ClearSessionCookie removes the session cookie (client-side).
 func ClearSessionCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   !config.AppConfig.DevMode,
-	})
+	http.SetCookie(w, buildSessionCookie("", -1))
 }
 
 // SessionUserID returns core.user id from cookie session, or 0.
@@ -66,28 +62,28 @@ func SessionUserID(r *http.Request) int {
 	if orm.DB == nil {
 		return 0
 	}
-	c, err := r.Cookie(sessionCookieName)
-	if err != nil || c.Value == "" {
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil || cookie.Value == "" {
 		return 0
 	}
-	tbl := orm.MustQuotedTableName("sys.session")
-	var uid int
+	sessionTable := orm.MustQuotedTableName("sys.session")
+	var userID int
 	err = orm.DB.QueryRow(
-		`SELECT user_id FROM `+tbl+` WHERE sid = $1 AND expires_at > NOW()`,
-		c.Value,
-	).Scan(&uid)
+		`SELECT user_id FROM `+sessionTable+` WHERE sid = $1 AND expires_at > NOW()`,
+		cookie.Value,
+	).Scan(&userID)
 	if err != nil {
 		return 0
 	}
-	return uid
+	return userID
 }
 
 // DestroySession removes the session row and clears the cookie.
 func DestroySession(w http.ResponseWriter, r *http.Request) {
-	c, err := r.Cookie(sessionCookieName)
-	if err == nil && c.Value != "" {
-		tbl := orm.MustQuotedTableName("sys.session")
-		_, _ = orm.DB.Exec(`DELETE FROM `+tbl+` WHERE sid = $1`, c.Value)
+	cookie, err := r.Cookie(sessionCookieName)
+	if err == nil && cookie.Value != "" {
+		sessionTable := orm.MustQuotedTableName("sys.session")
+		_, _ = orm.DB.Exec(`DELETE FROM `+sessionTable+` WHERE sid = $1`, cookie.Value)
 	}
 	ClearSessionCookie(w)
 }

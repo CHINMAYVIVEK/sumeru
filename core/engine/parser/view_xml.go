@@ -13,10 +13,11 @@ type View struct {
 	Model   string   `xml:"model,attr"`
 	Type    string   `xml:"type,attr"`
 	Title   string   `xml:"title,attr"`
-	// TreeOpenAttr is the raw <tree open="..."/> or <view type="tree" open="..."/> attribute (false/0/off disables row→form).
-	TreeOpenAttr string `xml:"open,attr"`
-	// TreeNoRowOpen is derived from TreeOpenAttr by the arch parser for type tree/list.
-	TreeNoRowOpen bool     `xml:"-"`
+	Priority int     `xml:"priority,attr"`
+	// ListOpenAttr is the raw <list open="..."/> or <view type="list" open="..."/> attribute (false/0/off disables row→form).
+	ListOpenAttr string `xml:"open,attr"`
+	// ListNoRowOpen is derived from ListOpenAttr by the arch parser for type list.
+	ListNoRowOpen bool     `xml:"-"`
 	Header        *Header  `xml:"header"`
 	Sheet         *Sheet   `xml:"sheet"`
 	Footer        *Footer  `xml:"footer"`
@@ -25,6 +26,38 @@ type View struct {
 	Group         []Group  `xml:"group"`
 	// Form is a nested <form> under <view>; promoted onto View then cleared.
 	Form *archFormRoot `xml:"form"`
+
+	// Kanban grouping / drag-drop (view type="kanban" or nested kanban arch).
+	DefaultGroupBy     string `xml:"default_group_by,attr"`
+	GroupBy            string `xml:"group_by,attr"`
+	RecordsDraggable   string `xml:"records_draggable,attr"`
+	QuickCreate        string `xml:"quick_create,attr"`
+}
+
+// KanbanGroupField returns the column grouping field (default_group_by, then group_by).
+func (v *View) KanbanGroupField() string {
+	if v == nil {
+		return ""
+	}
+	if g := strings.TrimSpace(v.DefaultGroupBy); g != "" {
+		return g
+	}
+	return strings.TrimSpace(v.GroupBy)
+}
+
+// KanbanDraggable is true when records_draggable is not explicitly "0"/"false".
+func (v *View) KanbanDraggable() bool {
+	if v == nil {
+		return false
+	}
+	if v.KanbanGroupField() == "" {
+		return false
+	}
+	s := strings.ToLower(strings.TrimSpace(v.RecordsDraggable))
+	if s == "0" || s == "false" || s == "off" || s == "no" {
+		return false
+	}
+	return true
 }
 
 type Header struct {

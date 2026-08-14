@@ -31,3 +31,20 @@ export function writeActivityWidth(n) {
     localStorage.setItem(KEY_ACTIVITY_W, String(Math.round(n)));
   } catch (_) {}
 }
+
+export function readJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+export function writeJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (_) {}
+}

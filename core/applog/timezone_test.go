@@ -1,8 +1,10 @@
-package applog
+package applog_test
 
 import (
 	"testing"
 	"time"
+
+	"sumeru/core/applog"
 )
 
 func TestParseLogTimezone(t *testing.T) {
@@ -21,33 +23,33 @@ func TestParseLogTimezone(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		loc, label := parseLogTimezone(tc.input)
+		loc, label := applog.ParseLogTimezone(tc.input)
 		if loc.String() != tc.wantLoc.String() {
-			t.Errorf("parseLogTimezone(%q): got location %q, want %q", tc.input, loc, tc.wantLoc)
+			t.Errorf("ParseLogTimezone(%q): got location %q, want %q", tc.input, loc, tc.wantLoc)
 		}
 		if label != tc.wantLabel {
-			t.Errorf("parseLogTimezone(%q): got label %q, want %q", tc.input, label, tc.wantLabel)
+			t.Errorf("ParseLogTimezone(%q): got label %q, want %q", tc.input, label, tc.wantLabel)
 		}
 	}
 }
 
 func TestEffectiveLocation_fallsBackToLocal(t *testing.T) {
-	orig := logLocation
-	logLocation = nil
-	defer func() { logLocation = orig }()
+	orig := applog.EffectiveLocationForTest()
+	applog.SetLogLocationForTest(nil)
+	defer applog.SetLogLocationForTest(orig)
 
-	if got := effectiveLocation(); got != time.Local {
-		t.Errorf("effectiveLocation() with nil logLocation: got %v, want time.Local", got)
+	if got := applog.EffectiveLocationForTest(); got != time.Local {
+		t.Errorf("EffectiveLocationForTest() with nil logLocation: got %v, want time.Local", got)
 	}
 }
 
 func TestEffectiveLocation_returnsSet(t *testing.T) {
-	orig := logLocation
-	logLocation = time.UTC
-	defer func() { logLocation = orig }()
+	orig := applog.EffectiveLocationForTest()
+	applog.SetLogLocationForTest(time.UTC)
+	defer applog.SetLogLocationForTest(orig)
 
-	if got := effectiveLocation(); got != time.UTC {
-		t.Errorf("effectiveLocation() with UTC set: got %v, want UTC", got)
+	if got := applog.EffectiveLocationForTest(); got != time.UTC {
+		t.Errorf("EffectiveLocationForTest() with UTC set: got %v, want UTC", got)
 	}
 }
 

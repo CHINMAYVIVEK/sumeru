@@ -15,7 +15,7 @@
 
     {{if .ModuleDetail}}
     <section class="sum-apps-section-prem" aria-label="Module details">
-        <p class="sum-apps-section-label-prem"><a href="/web/apps?{{.ModuleDetail.BackAppsQuery}}" class="sum-apps-back-link">← All apps</a></p>
+        <p class="sum-apps-section-label-prem"><a href="/web/apps?{{.ModuleDetail.BackAppsQuery}}" class="sum-apps-back-link">← Apps</a></p>
         <div class="sum-apps-module-form sum-form-sheet sum-apps-module-detail">
             <div class="sum-apps-module-toolbar">
                 {{if not .ModuleDetail.Editing}}
@@ -298,6 +298,11 @@
     </div>
     {{end}}
 </div>
+
+<script type="module">
+  import { initAppsModuleOpener } from "/static/js/apps/apps-module-opener.js";
+  initAppsModuleOpener();
+</script>
 
 {{define "apps_post_hiddens"}}
 <input type="hidden" name="apps_layout" value="{{.Layout}}" />

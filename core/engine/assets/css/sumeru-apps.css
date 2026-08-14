@@ -59,6 +59,10 @@
   margin-top: 0.5rem;
 }
 
+.sum-shell--no-sidebar .sum-apps-layout {
+  grid-template-columns: minmax(13rem, 17rem) 1fr;
+}
+
 @media (max-width: 900px) {
   .sum-apps-layout {
     grid-template-columns: 1fr;

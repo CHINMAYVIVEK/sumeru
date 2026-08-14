@@ -1,11 +1,11 @@
-/* /web workspace: keep activity dock as a right column; tree/kanban/form fill the main column. */
+/* /web workspace: keep activity dock as a right column; list/kanban/form fill the main column. */
 
 .sum-workspace-row {
   flex-wrap: nowrap;
 }
 
 /* When the main slot hosts a structured view, use column flex so inner regions scroll (not the shell row). */
-.sum-content:has(.sum-tree-view),
+.sum-content:has(.sum-list-view),
 .sum-content:has(.sum-kanban-board),
 .sum-content:has(.sum-form-view) {
   display: flex;
@@ -13,7 +13,7 @@
   overflow: hidden;
 }
 
-.sum-tree-view {
+.sum-list-view {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -21,12 +21,12 @@
   min-width: 0;
 }
 
-.sum-tree-control {
+.sum-list-control {
   flex-shrink: 0;
 }
 
-.sum-web-table-wrap.sum-tree-table-wrap,
-.sum-tree-table-wrap {
+.sum-web-table-wrap.sum-list-table-wrap,
+.sum-list-table-wrap {
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -52,8 +52,8 @@
   min-width: 0;
 }
 
-/* —— Premium tree / list toolbar —— */
-.sum-tree-control {
+/* —— Premium list toolbar —— */
+.sum-list-control {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -64,7 +64,7 @@
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
 }
 
-.sum-tree-control-left {
+.sum-list-control-left {
   display: flex;
   align-items: center;
   gap: 0.65rem;
@@ -72,7 +72,7 @@
   min-width: 0;
 }
 
-.sum-tree-btn-new {
+.sum-list-btn-new {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -87,12 +87,12 @@
   transition: background var(--sum-dur) var(--sum-ease), box-shadow var(--sum-dur) var(--sum-ease);
 }
 
-.sum-tree-btn-new:hover {
+.sum-list-btn-new:hover {
   background: var(--sum-header-dark);
   box-shadow: 0 2px 8px rgba(135, 90, 123, 0.25);
 }
 
-.sum-tree-btn-ghost {
+.sum-list-btn-ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -107,7 +107,7 @@
   transition: background var(--sum-dur) var(--sum-ease), box-shadow var(--sum-dur) var(--sum-ease);
 }
 
-.sum-tree-btn-ghost:hover {
+.sum-list-btn-ghost:hover {
   background: var(--sum-row-hover-bg);
   box-shadow: var(--sum-shadow-sm);
 }
@@ -134,7 +134,7 @@
   font-size: var(--sum-font-size-sm);
 }
 
-.sum-tree-title {
+.sum-list-title {
   margin: 0;
   font-size: var(--sum-font-size-lg);
   font-weight: var(--sum-font-weight-bold);
@@ -142,7 +142,7 @@
   letter-spacing: var(--sum-letter-spacing-tight);
 }
 
-.sum-tree-icon-btn {
+.sum-list-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -156,16 +156,16 @@
   cursor: default;
 }
 
-.sum-tree-icon-btn svg {
+.sum-list-icon-btn svg {
   color: var(--sum-muted);
 }
 
-.sum-tree-icon-btn--ghost {
+.sum-list-icon-btn--ghost {
   background: transparent;
   border-color: transparent;
 }
 
-.sum-tree-search-wrap {
+.sum-list-search-wrap {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -178,12 +178,12 @@
   background: var(--sum-bg);
 }
 
-.sum-tree-search-icon {
+.sum-list-search-icon {
   display: flex;
   color: var(--sum-muted);
 }
 
-.sum-tree-search {
+.sum-list-search {
   flex: 1;
   min-width: 0;
   border: none;
@@ -192,20 +192,20 @@
   color: var(--sum-ink);
 }
 
-.sum-tree-pager {
+.sum-list-pager {
   font-size: var(--sum-font-size-sm);
   color: var(--sum-muted);
   font-variant-numeric: tabular-nums;
 }
 
 /* —— Premium data table —— */
-.sum-web-table-wrap.sum-tree-table-wrap,
-.sum-tree-table-wrap {
+.sum-web-table-wrap.sum-list-table-wrap,
+.sum-list-table-wrap {
   padding: 0 0.5rem 0.75rem;
   background: var(--sum-bg);
 }
 
-.sum-tree-table {
+.sum-list-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
@@ -216,7 +216,7 @@
   box-shadow: var(--sum-shadow-sm);
 }
 
-.sum-tree-th {
+.sum-list-th {
   padding: 0.55rem 0.65rem;
   font-size: var(--sum-font-size-sm);
   font-weight: var(--sum-font-weight-bold);
@@ -227,51 +227,51 @@
   border-bottom: 1px solid var(--sum-line);
 }
 
-.sum-tree-th-check,
-.sum-tree-th-grip,
-.sum-tree-th-actions {
+.sum-list-th-check,
+.sum-list-th-grip,
+.sum-list-th-actions {
   width: 2.25rem;
   text-align: center;
 }
 
-.sum-tree-th-muted {
+.sum-list-th-muted {
   opacity: 0.55;
 }
 
-.sum-tree-td,
-.sum-tree-td-check,
-.sum-tree-td-grip,
-.sum-tree-td-actions {
+.sum-list-td,
+.sum-list-td-check,
+.sum-list-td-grip,
+.sum-list-td-actions {
   padding: 0.45rem 0.55rem;
   font-size: var(--sum-font-size-root);
   border-bottom: 1px solid var(--sum-line);
   vertical-align: middle;
 }
 
-.sum-tree-row:nth-child(even) .sum-tree-td {
+.sum-list-row:nth-child(even) .sum-list-td {
   background: color-mix(in srgb, var(--sum-bg) 55%, var(--sum-surface));
 }
 
-.sum-tree-row--click {
+.sum-list-row--click {
   cursor: pointer;
 }
 
-.sum-tree-row--click:hover .sum-tree-td {
+.sum-list-row--click:hover .sum-list-td {
   background: var(--sum-row-hover-bg);
 }
 
-.sum-tree-row--click:focus-within .sum-tree-td {
+.sum-list-row--click:focus-within .sum-list-td {
   outline: 2px solid color-mix(in srgb, var(--sum-header) 35%, transparent);
   outline-offset: -2px;
 }
 
-.sum-tree-empty {
+.sum-list-empty {
   padding: 2rem 1rem !important;
   text-align: center;
   color: var(--sum-muted);
 }
 
-.sum-tree-grip {
+.sum-list-grip {
   color: var(--sum-gray-300);
   font-size: 0.75rem;
   letter-spacing: -0.05em;
@@ -390,42 +390,6 @@
   padding: 0.85rem 1rem;
 }
 
-.sum-kanban-avatar {
-  position: relative;
-  flex: 0 0 2.5rem;
-  width: 2.5rem;
-  height: 2.5rem;
-  max-width: 2.5rem;
-  max-height: 2.5rem;
-  border-radius: 999px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--sum-header) 12%, var(--sum-surface));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  isolation: isolate;
-  contain: paint layout;
-}
-
-.sum-kanban-avatar-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: cover;
-  object-position: center;
-  display: block;
-}
-
-.sum-kanban-avatar-initials {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--sum-header);
-  letter-spacing: 0.02em;
-}
-
 .sum-kanban-card-body {
   min-width: 0;
   flex: 1 1 auto;
@@ -475,4 +439,96 @@
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: normal;
+}
+
+/* —— Grouped pipeline kanban (stage columns + drag-drop) —— */
+.sum-kanban-board--grouped {
+  overflow: hidden;
+}
+
+.sum-kanban-stage-columns {
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.85rem 1rem 1.25rem;
+  background: var(--sum-bg);
+}
+
+.sum-kanban-stage-column {
+  flex: 0 0 280px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+}
+
+.sum-kanban-stage-column--drop-target {
+  border-color: var(--sum-primary, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.sum-kanban-stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--sum-line);
+  font-weight: var(--sum-font-weight-semibold);
+  font-size: var(--sum-font-size-sm);
+}
+
+.sum-kanban-stage-count {
+  color: var(--sum-muted);
+  font-weight: var(--sum-font-weight-normal);
+  font-size: var(--sum-font-size-xs, 0.75rem);
+}
+
+.sum-kanban-stage-column .sum-kanban-cards {
+  flex: 1;
+  min-height: 48px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sum-kanban-card--dragging {
+  opacity: 0.55;
+}
+
+.sum-kanban-stage-column .sum-kanban-card {
+  cursor: grab;
+}
+
+.sum-kanban-stage-column .sum-kanban-card:active {
+  cursor: grabbing;
+}
+
+.sum-kanban-card--rotting {
+  border-left: 3px solid var(--sum-danger, #c0392b);
+}
+
+.sum-kanban-priority {
+  display: flex;
+  gap: 0.1rem;
+  margin-top: 0.25rem;
+}
+
+.sum-kanban-priority-star {
+  color: var(--sum-line-strong);
+  font-size: 0.75rem;
+}
+
+.sum-kanban-priority-star--on {
+  color: #f5a623;
 }

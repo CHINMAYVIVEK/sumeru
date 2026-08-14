@@ -11,7 +11,7 @@ import (
 	"sumeru/core/engine/parser"
 )
 
-// RenderView builds full HTML for a workspace view (form, tree, kanban, pivot) inside the shell layout.
+// RenderView builds full HTML for a workspace view (form, list, kanban, pivot) inside the shell layout.
 func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesDir string, recData *ViewRecordData) string {
 	if recData == nil {
 		recData = &ViewRecordData{}
@@ -20,10 +20,10 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 	switch view.Type {
 	case "form":
 		content = RenderForm(ctx, view, recData)
-	case "tree", "list":
-		content = RenderTree(ctx, view, recData.ListRows, recData.ActionID, activeMenuID)
+	case "list":
+		content = RenderList(ctx, view, recData.ListRows, recData.ActionID, activeMenuID)
 	case "kanban":
-		content = RenderKanban(ctx, view, recData.ListRows, recData.ActionID, activeMenuID)
+		content = RenderKanban(ctx, view, recData, recData.ActionID, activeMenuID)
 	case "pivot":
 		content = RenderPivot(ctx, view)
 	default:
@@ -58,6 +58,9 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 		BreadcrumbItems:         BuildWorkspaceBreadcrumbs(ctx, activeMenuID, view.Type, viewBC, recData.FormBaseQuery, recData.Record, recData.RecordID),
 		CSRFToken:               recData.CSRFToken,
 		FlashMessages:           recData.FlashMessages,
+	}
+	if !SidebarHasMenus(sidebarMenus) {
+		pageData.SuppressSidebar = true
 	}
 	if strings.EqualFold(view.Type, "form") && view.Chatter != nil && recData.RecordID > 0 &&
 		mail.CompanyChatterEnabled(ctx) && mail.CompanyActivityPanelEnabled(ctx) {

@@ -58,7 +58,7 @@ func RunScaffold(cfg *ScaffoldConfig) {
 	// Views & Actions
 	renderTemplate(cfg, "actions.xml.tmpl", filepath.Join(target, "views", "actions.xml"))
 	renderTemplate(cfg, "form_view.xml.tmpl", filepath.Join(target, "views", "form_view.xml"))
-	renderTemplate(cfg, "tree_view.xml.tmpl", filepath.Join(target, "views", "tree_view.xml"))
+	renderTemplate(cfg, "list_view.xml.tmpl", filepath.Join(target, "views", "list_view.xml"))
 	renderTemplate(cfg, "kanban_view.xml.tmpl", filepath.Join(target, "views", "kanban_view.xml"))
 	renderTemplate(cfg, "menus.xml.tmpl", filepath.Join(target, "views", "menus.xml"))
 

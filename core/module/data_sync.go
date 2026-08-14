@@ -7,29 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"sumeru/core/applog"
 	"sumeru/core/engine/parser"
 	"sumeru/core/orm"
 )
-
-func upsertSysActionWindowFromRecord(ctx context.Context, moduleName string, xmlRecord parser.Record) {
-	fieldMap := parser.RecordFieldMap(xmlRecord)
-	recordValues := map[string]interface{}{}
-	for key, val := range fieldMap {
-		recordValues[key] = val
-	}
-	if cm := strings.TrimSpace(orm.AsString(recordValues["core_model"])); cm == "" {
-		applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.action.window record %s (module %s): core_model is required", xmlRecord.ID, moduleName))
-		return
-	}
-	if _, ok := recordValues["name"]; !ok || recordValues["name"] == "" {
-		recordValues["name"] = xmlRecord.ID
-	}
-	id, err := orm.Upsert(ctx, orm.SysActionWindow{}, recordValues, "name")
-	if err == nil {
-		_ = linkXMLRecord(ctx, moduleName, xmlRecord.ID, "sys.action.window", id)
-	}
-}
 
 func processXMLRecords(ctx context.Context, moduleName string, records []parser.Record, inheritQueue *[]parser.Record) {
 	for _, xmlRecord := range records {
@@ -59,7 +39,8 @@ func RecordsFromActions(actions []parser.Action) []parser.Record {
 }
 
 // loadManifestDataFile parses one manifest XML path (view or menu layout) and syncs its content.
-func loadManifestDataFile(ctx context.Context, moduleName, xmlPath, relFile string, inheritQueue *[]parser.Record) []error {
+// Menu items are appended to menuCollector for a deferred sync pass after all manifest files load.
+func loadManifestDataFile(ctx context.Context, moduleName, xmlPath, relFile string, inheritQueue *[]parser.Record, menuCollector *[]parser.MenuItem) []error {
 	parsedViewData, viewErr := parser.ParseViewList(xmlPath)
 	if viewErr == nil {
 		records := append([]parser.Record(nil), parsedViewData.Records...)
@@ -70,7 +51,7 @@ func loadManifestDataFile(ctx context.Context, moduleName, xmlPath, relFile stri
 				upsertInlineViewDef(ctx, moduleName, &parsedViewData.Views[i])
 			}
 			if len(parsedViewData.MenuItems) > 0 {
-				syncMenusFromItems(ctx, moduleName, parsedViewData.MenuItems)
+				*menuCollector = append(*menuCollector, parsedViewData.MenuItems...)
 			}
 			return nil
 		}
@@ -84,7 +65,7 @@ func loadManifestDataFile(ctx context.Context, moduleName, xmlPath, relFile stri
 		records = append(records, RecordsFromActions(menuList.Actions)...)
 		if len(menuList.MenuItems) > 0 || len(records) > 0 {
 			if len(menuList.MenuItems) > 0 {
-				syncMenusFromItems(ctx, moduleName, menuList.MenuItems)
+				*menuCollector = append(*menuCollector, menuList.MenuItems...)
 			}
 			processXMLRecords(ctx, moduleName, records, inheritQueue)
 			return nil
@@ -97,6 +78,25 @@ func loadManifestDataFile(ctx context.Context, moduleName, xmlPath, relFile stri
 			fmt.Errorf("ParseViewList: %v; ParseMenuList: %v", viewErr, menuErr))}
 	}
 	return []error{RecoverableSync(moduleName, "ParseMenuList "+relFile, menuErr)}
+}
+
+// CollectMenuItemsFromManifestFile parses menu items from one manifest XML path (for tests and tooling).
+func CollectMenuItemsFromManifestFile(xmlPath string) ([]parser.MenuItem, error) {
+	parsedViewData, viewErr := parser.ParseViewList(xmlPath)
+	if viewErr == nil && len(parsedViewData.MenuItems) > 0 {
+		return append([]parser.MenuItem(nil), parsedViewData.MenuItems...), nil
+	}
+	if viewErr != nil && !AllowMenuParseFallback(viewErr) {
+		return nil, viewErr
+	}
+	menuList, menuErr := parser.ParseMenuList(xmlPath)
+	if menuErr != nil {
+		if viewErr != nil {
+			return nil, fmt.Errorf("ParseViewList: %v; ParseMenuList: %v", viewErr, menuErr)
+		}
+		return nil, menuErr
+	}
+	return append([]parser.MenuItem(nil), menuList.MenuItems...), nil
 }
 
 func AllowMenuParseFallback(viewErr error) bool {
@@ -135,6 +135,7 @@ func (addon *Addon) SyncToDB(ctx context.Context) error {
 		orm.InvalidateRuleCache()
 	}
 	var inheritQueue []parser.Record
+	var deferredMenus []parser.MenuItem
 
 	for _, xmlFile := range addon.Manifest.Data {
 		if strings.HasSuffix(strings.ToLower(strings.TrimSpace(xmlFile)), ".csv") {
@@ -146,9 +147,13 @@ func (addon *Addon) SyncToDB(ctx context.Context) error {
 			continue
 		}
 
-		if fileErrs := loadManifestDataFile(ctx, moduleName, xmlPath, xmlFile, &inheritQueue); len(fileErrs) > 0 {
+		if fileErrs := loadManifestDataFile(ctx, moduleName, xmlPath, xmlFile, &inheritQueue, &deferredMenus); len(fileErrs) > 0 {
 			errs = append(errs, fileErrs...)
 		}
+	}
+
+	if len(deferredMenus) > 0 {
+		syncMenusFromItems(ctx, moduleName, deferredMenus)
 	}
 
 	for _, xmlRecord := range inheritQueue {

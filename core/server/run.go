@@ -74,6 +74,15 @@ func Run() {
 		config.AppConfig.DbPass, config.AppConfig.DbName, config.AppConfig.DbSslMode)
 	InitDB(databaseSource)
 
+	if orm.IsInitialized() {
+		if err := SyncModels(); err != nil {
+			applog.Fatal(ctx, "Error syncing models", "err", err)
+		}
+		if err := orm.SyncRegistrySchema(); err != nil {
+			applog.Fatal(ctx, "Schema sync failed", "err", err)
+		}
+	}
+
 	if err := LoadAddonPaths(config.AppConfig.AddonPaths); err != nil {
 		applog.Fatal(ctx, "Addon load failed", "err", err)
 	}
@@ -99,19 +108,14 @@ func Run() {
 		return
 	}
 
-	if err := SyncModels(); err != nil {
-		applog.Fatal(ctx, "Error syncing models", "err", err)
-	}
-
-	if err := orm.SyncRegistrySchema(); err != nil {
-		applog.Fatal(ctx, "Schema sync failed", "err", err)
-	}
-
 	if err := orm.RunMenuDataFixes(); err != nil {
 		applog.WarnMsg(ctx, "server", "startup", "Menu data fixes reported issues", err, nil)
 	}
 	if err := orm.EnsureSysViewArchText(); err != nil {
 		applog.WarnMsg(ctx, "server", "startup", "sys.view.arch column migration note", err, nil)
+	}
+	if err := orm.MigrateSysViewTreeToList(); err != nil {
+		applog.WarnMsg(ctx, "server", "startup", "sys.view tree→list migration note", err, nil)
 	}
 	if err := orm.EnsureCoreUserImageText(); err != nil {
 		applog.WarnMsg(ctx, "server", "startup", "core.user.image column migration note", err, nil)

@@ -8,7 +8,7 @@ import (
 )
 
 func TestApplyInheritArchAfter(t *testing.T) {
-	parent := `<view model="sale.order" type="tree"><field name="a" string="A"/><field name="b" string="B"/></view>`
+	parent := `<view model="sale.order" type="list"><field name="a" string="A"/><field name="b" string="B"/></view>`
 	frag := `<xpath expr="//field[@name='a']" position="after"><field name="z" string="Z"/></xpath>`
 	out, err := viewinherit.ApplyInheritArch(parent, frag)
 	if err != nil {
@@ -20,7 +20,7 @@ func TestApplyInheritArchAfter(t *testing.T) {
 }
 
 func TestApplyInheritArchAfterMarshaledField(t *testing.T) {
-	parent := `<view id="" model="sale.order" type="tree" title="" open=""><field name="state" string="Status" widget="" placeholder="" options=""></field><field name="amount" string="Total" widget="" placeholder="" options=""></field></view>`
+	parent := `<view id="" model="sale.order" type="list" title="" open=""><field name="state" string="Status" widget="" placeholder="" options=""></field><field name="amount" string="Total" widget="" placeholder="" options=""></field></view>`
 	frag := `<xpath expr="//field[@name='state']" position="after"><field name="phone" string="Phone"/></xpath>`
 	out, err := viewinherit.ApplyInheritArch(parent, frag)
 	if err != nil {

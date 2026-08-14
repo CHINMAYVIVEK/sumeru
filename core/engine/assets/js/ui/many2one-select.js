@@ -1,6 +1,8 @@
 /**
  * Many2one <select widget="selection"> with country→state→city cascade.
  */
+import { fetchRelSearchRows } from "../lib/rel-search.js";
+
 export function initMany2OneSelect() {
   const roots = Array.from(document.querySelectorAll("[data-sum-m2o-select]"));
   if (!roots.length) return;
@@ -16,27 +18,18 @@ export function initMany2OneSelect() {
     const select = root.querySelector("[data-sum-m2o-select-el]");
     if (!comodel || !select) return;
     const prev = select.value;
-    let url = `/web/rel/search?model=${encodeURIComponent(comodel)}&limit=500&q=`;
-    if (filterField) {
-      url += `&filter_field=${encodeURIComponent(filterField)}&filter_id=${encodeURIComponent(String(filterId || 0))}`;
-    }
-    let rows = [];
-    try {
-      const res = await fetch(url, { credentials: "same-origin" });
-      if (res.ok) {
-        const data = await res.json();
-        rows = Array.isArray(data.results) ? data.results : [];
-      }
-    } catch (_) {
-      rows = [];
-    }
+    const rows = await fetchRelSearchRows(comodel, {
+      limit: 500,
+      filterField,
+      filterId,
+    });
     select.innerHTML = `<option value="">—</option>`;
-    rows.forEach((r) => {
+    rows.forEach((row) => {
       const opt = document.createElement("option");
-      opt.value = String(r.id);
-      opt.textContent = r.name || String(r.id);
-      if (r.phone_code) opt.setAttribute("data-phone-code", String(r.phone_code));
-      if (String(r.id) === prev) opt.selected = true;
+      opt.value = String(row.id);
+      opt.textContent = row.name || String(row.id);
+      if (row.phone_code) opt.setAttribute("data-phone-code", String(row.phone_code));
+      if (String(row.id) === prev) opt.selected = true;
       select.appendChild(opt);
     });
     if (prev && !Array.from(select.options).some((o) => o.value === prev && o.value !== "")) {

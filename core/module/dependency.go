@@ -64,7 +64,7 @@ func containsAddonName(addonList []*Addon, addonName string) bool {
 
 // missingInstalledDependencies lists manifest depends that are not installed in sys.module
 // (or not registered). On-disk deps missing from DiscoveredAddons are ignored.
-func missingInstalledDependencies(context context.Context, moduleName string) ([]string, error) {
+func missingInstalledDependencies(ctx context.Context, moduleName string) ([]string, error) {
 	addon, ok := DiscoveredAddons[moduleName]
 	if !ok {
 		return nil, nil
@@ -78,7 +78,7 @@ func missingInstalledDependencies(context context.Context, moduleName string) ([
 		if _, has := DiscoveredAddons[dependencyName]; !has {
 			continue
 		}
-		moduleRow, err := moduleRow(context, dependencyName)
+		moduleRow, err := moduleRow(ctx, dependencyName)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				missingDependencies = append(missingDependencies, dependencyName)
@@ -93,8 +93,8 @@ func missingInstalledDependencies(context context.Context, moduleName string) ([
 	return missingDependencies, nil
 }
 
-func installedModuleDependingOn(context context.Context, targetModuleName string) (string, error) {
-	moduleRows, err := orm.DB.QueryContext(context,
+func installedModuleDependingOn(ctx context.Context, targetModuleName string) (string, error) {
+	moduleRows, err := orm.DB.QueryContext(ctx,
 		`SELECT name, state FROM `+orm.MustQuotedTableName("sys.module")+` WHERE state = 'installed' AND name <> $1`,
 		targetModuleName,
 	)

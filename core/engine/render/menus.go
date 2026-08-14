@@ -3,7 +3,9 @@ package render
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"html/template"
 	"regexp"
 	"sort"
 	"strconv"
@@ -26,6 +28,29 @@ func sanitizeMenuIcon(s string) string {
 
 func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser.MenuItem, sidebarMenus []SidebarMenu, activeModuleID, shellModuleTitle string) {
 	shellModuleTitle = AppDisplayName
+	allMenus, _ := fetchShellMenus(ctx)
+	if len(allMenus) == 0 {
+		return nil, nil, "", AppDisplayName
+	}
+
+	appMods, err := queryInstalledApplicationNames(ctx)
+	if err != nil {
+		applog.WarnMsg(ctx, "render", "menus", "installed application modules", err, nil)
+	}
+
+	uid := orm.UIDFromContext(ctx)
+	menuAllowed := func(mi parser.MenuItem) bool {
+		return orm.UserMayAccessMenu(ctx, uid, mi.AccessGroups)
+	}
+
+	topMenus = buildTopBarMenus(allMenus, appMods, menuAllowed)
+	activeModuleID = resolveActiveModuleID(allMenus, activeMenuID)
+	shellModuleTitle = shellTitleForModule(allMenus, activeModuleID, shellModuleTitle)
+	sidebarMenus = buildSidebarMenus(allMenus, activeModuleID, menuAllowed)
+	return topMenus, sidebarMenus, activeModuleID, shellModuleTitle
+}
+
+func fetchShellMenus(ctx context.Context) ([]parser.MenuItem, string) {
 	modTbl := orm.MustQuotedTableName("sys.module")
 	menuTbl := orm.MustQuotedTableName("sys.menu")
 	query := fmt.Sprintf(
@@ -44,7 +69,7 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 	rows, err := orm.DB.QueryContext(ctx, query)
 	if err != nil {
 		applog.WarnMsg(ctx, "render", "menus", "Error fetching menus", err, nil)
-		return nil, nil, "", AppDisplayName
+		return nil, "en_US"
 	}
 	defer rows.Close()
 
@@ -76,32 +101,24 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 			AccessGroups: strings.TrimSpace(accessGroups),
 			Action:       fmt.Sprintf("/web?menu_id=%d", id),
 		}
-		// Treat self-referential parent_id (id = parent) as no parent — bad rows otherwise never
-		// appear as top-bar roots or sidebar roots.
 		if parentID.Valid && parentID.Int64 != int64(id) {
 			m.ParentID = fmt.Sprintf("%d", parentID.Int64)
 		}
 		if actionID.Valid && actionID.Int64 != 0 {
 			m.Action = fmt.Sprintf("/web?action=%d&menu_id=%d", actionID.Int64, id)
 		} else if !parentID.Valid && strings.EqualFold(strings.TrimSpace(name), "Home") {
-			m.Action = fmt.Sprintf("/web/home?menu_id=%d", id)
+			m.Action = "/web/home"
 		}
 		allMenus = append(allMenus, m)
 	}
 	if err := rows.Err(); err != nil {
 		applog.WarnMsg(ctx, "render", "menus", "Menu rows error", err, nil)
 	}
+	return allMenus, lang
+}
 
-	appMods, err := queryInstalledApplicationNames(ctx)
-	if err != nil {
-		applog.WarnMsg(ctx, "render", "menus", "installed application modules", err, nil)
-	}
-
-	uid := orm.UIDFromContext(ctx)
-	menuAllowed := func(mi parser.MenuItem) bool {
-		return orm.UserMayAccessMenu(ctx, uid, mi.AccessGroups)
-	}
-
+func buildTopBarMenus(allMenus []parser.MenuItem, appMods map[string]struct{}, menuAllowed func(parser.MenuItem) bool) []parser.MenuItem {
+	var topMenus []parser.MenuItem
 	for _, m := range allMenus {
 		if m.ParentID != "" {
 			continue
@@ -116,87 +133,105 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 				continue
 			}
 		}
-		// Pinned /web/settings in base.html — do not duplicate as a dynamic top item.
 		if strings.EqualFold(strings.TrimSpace(m.Name), "Settings") {
 			continue
 		}
-		// Home hub opens from the brand lockup (see base.html); do not duplicate in the top bar.
 		if strings.EqualFold(strings.TrimSpace(m.Name), "Home") {
 			continue
 		}
 		topMenus = append(topMenus, m)
 	}
-	topMenus = sortTopBarRootMenus(topMenus)
+	return sortTopBarRootMenus(topMenus)
+}
 
-	if activeMenuID == "" && len(topMenus) > 0 {
-		activeModuleID = topMenus[0].ID
-	} else {
-		for _, m := range allMenus {
-			if m.ID == activeMenuID {
-				curr := m
-				for curr.ParentID != "" {
-					found := false
-					for _, parent := range allMenus {
-						if parent.ID == curr.ParentID {
-							curr = parent
-							found = true
-							break
-						}
-					}
-					if !found || curr.ParentID == "" {
-						break
-					}
+func resolveActiveModuleID(allMenus []parser.MenuItem, activeMenuID string) string {
+	if activeMenuID == "" {
+		return ""
+	}
+	for _, m := range allMenus {
+		if m.ID != activeMenuID {
+			continue
+		}
+		curr := m
+		for curr.ParentID != "" {
+			found := false
+			for _, parent := range allMenus {
+				if parent.ID == curr.ParentID {
+					curr = parent
+					found = true
+					break
 				}
-				activeModuleID = curr.ID
+			}
+			if !found || curr.ParentID == "" {
 				break
 			}
+		}
+		return curr.ID
+	}
+	return ""
+}
+
+func shellTitleForModule(allMenus []parser.MenuItem, activeModuleID, fallback string) string {
+	if activeModuleID == "" {
+		return fallback
+	}
+	for _, m := range allMenus {
+		if m.ID == activeModuleID {
+			if t := strings.TrimSpace(m.Name); t != "" {
+				return t
+			}
+			break
 		}
 	}
+	return fallback
+}
 
-	if activeModuleID != "" {
-		activeRootName := ""
-		for _, m := range allMenus {
-			if m.ID == activeModuleID {
-				activeRootName = m.Name
-				break
-			}
+func buildSidebarMenus(allMenus []parser.MenuItem, activeModuleID string, menuAllowed func(parser.MenuItem) bool) []SidebarMenu {
+	if activeModuleID == "" {
+		return nil
+	}
+	var sidebarMenus []SidebarMenu
+	var sections []SidebarMenu
+	for _, m := range allMenus {
+		if m.ParentID != activeModuleID || !menuAllowed(m) {
+			continue
 		}
-		if strings.TrimSpace(activeRootName) != "" {
-			shellModuleTitle = activeRootName
-		}
-
-		// Collect direct children of the active root as sidebar section entries.
-		// Each section may hold leaf links as its SubMenus ([]parser.MenuItem).
-		var sections []SidebarMenu
-		for _, m := range allMenus {
-			if m.ParentID != activeModuleID || !menuAllowed(m) {
+		section := SidebarMenu{ID: m.ID, Name: m.Name, Sequence: m.Sequence}
+		for _, sub := range allMenus {
+			if sub.ParentID != m.ID || !menuAllowed(sub) {
 				continue
 			}
-			section := SidebarMenu{ID: m.ID, Name: m.Name, Sequence: m.Sequence}
-			for _, sub := range allMenus {
-				if sub.ParentID != m.ID || !menuAllowed(sub) {
-					continue
-				}
-				section.SubMenus = append(section.SubMenus, sub)
-			}
-			sort.Slice(section.SubMenus, func(i, j int) bool {
-				if section.SubMenus[i].Sequence != section.SubMenus[j].Sequence {
-					return section.SubMenus[i].Sequence < section.SubMenus[j].Sequence
-				}
-				return section.SubMenus[i].Name < section.SubMenus[j].Name
-			})
-			sections = append(sections, section)
+			section.SubMenus = append(section.SubMenus, sub)
 		}
-		sort.Slice(sections, func(i, j int) bool {
-			if sections[i].Sequence != sections[j].Sequence {
-				return sections[i].Sequence < sections[j].Sequence
+		sort.Slice(section.SubMenus, func(i, j int) bool {
+			if section.SubMenus[i].Sequence != section.SubMenus[j].Sequence {
+				return section.SubMenus[i].Sequence < section.SubMenus[j].Sequence
 			}
-			return sections[i].Name < sections[j].Name
+			return section.SubMenus[i].Name < section.SubMenus[j].Name
 		})
-		sidebarMenus = append(sidebarMenus, sections...)
+		if len(section.SubMenus) == 0 {
+			continue
+		}
+		sections = append(sections, section)
 	}
+	sort.Slice(sections, func(i, j int) bool {
+		if sections[i].Sequence != sections[j].Sequence {
+			return sections[i].Sequence < sections[j].Sequence
+		}
+		return sections[i].Name < sections[j].Name
+	})
+	sidebarMenus = append(sidebarMenus, sections...)
+	return sidebarMenus
+}
 
-	return topMenus, sidebarMenus, activeModuleID, shellModuleTitle
+// SidebarHasMenus reports whether any sidebar section has at least one link.
+func SidebarHasMenus(menus []SidebarMenu) bool {
+	for _, sec := range menus {
+		if len(sec.SubMenus) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // sortTopBarRootMenus orders application root menus by each menuitem's `sequence` (then `name`),
@@ -247,4 +282,102 @@ func IsMenuUnderSettingsRoot(ctx context.Context, activeMenuID string) bool {
 		return false
 	}
 	return orm.MenuHasAncestor(ctx, int(id64), rootID)
+}
+
+type appLauncherItem struct {
+	Kind        string `json:"kind,omitempty"` // "app" (default) or "menu"
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName"`
+	Description string `json:"description"`
+	Href        string `json:"href"`
+	MenuID      string `json:"menuId"`
+	IconLetter  string `json:"iconLetter"`
+}
+
+// BuildAppLauncherJSON returns installed application metadata for the shell app launcher.
+func BuildAppLauncherJSON(ctx context.Context) template.JS {
+	if orm.DB == nil {
+		return template.JS("[]")
+	}
+	modTbl := orm.MustQuotedTableName("sys.module")
+	q := `SELECT name, COALESCE(NULLIF(TRIM(display_name), ''), name), COALESCE(description, '')
+		FROM ` + modTbl + ` WHERE state = 'installed' AND active = true AND application = true ORDER BY display_name, name`
+	rows, err := orm.DB.QueryContext(ctx, q)
+	if err != nil {
+		return template.JS("[]")
+	}
+	defer rows.Close()
+	var items []appLauncherItem
+	for rows.Next() {
+		var name, displayName, desc string
+		if err := rows.Scan(&name, &displayName, &desc); err != nil {
+			continue
+		}
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		menuID := RootMenuIDForModule(ctx, name)
+		href := "/web/home"
+		if menuID > 0 {
+			href = fmt.Sprintf("/web?menu_id=%d", menuID)
+		}
+		items = append(items, appLauncherItem{
+			Kind:        "app",
+			Name:        name,
+			DisplayName: strings.TrimSpace(displayName),
+			Description: strings.TrimSpace(desc),
+			Href:        href,
+			MenuID:      fmt.Sprintf("%d", menuID),
+			IconLetter:  IconLetterFromName(displayName),
+		})
+	}
+
+	uid := orm.UIDFromContext(ctx)
+	allMenus, _ := fetchShellMenus(ctx)
+	menuAllowed := func(mi parser.MenuItem) bool {
+		return orm.UserMayAccessMenu(ctx, uid, mi.AccessGroups)
+	}
+	for _, m := range allMenus {
+		if !menuAllowed(m) {
+			continue
+		}
+		if !strings.Contains(m.Action, "action=") {
+			continue
+		}
+		modLabel := strings.TrimSpace(m.Module)
+		if modLabel == "" {
+			modLabel = "Menu"
+		}
+		items = append(items, appLauncherItem{
+			Kind:        "menu",
+			Name:        m.ID,
+			DisplayName: strings.TrimSpace(m.Name),
+			Description: modLabel,
+			Href:        m.Action,
+			MenuID:      m.ID,
+			IconLetter:  IconLetterFromName(m.Name),
+		})
+	}
+	sort.Slice(items, func(i, j int) bool {
+		ki, kj := items[i].Kind, items[j].Kind
+		if ki != kj {
+			if ki == "app" {
+				return true
+			}
+			if kj == "app" {
+				return false
+			}
+		}
+		di, dj := strings.ToLower(items[i].DisplayName), strings.ToLower(items[j].DisplayName)
+		if di != dj {
+			return di < dj
+		}
+		return items[i].Name < items[j].Name
+	})
+	b, err := json.Marshal(items)
+	if err != nil {
+		return template.JS("[]")
+	}
+	return template.JS(b)
 }

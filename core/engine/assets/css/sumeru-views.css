@@ -1,47 +1,4 @@
-/* ORM / workspace views: app catalog grid, form sheets, list tables, notebooks. */
-
-.sum-app-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 1.5rem;
-  padding: 2rem;
-}
-
-.sum-app-grid .sum-app-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  cursor: pointer;
-  transition: transform var(--sum-dur-slow) var(--sum-ease);
-}
-
-.sum-app-grid .sum-app-card:hover {
-  transform: translateY(-4px);
-}
-
-.sum-app-grid .sum-app-card:hover .sum-app-icon {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-.sum-app-grid .sum-app-card .sum-app-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: var(--sum-radius);
-  background: var(--sum-surface);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: all var(--sum-dur-slow) var(--sum-ease);
-}
-
-.sum-app-grid .sum-app-card .sum-app-name {
-  font-size: var(--sum-font-size-md);
-  font-weight: var(--sum-font-weight-semibold);
-  color: var(--sum-ink);
-  text-align: center;
-}
+/* ORM / workspace views: form sheets, list tables, notebooks. */
 
 .sum-form-view {
   background-color: var(--sum-bg);
@@ -373,13 +330,6 @@
   color: var(--sum-ink);
 }
 
-.sum-read-hero-title--inline {
-  font-size: 1.35rem;
-  font-weight: var(--sum-font-weight-bold);
-  margin: 0 0 0.65rem;
-  color: var(--sum-ink);
-}
-
 .sum-form-contact-row {
   display: flex;
   flex-wrap: wrap;
@@ -390,13 +340,6 @@
 .sum-form-contact-item {
   flex: 1 1 10rem;
   min-width: 0;
-}
-
-.sum-form-contact-label {
-  display: block;
-  font-size: var(--sum-font-size-sm);
-  color: var(--sum-muted);
-  margin-bottom: 0.15rem;
 }
 
 .sum-field-select {
@@ -497,53 +440,11 @@
   height: 10rem;
 }
 
-.sum-form-split-layout--compact .sum-form-split-resizer {
-  display: none;
-}
-
-.sum-form-split-left .sum-read-hero-title {
-  font-size: 1.35rem !important;
-  line-height: 1.25;
-  text-align: center;
-}
-
-.sum-form-split-resizer {
-  flex: 0 0 6px;
-  margin: 0 2px;
-  border-radius: 4px;
-  cursor: col-resize;
-  background: rgba(15, 23, 42, 0.06);
-  align-self: stretch;
-  transition: background var(--sum-dur) var(--sum-ease);
-}
-
-.sum-form-split-resizer:hover,
-.sum-form-split-resizer:focus-visible {
-  background: color-mix(in srgb, var(--sum-header) 22%, rgba(15, 23, 42, 0.06));
-  outline: none;
-}
-
 .sum-form-split-main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-}
-
-/* Field columns inside groups — match .sum-form-group-grid (edit mode). */
-.sum-read-section .sum-read-fields {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem 1.5rem;
-  min-width: 0;
-  max-width: 100%;
-  width: 100%;
-}
-
-@media (min-width: 768px) {
-  .sum-read-section .sum-read-fields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 720px) {
@@ -557,20 +458,9 @@
     padding-right: 0;
   }
 
-  .sum-form-split-resizer {
-    display: none;
-  }
-
   .sum-form-split-main {
     width: 100%;
   }
-}
-
-.sum-read-fields--sheet {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 0;
 }
 
 .sum-form-edit-grid {
@@ -587,38 +477,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 2rem;
   }
-}
-
-.sum-read-section {
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: 100%;
-  border: 1px solid var(--sum-line);
-  border-radius: var(--sum-radius-sm);
-  padding: 1rem 1.15rem 1.1rem;
-  margin-bottom: 1.25rem;
-  background: color-mix(in srgb, var(--sum-surface) 97%, var(--sum-bg));
-  overflow: hidden;
-}
-
-/* Untitled wrapper groups (e.g. Preferences outer <group>) — match edit plain groups. */
-.sum-read-section--plain {
-  border: none;
-  background: transparent;
-  padding-left: 0;
-  padding-right: 0;
-  overflow: visible;
-}
-
-.sum-read-section-title {
-  margin: 0 0 1rem;
-  padding-bottom: 0.45rem;
-  font-size: var(--sum-font-size-sm);
-  font-weight: var(--sum-font-weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--sum-muted);
-  border-bottom: 1px solid var(--sum-line);
 }
 
 .sum-header-btn {
@@ -733,6 +591,49 @@
   border: 1px solid var(--sum-line);
 }
 
+.sum-statusbar-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.sum-statusbar-stage {
+  padding: 0.3rem 0.65rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  border-radius: var(--sum-radius-sm);
+  border: 1px solid var(--sum-line);
+  background: var(--sum-surface);
+  color: var(--sum-muted-ink);
+  cursor: pointer;
+}
+
+.sum-statusbar-stage--current {
+  background: color-mix(in srgb, var(--sum-header) 18%, var(--sum-surface));
+  border-color: color-mix(in srgb, var(--sum-header) 45%, var(--sum-line));
+  color: var(--sum-ink);
+}
+
+.sum-priority-stars {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.sum-priority-star {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--sum-line-strong);
+  cursor: pointer;
+}
+
+.sum-priority-star--on {
+  color: #f5a623;
+}
+
 .sum-header-btn--disabled {
   opacity: 0.65;
   cursor: not-allowed;
@@ -781,76 +682,9 @@
   color: var(--sum-muted);
 }
 
-.sum-form-avatar-hint {
-  font-size: var(--sum-font-size-sm);
-  color: var(--sum-muted);
-  line-height: 1.25;
-}
-
 .sum-form-title-body {
   flex: 1 1 auto;
   min-width: 0;
-}
-
-.sum-read-hero-kicker {
-  font-size: var(--sum-font-size-sm);
-  font-weight: var(--sum-font-weight-medium);
-  color: var(--sum-muted);
-  margin-bottom: 0.25rem;
-}
-
-.sum-read-hero-title {
-  font-size: clamp(1.35rem, 3vw, 2rem);
-  font-weight: var(--sum-font-weight-bold);
-  color: var(--sum-ink);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.sum-read-meta-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  margin-top: 1rem;
-}
-
-.sum-read-inline {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: var(--sum-muted-ink);
-}
-
-.sum-read-inline-icon {
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
-  color: var(--sum-muted);
-}
-
-.sum-read-inline-text {
-  font-size: var(--sum-font-size-root);
-}
-
-.sum-form-inline-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin-top: 0.35rem;
-}
-
-.sum-form-inline-row {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: var(--sum-muted);
-}
-
-.sum-form-inline-icon {
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
-  color: var(--sum-muted);
 }
 
 .sum-title-contact-row {
@@ -860,8 +694,7 @@
   margin-top: 0.35rem;
 }
 
-.sum-title-contact-row .sum-form-inline-row,
-.sum-title-contact-row .sum-read-inline {
+.sum-title-contact-row .sum-form-contact-item {
   flex: 1 1 12rem;
   min-width: 0;
 }
@@ -1148,13 +981,6 @@
   pointer-events: none;
 }
 
-.sum-field-checkbox {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--sum-header);
-  cursor: pointer;
-}
-
 .sum-field-radio-group {
   display: flex;
   flex-wrap: wrap;
@@ -1222,68 +1048,6 @@
   width: 2rem;
   height: 2rem;
   color: var(--sum-muted);
-}
-
-.sum-read-image {
-  max-height: 6rem;
-  border-radius: var(--sum-radius-sm);
-  border: 1px solid var(--sum-line);
-}
-
-.sum-read-empty {
-  color: var(--sum-muted);
-}
-
-/* Sheet-level read rows keep label | value; group fields match edit (label above value). */
-.sum-read-fields--sheet > .sum-read-field--row {
-  display: grid;
-  grid-template-columns: minmax(0, 38%) 1fr;
-  gap: 0.5rem 1.25rem;
-  padding: 0.45rem 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--sum-line) 85%, transparent);
-  align-items: start;
-}
-
-.sum-read-fields--sheet > .sum-read-field--row:last-child {
-  border-bottom: none;
-}
-
-.sum-read-section .sum-read-field--row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  min-width: 0;
-  padding: 0;
-  border-bottom: none;
-}
-
-.sum-read-label {
-  font-size: var(--sum-font-size-sm);
-  font-weight: var(--sum-font-weight-bold);
-  text-transform: uppercase;
-  letter-spacing: var(--sum-letter-spacing-ui);
-  color: var(--sum-muted);
-}
-
-.sum-read-value {
-  font-size: var(--sum-font-size-root);
-  color: var(--sum-ink);
-  word-break: break-word;
-  min-width: 0;
-  width: 100%;
-}
-
-.sum-read-section .sum-read-value {
-  box-sizing: border-box;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid var(--sum-line);
-  border-radius: var(--sum-radius-sm);
-  background: var(--sum-surface);
-  line-height: 1.45;
-}
-
-.sum-read-value--pre {
-  white-space: pre-wrap;
 }
 
 .sum-pivot-placeholder {

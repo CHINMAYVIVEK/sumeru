@@ -22,60 +22,97 @@ type shellPageOpts struct {
 
 func renderShellPage(w http.ResponseWriter, r *http.Request, opts shellPageOpts) {
 	ctx := r.Context()
-	route := opts.Route
-	if route == "" {
-		route = r.URL.Path
+	route := resolveShellRoute(opts, r)
+
+	innerHTML, ok := executeInnerTemplate(ctx, w, route, opts)
+	if !ok {
+		return
 	}
-	innerPath := filepath.Join(config.AppConfig.TemplatesPath, opts.InnerTemplate)
-	tmpl, err := template.ParseFiles(innerPath)
+
+	page := finalizeShellPage(ctx, r, opts, innerHTML, route)
+	layoutHTML, err := render.RenderPage(ctx, config.AppConfig.TemplatesPath, page)
+	if err != nil {
+		WebLogEvent(ctx, route, "Failed to render page layout", "render", "failure", err, nil)
+		http.Error(w, "Layout render error", http.StatusInternalServerError)
+		return
+	}
+	writeHTML(w, ctx, route, layoutHTML)
+}
+
+func resolveShellRoute(opts shellPageOpts, r *http.Request) string {
+	if opts.Route != "" {
+		return opts.Route
+	}
+	return r.URL.Path
+}
+
+func executeInnerTemplate(ctx context.Context, w http.ResponseWriter, route string, opts shellPageOpts) (template.HTML, bool) {
+	templatePaths := []string{
+		filepath.Join(config.AppConfig.TemplatesPath, opts.InnerTemplate),
+		filepath.Join(config.AppConfig.TemplatesPath, shellPartialsTemplate),
+	}
+	templateFile, err := template.ParseFiles(templatePaths...)
 	if err != nil {
 		WebLogEvent(ctx, route, "Failed to parse inner template", "render", "failure", err,
 			map[string]interface{}{"template": opts.InnerTemplate})
 		http.Error(w, "Template error", http.StatusInternalServerError)
-		return
-	}
-	var innerBuf bytes.Buffer
-	if err := tmpl.Execute(&innerBuf, opts.InnerData); err != nil {
-		WebLogEvent(ctx, route, "Failed to execute inner template", "render", "failure", err, nil)
-		http.Error(w, "Template error", http.StatusInternalServerError)
-		return
+		return "", false
 	}
 
-	topMenus, sidebarMenus, activeModuleID, moduleName := render.LoadShellMenus(ctx, opts.MenuIDStr)
-	page := opts.Page
-	if page.Title == "" {
-		page.Title = "Sumeru"
+	var innerBuffer bytes.Buffer
+	if err := templateFile.Execute(&innerBuffer, opts.InnerData); err != nil {
+		WebLogEvent(ctx, route, "Failed to execute inner template", "render", "failure", err, nil)
+		http.Error(w, "Template error", http.StatusInternalServerError)
+		return "", false
 	}
-	page.Content = template.HTML(innerBuf.String())
+	return template.HTML(innerBuffer.String()), true
+}
+
+func finalizeShellPage(ctx context.Context, r *http.Request, opts shellPageOpts, innerHTML template.HTML, route string) render.PageData {
+	topMenus, sidebarMenus, activeModuleID, moduleName := render.LoadShellMenus(ctx, opts.MenuIDStr)
+
+	page := opts.Page
+	page.Content = innerHTML
 	page.TopMenus = topMenus
 	page.SidebarMenus = sidebarMenus
 	page.ActiveModuleID = activeModuleID
+	return applyShellPageDefaults(page, opts, route, r, moduleName, sidebarMenus)
+}
+
+func applyShellPageDefaults(page render.PageData, opts shellPageOpts, route string, r *http.Request, moduleName string, sidebarMenus []render.SidebarMenu) render.PageData {
+	if page.Title == "" {
+		page.Title = defaultPageTitle
+	}
 	if page.ModuleName == "" {
 		page.ModuleName = moduleName
 	}
 	if page.ActiveMenuID == "" {
 		page.ActiveMenuID = opts.MenuIDStr
 	}
+	if !page.SuppressSidebar && !render.SidebarHasMenus(sidebarMenus) {
+		page.SuppressSidebar = true
+	}
 	if len(page.ViewStylesheetURLs) == 0 {
-		page.ViewStylesheetURLs = []string{"/static/css/sumeru-workspace.css"}
+		page.ViewStylesheetURLs = []string{workspaceStylesheetURL}
 	}
-	if len(page.ExtraStylesheetURLs) == 0 {
-		page.ExtraStylesheetURLs = render.ExtraStylesheetURLs
-	}
-	if len(opts.ExtraStylesheetURLs) > 0 {
-		page.ExtraStylesheetURLs = opts.ExtraStylesheetURLs
-	}
+	page.ExtraStylesheetURLs = resolveExtraStylesheets(page.ExtraStylesheetURLs, opts.ExtraStylesheetURLs)
 	if page.CSRFToken == "" {
 		page.CSRFToken = CSRFTokenForRequest(r)
 	}
-
-	html, err := render.RenderPage(ctx, config.AppConfig.TemplatesPath, page)
-	if err != nil {
-		WebLogEvent(ctx, route, "Failed to render page layout", "render", "failure", err, nil)
-		http.Error(w, "Layout render error", http.StatusInternalServerError)
-		return
+	if route == homeRoute {
+		page.HomeNavActive = true
 	}
-	writeHTML(w, ctx, route, html)
+	return page
+}
+
+func resolveExtraStylesheets(pageStylesheets, optStylesheets []string) []string {
+	if len(optStylesheets) > 0 {
+		return optStylesheets
+	}
+	if len(pageStylesheets) > 0 {
+		return pageStylesheets
+	}
+	return render.ExtraStylesheetURLs
 }
 
 func writeHTML(w http.ResponseWriter, ctx context.Context, route, html string) {

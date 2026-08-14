@@ -99,6 +99,13 @@ func createTable(model Model) error {
 	if err != nil {
 		return err
 	}
+	exists, err := tableExists(physical)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
 	var columns []string
 	columns = append(columns, quoteIdent("id")+" BIGSERIAL PRIMARY KEY")
 

@@ -5,15 +5,20 @@ const AVATAR_MAX_EDGE = 512;
 const AVATAR_MIME = "image/jpeg";
 const AVATAR_QUALITY = 0.85;
 
-function showPreview(preview, initials, url) {
+function showImagePreview(preview, placeholder, url) {
   if (!preview || !url) return;
   preview.src = url;
   preview.removeAttribute("hidden");
   preview.hidden = false;
-  preview.classList.add("sum-form-avatar-img--visible");
-  if (initials) {
-    initials.hidden = true;
-    initials.setAttribute("hidden", "");
+  if (preview.classList) preview.classList.add("sum-form-avatar-img--visible");
+  const thumb = preview.closest?.(".sum-image-thumb");
+  if (thumb) {
+    thumb.hidden = false;
+    thumb.removeAttribute("hidden");
+  }
+  if (placeholder) {
+    placeholder.hidden = true;
+    placeholder.setAttribute("hidden", "");
   }
 }
 
@@ -71,7 +76,7 @@ function bindAvatarRoots() {
       try {
         const url = await resizeToDataURL(f);
         hidden.value = url;
-        showPreview(preview, initials, url);
+        showImagePreview(preview, initials, url);
       } catch (err) {
         console.warn("avatar upload failed", err);
       }
@@ -85,7 +90,6 @@ function bindImageWidgetRoots() {
     const hidden = root.querySelector("[data-sum-image-value]");
     const preview = root.querySelector("[data-sum-image-preview]");
     const placeholder = root.querySelector("[data-sum-image-placeholder]");
-    const thumb = preview && preview.closest(".sum-image-thumb");
     if (!file || !hidden) return;
 
     file.addEventListener("change", async () => {
@@ -94,19 +98,7 @@ function bindImageWidgetRoots() {
       try {
         const url = await resizeToDataURL(f);
         hidden.value = url;
-        if (preview) {
-          preview.src = url;
-          preview.removeAttribute("hidden");
-          preview.hidden = false;
-        }
-        if (thumb) {
-          thumb.hidden = false;
-          thumb.removeAttribute("hidden");
-        }
-        if (placeholder) {
-          placeholder.hidden = true;
-          placeholder.setAttribute("hidden", "");
-        }
+        showImagePreview(preview, placeholder, url);
       } catch (err) {
         console.warn("image upload failed", err);
       }

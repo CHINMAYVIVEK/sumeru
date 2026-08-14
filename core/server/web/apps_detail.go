@@ -2,7 +2,6 @@ package web
 
 import (
 	"net/http"
-	"net/url"
 
 	"sumeru/core/orm"
 )
@@ -21,62 +20,83 @@ type appsModuleDetailVM struct {
 	EditURL, CancelURL                 string
 }
 
-// loadAppsModuleDetail builds the detail VM for a module query param, or nil when moduleParam is empty.
-// On DB/lookup failure it writes an HTTP error and returns ok=false.
-func loadAppsModuleDetail(w http.ResponseWriter, r *http.Request, moduleParam string, editing bool, mods []appsModule, layout, filter, scope, searchQ string) (detail *appsModuleDetailVM, breadcrumb string, ok bool) {
-	breadcrumb = "Applications"
-	if moduleParam == "" {
+const appsListBreadcrumb = "Applications"
+
+// loadAppsModuleDetail builds the detail VM when ?module= is present, or nil for list-only view.
+// On lookup failure it writes an HTTP error and returns ok=false.
+func loadAppsModuleDetail(
+	w http.ResponseWriter,
+	r *http.Request,
+	moduleName string,
+	editing bool,
+	listedModules []appsModule,
+	layout, filter, scope, searchQuery string,
+) (detail *appsModuleDetailVM, breadcrumb string, ok bool) {
+	breadcrumb = appsListBreadcrumb
+	if moduleName == "" {
 		return nil, breadcrumb, true
 	}
 
-	row, err := orm.SearchOne(r.Context(), "sys.module", map[string]interface{}{"name": moduleParam})
-	if err != nil {
-		http.Error(w, "Module not found", http.StatusNotFound)
+	parsed, recordID, loaded := loadModuleRowByName(w, r, moduleName)
+	if !loaded {
 		return nil, "", false
 	}
-	id64, idOK := orm.CoerceInt64(row["id"])
-	if !idOK {
-		http.Error(w, "Module not found", http.StatusNotFound)
-		return nil, "", false
+
+	// Action flags come from the pre-built list entry when available (same rules as the grid/list).
+	listEntry, _ := findAppsModule(listedModules, parsed.Name)
+	browse := appsBrowseState{
+		Layout: layout, Filter: filter, Scope: scope, SearchQuery: searchQuery,
 	}
-	name := orm.AsString(row["name"])
-	var found appsModule
-	for _, m := range mods {
-		if m.Name == name {
-			found = m
-			break
-		}
-	}
-	backQ := appsBrowseQuery(layout, filter, scope, searchQ)
-	qEdit := url.Values{}
-	appendAppsQueryBase(qEdit, layout, filter, scope, searchQ)
-	qEdit.Set("module", name)
-	qEdit.Set("edit", "1")
-	qCancel := url.Values{}
-	appendAppsQueryBase(qCancel, layout, filter, scope, searchQ)
-	qCancel.Set("module", name)
+	browseQuery := appsBrowseQuery(browse)
+
 	detail = &appsModuleDetailVM{
 		Layout:        layout,
 		Editing:       editing,
-		Name:          name,
-		DisplayName:   orm.AsString(row["display_name"]),
-		Author:        orm.AsString(row["author"]),
-		Version:       orm.AsString(row["version"]),
-		Description:   orm.AsString(row["description"]),
-		State:         orm.AsString(row["state"]),
-		Active:        orm.AsBool(row["active"]),
-		ID:            int(id64),
-		CanInstall:    found.CanInstall,
-		CanUninstall:  found.CanUninstall,
-		CanDeactivate: found.CanDeactivate,
-		CanActivate:   found.CanActivate,
-		BackAppsQuery: backQ,
-		EditURL:       "/web/apps?" + qEdit.Encode(),
-		CancelURL:     "/web/apps?" + qCancel.Encode(),
-	}
-	if detail.DisplayName == "" {
-		detail.DisplayName = detail.Name
+		Name:          parsed.Name,
+		DisplayName:   parsed.DisplayName,
+		Author:        parsed.Author,
+		Version:       parsed.Version,
+		Description:   parsed.Description,
+		State:         parsed.State,
+		Active:        parsed.Active,
+		ID:            recordID,
+		CanInstall:    listEntry.CanInstall,
+		CanUninstall:  listEntry.CanUninstall,
+		CanDeactivate: listEntry.CanDeactivate,
+		CanActivate:   listEntry.CanActivate,
+		BackAppsQuery: browseQuery,
+		EditURL:       appsDetailPageURL(withModuleName(browse, parsed.Name), true),
+		CancelURL:     appsDetailPageURL(withModuleName(browse, parsed.Name), false),
 	}
 	breadcrumb = "Apps · " + detail.DisplayName
 	return detail, breadcrumb, true
+}
+
+// loadModuleRowByName fetches one sys.module row by technical name.
+func loadModuleRowByName(w http.ResponseWriter, r *http.Request, moduleName string) (moduleRow, int, bool) {
+	row, err := orm.SearchOne(r.Context(), appsModuleModel, map[string]interface{}{"name": moduleName})
+	if err != nil {
+		http.Error(w, "Module not found", http.StatusNotFound)
+		return moduleRow{}, 0, false
+	}
+	parsed, rowOK := parseModuleRow(row)
+	if !rowOK {
+		http.Error(w, "Module not found", http.StatusNotFound)
+		return moduleRow{}, 0, false
+	}
+	recordID, idOK := orm.CoerceInt64(row["id"])
+	if !idOK {
+		http.Error(w, "Module not found", http.StatusNotFound)
+		return moduleRow{}, 0, false
+	}
+	return parsed, int(recordID), true
+}
+
+func findAppsModule(modules []appsModule, name string) (appsModule, bool) {
+	for _, moduleEntry := range modules {
+		if moduleEntry.Name == name {
+			return moduleEntry, true
+		}
+	}
+	return appsModule{}, false
 }

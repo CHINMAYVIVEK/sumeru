@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sumeru>
+    <data>
+        <!-- sys.view : core.company (list) -->
+        <view id="view_core.company_list" model="core.company" type="list">
+            <field name="name" string="Company Name"/>
+            <field name="city" string="City"/>
+            <field name="country" string="Country"/>
+            <field name="email" string="Email"/>
+            <field name="phone" string="Phone"/>
+            <field name="vat" string="Tax ID"/>
+        </view>
+    </data>
+</sumeru>

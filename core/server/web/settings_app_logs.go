@@ -2,8 +2,8 @@ package web
 
 import (
 	"context"
-	"fmt"
 	"net/http"
+	"strconv"
 
 	"sumeru/core/engine/render"
 	"sumeru/core/orm"
@@ -14,62 +14,76 @@ func AppLogsHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
 	}
-	if !requireMenuAccess(w, r, "base.menu_app_logs") {
+	if !requireMenuAccess(w, r, appLogsMenuXMLID) {
 		return
 	}
-	reqCtx := r.Context()
 
-	events, err := loadAppLogEvents(reqCtx)
+	ctx := r.Context()
+	events, err := loadAppLogEvents(ctx)
 	if err != nil {
-		WebLogEvent(reqCtx, r.URL.Path, "Failed to load app logs", "load", "failure", err, nil)
+		WebLogEvent(ctx, appLogsRoute, "Failed to load app logs", "load", "failure", err, nil)
 		http.Error(w, "Failed to load app logs", http.StatusInternalServerError)
 		return
 	}
 
-	menuIDStr := ""
-	var appLogsMenuID int
-	if mid, _, err := orm.ResolveXmlId(reqCtx, "base.menu_app_logs"); err == nil && mid > 0 {
-		appLogsMenuID = mid
-		menuIDStr = fmt.Sprintf("%d", mid)
-	}
-
-	page := render.PageData{
-		Title:              "App Logs",
-		ViewBreadcrumb:     "Event Log",
-		SettingsNavActive:  true,
-		ViewStylesheetURLs: []string{"/static/css/sumeru-workspace.css"},
-	}
-	if appLogsMenuID > 0 {
-		page.BreadcrumbItems = render.BuildAppLogsBreadcrumbs(reqCtx, appLogsMenuID)
-	}
-
-	renderShellPage(w, r, shellPageOpts{
-		Route:         r.URL.Path,
-		InnerTemplate: "app_logs_inner.html",
-		InnerData:     events,
-		MenuIDStr:     menuIDStr,
-		Page:          page,
-	})
+	menuID, menuIDStr := resolveMenuID(ctx, appLogsMenuXMLID)
+	renderAppLogsPage(w, r, events, menuID, menuIDStr)
 }
 
-type ModuleEvent struct {
+type appLogEvent struct {
 	CreatedAt string
 	Module    string
 	Action    string
 	Detail    string
 }
 
-func loadAppLogEvents(ctx context.Context) ([]ModuleEvent, error) {
-	tbl := orm.MustQuotedTableName("app.log")
+func renderAppLogsPage(w http.ResponseWriter, r *http.Request, events []appLogEvent, menuID int, menuIDStr string) {
+	ctx := r.Context()
+	renderShellPage(w, r, shellPageOpts{
+		Route:         appLogsRoute,
+		InnerTemplate: appLogsInnerTemplate,
+		InnerData:     events,
+		MenuIDStr:     menuIDStr,
+		Page:          buildAppLogsPageData(ctx, menuID),
+	})
+}
+
+func buildAppLogsPageData(ctx context.Context, menuID int) render.PageData {
+	page := render.PageData{
+		Title:              appLogsPageTitle,
+		ViewBreadcrumb:     appLogsBreadcrumb,
+		SettingsNavActive:  true,
+		ViewStylesheetURLs: appLogsViewStylesheets(),
+	}
+	if menuID > 0 {
+		page.BreadcrumbItems = render.BuildAppLogsBreadcrumbs(ctx, menuID)
+	}
+	return page
+}
+
+func appLogsViewStylesheets() []string {
+	return []string{workspaceStylesheetURL, pagesStylesheetURL}
+}
+
+func resolveMenuID(ctx context.Context, menuXMLID string) (menuID int, menuIDStr string) {
+	menuID, ok := resolvedMenuIDFromXML(ctx, menuXMLID)
+	if !ok {
+		return 0, ""
+	}
+	return menuID, strconv.Itoa(menuID)
+}
+
+func loadAppLogEvents(ctx context.Context) ([]appLogEvent, error) {
+	logTable := orm.MustQuotedTableName(appLogModel)
 	query := `
 		SELECT
 			to_char(create_date, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
 			COALESCE(NULLIF(TRIM(module_name), ''), '') AS module,
 			COALESCE(NULLIF(TRIM(action), ''), '') AS action,
 			COALESCE(NULLIF(TRIM(detail), ''), '') AS detail
-		FROM ` + tbl + `
+		FROM ` + logTable + `
 		ORDER BY create_date DESC, id DESC
-		LIMIT 500`
+		LIMIT ` + strconv.Itoa(maxAppLogEvents)
 
 	rows, err := orm.DB.QueryContext(ctx, query)
 	if err != nil {
@@ -77,14 +91,14 @@ func loadAppLogEvents(ctx context.Context) ([]ModuleEvent, error) {
 	}
 	defer rows.Close()
 
-	var events []ModuleEvent
+	events := make([]appLogEvent, 0, maxAppLogEvents)
 	for rows.Next() {
-		var e ModuleEvent
-		if err := rows.Scan(&e.CreatedAt, &e.Module, &e.Action, &e.Detail); err != nil {
-			WebLogEvent(ctx, "-", "App log row scan failed", "load", "partial", err, nil)
+		var event appLogEvent
+		if err := rows.Scan(&event.CreatedAt, &event.Module, &event.Action, &event.Detail); err != nil {
+			WebLogEvent(ctx, appLogsRoute, "App log row scan failed", "load", "partial", err, nil)
 			continue
 		}
-		events = append(events, e)
+		events = append(events, event)
 	}
 	return events, rows.Err()
 }

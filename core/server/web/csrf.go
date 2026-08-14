@@ -9,6 +9,11 @@ import (
 	"sync"
 )
 
+const (
+	csrfHeaderName = "X-CSRF-Token"
+	csrfFormField  = "csrf_token"
+)
+
 var (
 	csrfSecretMu sync.RWMutex
 	csrfSecret   []byte
@@ -36,33 +41,33 @@ func csrfKey() []byte {
 }
 
 func sessionIDFromRequest(r *http.Request) string {
-	c, err := r.Cookie(sessionCookieName)
-	if err != nil || c.Value == "" {
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil || cookie.Value == "" {
 		return ""
 	}
-	return c.Value
+	return cookie.Value
 }
 
 // CSRFTokenForRequest returns the per-session CSRF token (empty when not logged in).
 func CSRFTokenForRequest(r *http.Request) string {
-	sid := sessionIDFromRequest(r)
-	if sid == "" {
+	sessionID := sessionIDFromRequest(r)
+	if sessionID == "" {
 		return ""
 	}
 	mac := hmac.New(sha256.New, csrfKey())
-	_, _ = mac.Write([]byte(sid))
+	_, _ = mac.Write([]byte(sessionID))
 	return hex.EncodeToString(mac.Sum(nil)[:16])
 }
 
-// ValidateCSRF checks the csrf_token form field against the session-bound token.
+// ValidateCSRF checks the csrf_token form field or X-CSRF-Token header against the session-bound token.
 func ValidateCSRF(r *http.Request) bool {
 	expected := CSRFTokenForRequest(r)
 	if expected == "" {
 		return false
 	}
-	got := r.PostFormValue("csrf_token")
+	got := r.PostFormValue(csrfFormField)
 	if got == "" {
-		got = r.Header.Get("X-CSRF-Token")
+		got = r.Header.Get(csrfHeaderName)
 	}
 	return got != "" && hmac.Equal([]byte(got), []byte(expected))
 }

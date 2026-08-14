@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net/http"
 	"net/url"
 	"strings"
 )
@@ -10,78 +11,203 @@ type appsNavVM struct {
 	ScopeAll, ScopeApps, ScopeTechnical           string
 }
 
-func normalizeAppsFilter(s string) string {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "installed", "uninstalled":
-		return strings.ToLower(strings.TrimSpace(s))
-	default:
-		return "all"
+// appsBrowseState holds normalized Apps page query parameters.
+type appsBrowseState struct {
+	Message     string
+	Layout      string
+	Filter      string
+	Scope       string
+	SearchQuery string
+	ModuleName  string
+	Editing     bool
+}
+
+func parseAppsBrowseState(r *http.Request) appsBrowseState {
+	query := r.URL.Query()
+	return appsBrowseState{
+		Message:     strings.TrimSpace(query.Get("msg")),
+		Layout:      layoutFromQuery(r),
+		ModuleName:  strings.TrimSpace(query.Get("module")),
+		Editing:     strings.TrimSpace(query.Get("edit")) == "1",
+		Filter:      normalizeAppsFilter(query.Get("filter")),
+		Scope:       normalizeAppsScope(query.Get("scope")),
+		SearchQuery: strings.TrimSpace(query.Get("q")),
 	}
 }
 
-func normalizeAppsScope(s string) string {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "apps", "technical":
-		return strings.ToLower(strings.TrimSpace(s))
-	default:
-		return "all"
+// parseAppsBrowseStateFromForm reads apps_* POST fields preserved across module action redirects.
+func parseAppsBrowseStateFromForm(r *http.Request) appsBrowseState {
+	return appsBrowseState{
+		Layout:      layoutFromForm(r, appsLayoutField),
+		Filter:      normalizeAppsFilter(r.FormValue(appsFilterField)),
+		Scope:       normalizeAppsScope(r.FormValue(appsScopeField)),
+		SearchQuery: strings.TrimSpace(r.FormValue(appsSearchField)),
 	}
 }
 
-func appsModuleMatchesFilter(m appsModule, filter string) bool {
+// appsRedirectURL redirects to the Apps list (browse.ModuleName should be empty).
+func appsRedirectURL(message string, browse appsBrowseState) string {
+	return appsPageURL(message, browse)
+}
+
+// appsDetailRedirectURL redirects to a module detail view; browse.ModuleName must be set.
+func appsDetailRedirectURL(message string, browse appsBrowseState) string {
+	return appsPageURL(message, browse)
+}
+
+func appsPageURL(message string, browse appsBrowseState) string {
+	query := url.Values{}
+	if trimmed := strings.TrimSpace(message); trimmed != "" {
+		query.Set("msg", trimmed)
+	}
+	appendAppsBrowseQuery(query, browse)
+	return buildAppsPageURL(query)
+}
+
+func appsLinkFromBrowse(browse appsBrowseState) string {
+	return appsPageURL("", browse)
+}
+
+func appsDetailPageURL(browse appsBrowseState, editing bool) string {
+	query := url.Values{}
+	appendAppsBrowseQuery(query, browse)
+	if editing {
+		query.Set("edit", "1")
+	}
+	return buildAppsPageURL(query)
+}
+
+func buildAppsPageURL(query url.Values) string {
+	if encoded := query.Encode(); encoded != "" {
+		return appsRoute + "?" + encoded
+	}
+	return appsRoute
+}
+
+func withModuleName(browse appsBrowseState, moduleName string) appsBrowseState {
+	browse.ModuleName = moduleName
+	return browse
+}
+
+func appendAppsBrowseQuery(query url.Values, browse appsBrowseState) {
+	appendAppsQueryBase(query, browse.Layout, browse.Filter, browse.Scope, browse.SearchQuery)
+	if browse.ModuleName != "" {
+		query.Set("module", browse.ModuleName)
+	}
+}
+
+func normalizeAppsFilter(raw string) string {
+	return normalizeAppsChoice(raw, appsFilterInstalled, appsFilterUninstalled, appsFilterAll)
+}
+
+func normalizeAppsScope(raw string) string {
+	return normalizeAppsChoice(raw, appsScopeApps, appsScopeTechnical, appsScopeAll)
+}
+
+func normalizeAppsChoice(raw string, allowed ...string) string {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	for _, choice := range allowed {
+		if normalized == choice {
+			return choice
+		}
+	}
+	if len(allowed) > 0 {
+		return allowed[len(allowed)-1]
+	}
+	return normalized
+}
+
+func appsModuleMatchesFilter(moduleEntry appsModule, filter string) bool {
 	switch filter {
-	case "installed":
-		return m.State == "installed"
-	case "uninstalled":
-		return m.State != "installed"
+	case appsFilterInstalled:
+		return moduleEntry.State == moduleStateInstalled
+	case appsFilterUninstalled:
+		return moduleEntry.State != moduleStateInstalled
 	default:
 		return true
 	}
 }
 
-func appsModuleMatchesSearch(m appsModule, q string) bool {
-	q = strings.TrimSpace(q)
-	if q == "" {
+func appsModuleMatchesSearch(moduleEntry appsModule, searchQuery string) bool {
+	searchQuery = strings.TrimSpace(searchQuery)
+	if searchQuery == "" {
 		return true
 	}
-	lq := strings.ToLower(q)
-	return strings.Contains(strings.ToLower(m.Name), lq) || strings.Contains(strings.ToLower(m.DisplayName), lq)
+	needle := strings.ToLower(searchQuery)
+	searchText := strings.ToLower(moduleEntry.Name + " " + moduleEntry.DisplayName)
+	return strings.Contains(searchText, needle)
 }
 
-func appendAppsQueryBase(v url.Values, layout, filter, scope, q string) {
-	if layout == "list" || layout == "grid" {
-		v.Set("layout", layout)
+// filterAppsModulesByBrowse applies search/filter and splits by application vs technical scope.
+func filterAppsModulesByBrowse(modules []appsModule, browse appsBrowseState) (appModules, techModules []appsModule) {
+	for _, moduleEntry := range modules {
+		if !appsModuleMatchesSearch(moduleEntry, browse.SearchQuery) || !appsModuleMatchesFilter(moduleEntry, browse.Filter) {
+			continue
+		}
+		if moduleEntry.Application {
+			appModules = append(appModules, moduleEntry)
+		} else {
+			techModules = append(techModules, moduleEntry)
+		}
 	}
-	if filter != "" && filter != "all" {
-		v.Set("filter", filter)
+	switch browse.Scope {
+	case appsScopeApps:
+		techModules = nil
+	case appsScopeTechnical:
+		appModules = nil
 	}
-	if scope != "" && scope != "all" {
-		v.Set("scope", scope)
+	return appModules, techModules
+}
+
+func appendAppsQueryBase(query url.Values, layout, filter, scope, searchQuery string) {
+	if layout == appsLayoutList || layout == appsLayoutGrid {
+		query.Set("layout", layout)
 	}
-	if strings.TrimSpace(q) != "" {
-		v.Set("q", strings.TrimSpace(q))
+	if filter != "" && filter != appsFilterAll {
+		query.Set("filter", filter)
+	}
+	if scope != "" && scope != appsScopeAll {
+		query.Set("scope", scope)
+	}
+	if trimmed := strings.TrimSpace(searchQuery); trimmed != "" {
+		query.Set("q", trimmed)
 	}
 }
 
-func appsBrowseQuery(layout, filter, scope, q string) string {
-	v := url.Values{}
-	appendAppsQueryBase(v, layout, filter, scope, q)
-	return v.Encode()
+func appsBrowseQuery(browse appsBrowseState) string {
+	query := url.Values{}
+	appendAppsBrowseQuery(query, browse)
+	return query.Encode()
 }
 
-func appsLink(layout, filter, scope, q string) string {
-	v := url.Values{}
-	appendAppsQueryBase(v, layout, filter, scope, q)
-	return "/web/apps?" + v.Encode()
+// appsDetailURL builds links for module detail, edit, and cancel views.
+func appsDetailURL(layout, filter, scope, searchQuery, moduleName string, editing bool) string {
+	return appsDetailPageURL(appsBrowseState{
+		Layout:      layout,
+		Filter:      filter,
+		Scope:       scope,
+		SearchQuery: searchQuery,
+		ModuleName:  moduleName,
+	}, editing)
 }
 
-func buildAppsNavVM(layout, filter, scope, q string) appsNavVM {
+func buildAppsNavVM(browse appsBrowseState) appsNavVM {
+	withFilter := func(filter string) string {
+		linkBrowse := browse
+		linkBrowse.Filter = filter
+		return appsLinkFromBrowse(linkBrowse)
+	}
+	withScope := func(scope string) string {
+		linkBrowse := browse
+		linkBrowse.Scope = scope
+		return appsLinkFromBrowse(linkBrowse)
+	}
 	return appsNavVM{
-		FilterAll:         appsLink(layout, "all", scope, q),
-		FilterInstalled:   appsLink(layout, "installed", scope, q),
-		FilterUninstalled: appsLink(layout, "uninstalled", scope, q),
-		ScopeAll:          appsLink(layout, filter, "all", q),
-		ScopeApps:         appsLink(layout, filter, "apps", q),
-		ScopeTechnical:    appsLink(layout, filter, "technical", q),
+		FilterAll:         withFilter(appsFilterAll),
+		FilterInstalled:   withFilter(appsFilterInstalled),
+		FilterUninstalled: withFilter(appsFilterUninstalled),
+		ScopeAll:          withScope(appsScopeAll),
+		ScopeApps:         withScope(appsScopeApps),
+		ScopeTechnical:    withScope(appsScopeTechnical),
 	}
 }

@@ -5,7 +5,7 @@ type SysView struct {
 	ID       int    `orm:"id"`
 	Name     string `orm:"name"`
 	Model    string `orm:"model"` // Linked model technical name
-	Type     string `orm:"type"`  // form, tree, kanban
+	Type     string `orm:"type"`  // form, list, kanban
 	Arch     string `orm:"arch"`  // XML content
 	Priority int    `orm:"priority"`
 	Active   bool   `orm:"active"`

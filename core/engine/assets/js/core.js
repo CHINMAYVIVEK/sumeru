@@ -1,19 +1,29 @@
 /**
- * Shell bootstrap: wires feature modules (sidebar, activity, forms, apps).
+ * Shell bootstrap: wires feature modules (sidebar, activity, forms).
  * Each imported module owns one concern.
  */
 import { initSidebar } from "./shell/sidebar.js";
 import { initTopbarDropdowns } from "./shell/topbar-dropdowns.js";
 import { initActivityPanel } from "./shell/activity-panel.js";
+import { initAppLauncher } from "./shell/app-launcher.js";
+import { applyTopNavFilter, initRecentTracking, initPinnedApps } from "./shell/pinned-apps.js";
 import { initNotebookTabs } from "./ui/notebook-tabs.js";
-import { initAjaxFormCapture } from "./ui/ajax-form.js";
-import { initAppsModuleOpener } from "./apps/apps-module-opener.js";
-import { initFormSplit } from "./ui/form-split.js";
 import { initMessagesComposer } from "./ui/messages-composer.js";
 import { initMany2One } from "./ui/many2one.js";
 import { initMany2OneSelect } from "./ui/many2one-select.js";
 import { initMultiSelect } from "./ui/multi-select.js";
 import { initAvatarUpload } from "./ui/avatar-upload.js";
+import { initKanbanBoard } from "./ui/kanban-board.js";
+import { initStatusbar } from "./ui/statusbar.js";
+import { initPriorityField } from "./ui/priority-field.js";
+
+export {
+  getPinnedApps,
+  getRecentApps,
+  togglePinnedApp,
+  pushRecentApp,
+  applyTopNavFilter,
+} from "./shell/pinned-apps.js";
 
 (function bootstrap() {
   const shell = document.getElementById("sum-shell");
@@ -23,12 +33,16 @@ import { initAvatarUpload } from "./ui/avatar-upload.js";
   initTopbarDropdowns(shell);
   initActivityPanel(shell);
   initNotebookTabs();
-  initAjaxFormCapture();
-  initAppsModuleOpener();
-  initFormSplit();
   initMessagesComposer();
   initMany2One();
   initMany2OneSelect();
   initMultiSelect();
   initAvatarUpload();
+  initKanbanBoard();
+  initStatusbar();
+  initPriorityField();
+  initRecentTracking();
+  initPinnedApps();
+  applyTopNavFilter();
+  initAppLauncher();
 })();

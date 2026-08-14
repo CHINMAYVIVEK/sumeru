@@ -1,40 +1,61 @@
-<div class="sum-home-hub">
-    <div class="sum-home-hub-toolbar">
-        <form class="sum-home-hub-search" method="get" action="/web/home" role="search">
-            {{if .MenuID}}
-            <input type="hidden" name="menu_id" value="{{.MenuID}}" />
-            {{end}}
-            <span class="sum-home-hub-search-icon" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-            </span>
-            <label class="visually-hidden" for="sum-home-q">Search applications</label>
-            <input id="sum-home-q" name="q" type="search" class="sum-home-hub-search-input" value="{{.Search}}" placeholder="Search apps by name, technical name, or description…" autocomplete="off" />
-            <button type="submit" class="sum-home-hub-search-submit">Search</button>
-            {{if .Search}}
-            <a href="/web/home{{if .MenuID}}?menu_id={{.MenuID}}{{end}}" class="sum-home-hub-search-clear">Clear</a>
-            {{end}}
-        </form>
-    </div>
+<div class="sum-home-hub" id="sum-home-hub">
+    <div id="sum-home-toast" class="sum-home-toast" role="status" aria-live="polite" hidden></div>
 
     {{if .EmptyMsg}}
     <p class="sum-home-hub-empty" role="status">{{.EmptyMsg}}</p>
-    {{else}}
-    <div class="sum-home-hub-apps" role="list">
-        {{range .Tiles}}
-        <div class="sum-home-hub-app" role="listitem">
-            <a href="{{.OpenMenuHref}}" class="sum-home-hub-app-main" title="{{.DisplayName}} — {{.Name}}{{if .Description}}. {{.Description}}{{end}}">
-                <div class="sum-home-hub-app-icon" style="--sum-home-icon-h: {{.IconHue}};" aria-hidden="true">
-                    <span class="sum-home-hub-app-letter">{{.IconLetter}}</span>
-                </div>
-                <span class="sum-home-hub-app-name">{{.DisplayName}}</span>
-                <span class="sum-home-hub-app-tech">{{.Name}}</span>
-            </a>
-            <a href="/web/apps?module={{.Name}}&layout=grid" class="sum-home-hub-app-config" aria-label="App details for {{.DisplayName}}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-            </a>
-        </div>
-        {{end}}
+    {{else if eq .Layout "list"}}
+    <div class="sum-home-hub-list-wrap">
+        <table class="sum-home-hub-list" role="list">
+            <thead>
+                <tr>
+                    <th class="sum-home-hub-list-th-icon"></th>
+                    <th class="sum-home-hub-list-th-name">Application</th>
+                    <th class="sum-home-hub-list-th-mono">Technical name</th>
+                    <th class="sum-home-hub-list-th-desc">Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Tiles}}
+                <tr class="sum-home-hub-list-row" role="listitem" data-module="{{.Name}}">
+                    <td class="sum-home-hub-list-icon-cell">
+                        {{template "sumHomeAppIcon" .}}
+                    </td>
+                    <td class="sum-home-hub-list-name-cell">
+                        <div class="sum-home-hub-list-name-inner">
+                            <button type="button" class="sum-home-hub-app-pin sum-home-hub-app-pin--list" data-module="{{.Name}}" data-display-name="{{.DisplayName}}" aria-label="Pin {{.DisplayName}} to top bar" title="Pin to top bar">
+                                {{template "sumHomePinIcon"}}
+                            </button>
+                            <a href="{{.OpenMenuHref}}" class="sum-home-hub-list-link" data-module="{{.Name}}">{{.DisplayName}}</a>
+                        </div>
+                    </td>
+                    <td class="sum-home-hub-list-mono">{{.Name}}</td>
+                    <td class="sum-home-hub-list-desc">{{.Description}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
     </div>
+    {{else}}
+    <section id="sum-home-pinned-section" class="sum-home-hub-group" hidden>
+        <h2 class="sum-home-hub-group-title">Pinned</h2>
+        <div id="sum-home-pinned-apps" class="sum-home-hub-apps" role="list"></div>
+    </section>
+    <section class="sum-home-hub-group">
+        <div id="sum-home-all-apps" class="sum-home-hub-apps" role="list">
+            {{range .Tiles}}
+            <div class="sum-home-hub-app" role="listitem" data-module="{{.Name}}">
+                <button type="button" class="sum-home-hub-app-pin" data-module="{{.Name}}" data-display-name="{{.DisplayName}}" aria-label="Pin {{.DisplayName}} to top bar" title="Pin to top bar">
+                    {{template "sumHomePinIcon"}}
+                </button>
+                <a href="{{.OpenMenuHref}}" class="sum-home-hub-app-main" data-module="{{.Name}}" title="{{.DisplayName}} — {{.Name}}{{if .Description}}. {{.Description}}{{end}}">
+                    {{template "sumHomeAppIcon" .}}
+                    <span class="sum-home-hub-app-name">{{.DisplayName}}</span>
+                    <span class="sum-home-hub-app-tech">{{.Name}}</span>
+                </a>
+            </div>
+            {{end}}
+        </div>
+    </section>
     {{end}}
 </div>
 <script type="module" src="/static/js/ui/home-dashboard.js"></script>

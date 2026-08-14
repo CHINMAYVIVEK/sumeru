@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -11,110 +12,153 @@ import (
 	"sumeru/core/orm"
 )
 
-const maxImportBody = 8 << 20
-
 // ImportCSVHandler imports CSV rows into a model: POST multipart model=… & file=…
 func ImportCSVHandler(w http.ResponseWriter, r *http.Request) {
-	if !requireLogin(w, r) {
+	if !requireLoginMultipartPost(w, r, maxImportBodyBytes) {
 		return
 	}
-	if !RequirePOST(w, r) {
+
+	request, ok := openImportCSVRequest(w, r)
+	if !ok {
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxImportBody)
-	if err := r.ParseMultipartForm(maxImportBody); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
+	defer request.file.Close()
+
+	createdCount, err := importCSVRows(r.Context(), request.modelInst, request.file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if !validateSessionCSRF(w, r) {
-		return
-	}
-	model := strings.TrimSpace(r.FormValue("model"))
-	if model == "" {
+
+	redirectWithWebMessage(w, r, request.next, importCSVFlashMessage(createdCount))
+}
+
+type importCSVRequest struct {
+	modelInst orm.Model
+	file      io.ReadCloser
+	next      string
+}
+
+func openImportCSVRequest(w http.ResponseWriter, r *http.Request) (importCSVRequest, bool) {
+	modelName := strings.TrimSpace(r.FormValue(importModelField))
+	if modelName == "" {
 		http.Error(w, "model required", http.StatusBadRequest)
-		return
+		return importCSVRequest{}, false
 	}
-	if _, ok := requireRegisteredModel(w, model); !ok {
-		return
+
+	modelInst, ok := requireRegisteredModel(w, modelName)
+	if !ok {
+		return importCSVRequest{}, false
 	}
-	ctx := r.Context()
-	if err := orm.CheckModelAccess(ctx, orm.SecurityUID(ctx), model, "create"); err != nil {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
+	if !requireModelAccess(w, r, modelName, "create") {
+		return importCSVRequest{}, false
 	}
-	file, _, err := r.FormFile("file")
+
+	upload, _, err := r.FormFile(importFileField)
 	if err != nil {
 		http.Error(w, "file required", http.StatusBadRequest)
-		return
+		return importCSVRequest{}, false
 	}
-	defer file.Close()
 
+	return importCSVRequest{
+		modelInst: modelInst,
+		file:      upload,
+		next:      r.FormValue(nextField),
+	}, true
+}
+
+func importCSVFlashMessage(createdCount int) string {
+	return "imported_" + strconv.Itoa(createdCount)
+}
+
+func importCSVRows(ctx context.Context, modelInst orm.Model, file io.Reader) (int, error) {
 	reader := csv.NewReader(file)
 	reader.TrimLeadingSpace = true
+
 	header, err := reader.Read()
 	if err != nil {
-		http.Error(w, "empty csv", http.StatusBadRequest)
-		return
+		return 0, fmt.Errorf("empty csv")
 	}
-	for i := range header {
-		header[i] = strings.TrimSpace(header[i])
-	}
-	inst := orm.Registry[model]
-	allowed := map[string]struct{}{}
-	for _, f := range inst.Fields() {
-		if f.Name != "" && f.Name != "id" {
-			allowed[f.Name] = struct{}{}
-		}
-	}
-	created := 0
+	normalizeCSVHeader(header)
+
+	allowedFields := allowedImportFieldNames(modelInst)
+	createdCount := 0
+
 	for {
-		rec, err := reader.Read()
+		record, err := reader.Read()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			http.Error(w, fmt.Sprintf("csv error after %d rows: %v", created, err), http.StatusBadRequest)
-			return
+			return createdCount, fmt.Errorf("csv error after %d rows: %v", createdCount, err)
 		}
-		vals := map[string]interface{}{}
-		for i, col := range header {
-			if col == "" || col == "id" {
-				continue
-			}
-			if _, ok := allowed[col]; !ok {
-				continue
-			}
-			if i >= len(rec) {
-				continue
-			}
-			vals[col] = coerceCSV(rec[i])
-		}
-		if len(vals) == 0 {
+
+		values := importableRowValues(header, record, allowedFields)
+		if len(values) == 0 {
 			continue
 		}
-		if _, err := orm.Create(ctx, inst, vals); err != nil {
-			http.Error(w, fmt.Sprintf("row %d: %v", created+1, err), http.StatusBadRequest)
-			return
+		if _, err := orm.Create(ctx, modelInst, values); err != nil {
+			return createdCount, fmt.Errorf("row %d: %v", createdCount+1, err)
 		}
-		created++
+		createdCount++
 	}
-	next := SafeWebNext(r.FormValue("next"), "/web/home")
-	http.Redirect(w, r, next+"&msg=imported_"+strconv.Itoa(created), http.StatusSeeOther)
+
+	return createdCount, nil
 }
 
-func coerceCSV(s string) interface{} {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return s
+func normalizeCSVHeader(header []string) {
+	for i := range header {
+		header[i] = strings.TrimSpace(header[i])
 	}
-	if s == "true" || s == "TRUE" {
-		return true
+}
+
+func allowedImportFieldNames(modelInst orm.Model) map[string]struct{} {
+	allowed := make(map[string]struct{})
+	for _, field := range modelInst.Fields() {
+		if field.Name == "" || field.Name == workspaceRecordIDParam {
+			continue
+		}
+		allowed[field.Name] = struct{}{}
 	}
-	if s == "false" || s == "FALSE" {
+	return allowed
+}
+
+func importableRowValues(header, record []string, allowedFields map[string]struct{}) map[string]interface{} {
+	values := map[string]interface{}{}
+	for columnIndex, columnName := range header {
+		if !isImportableColumn(columnName, allowedFields) {
+			continue
+		}
+		if columnIndex >= len(record) {
+			continue
+		}
+		values[columnName] = coerceCSVValue(record[columnIndex])
+	}
+	return values
+}
+
+func isImportableColumn(columnName string, allowedFields map[string]struct{}) bool {
+	columnName = strings.TrimSpace(columnName)
+	if columnName == "" || columnName == workspaceRecordIDParam {
 		return false
 	}
-	if n, err := strconv.ParseInt(s, 10, 64); err == nil {
-		return n
+	_, allowed := allowedFields[columnName]
+	return allowed
+}
+
+func coerceCSVValue(raw string) interface{} {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return value
 	}
-	return s
+	switch strings.ToLower(value) {
+	case "true":
+		return true
+	case "false":
+		return false
+	}
+	if number, err := strconv.ParseInt(value, 10, 64); err == nil {
+		return number
+	}
+	return value
 }

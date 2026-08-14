@@ -55,11 +55,11 @@ Module XML (standard)
 
   **`<menuitem>`** — `id`, `name`, `parent`, `action`, `sequence`, `web_icon`. The `name` value is stored in **`sys.menu.name`** (globally unique): use distinct labels across all modules (e.g. "All Companies" vs root "Companies").
 
-  **`<view>`** (inline in data files) — `id`, `model`, `type` (`form` | `tree` | `list` | `kanban` | `pivot`); inner tags match arch below.
+  **`<view>`** (inline in data files) — `id`, `model`, `type` (`form` | `list` | `kanban` | `pivot`); inner tags match arch below. Use **`type="list"`** for list views (file: `views/list_view.xml`, id suffix `_list`).
 
   **View arch in `sys.view` (stored `arch` column)** — root may be:
     - **`<view type="form">...</view>`** (native), or
-    - **`<form>...</form>`**, **`<tree>...</tree>`**, **`<kanban>...</kanban>`** (alternate roots; mapped to form/tree/kanban).
+    - **`<form>...</form>`**, **`<list>...</list>`**, **`<kanban>...</kanban>`** (alternate roots).
 
   **Form arch tags (supported):**
     `<header>` — `<button name string type class/>`, `<field widget="statusbar"/>`
@@ -68,7 +68,7 @@ Module XML (standard)
     `<footer>` — `<button/>`
     `<chatter>` — thread + composer on workspace forms (requires a record id); messages stored in **`mail.message`** (see Activity and mail logging below).
 
-  **Tree / list:** `<field name string/>` columns (type `tree`; `list` in `view_mode` maps to tree). Optional **`open="false"`** (or `0`, `off`, `no`) on `<tree>` or `<view type="tree">` disables opening the form when a row is clicked; omitted or `true` opens the form (default).
+  **List view:** `<field name string/>` columns (`type="list"`; `list` in `view_mode` opens this view). Optional **`open="false"`** (or `0`, `off`, `no`) on `<list>` or `<view type="list">` disables opening the form when a row is clicked; omitted or `true` opens the form (default).
 
   **Kanban:** `<field/>` cards (simplified layout).
 
@@ -90,7 +90,7 @@ View inheritance
 
   Supported xpath targets: //field[@name='field_name'] with position one of:
     after, before, replace, inside
-  Stored arch may use `<form>`/`<tree>` roots or `<view>`; both load after merge.
+  Stored arch may use `<form>`/`<list>` roots or `<view>`; both load after merge.
 
   Example: addons/sale_demo_inherit/
 

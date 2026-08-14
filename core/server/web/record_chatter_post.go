@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,47 +20,93 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Chatter disabled", http.StatusForbidden)
 		return
 	}
-	modelName := strings.TrimSpace(r.PostFormValue("model"))
-	next := SafeWebNext(r.PostFormValue("next"), "/web/home")
-	body := strings.TrimSpace(r.PostFormValue("body"))
-	if modelName == "" {
-		http.Error(w, "Missing model", http.StatusBadRequest)
+
+	form := parseChatterPostForm(r)
+	if form.Body == "" {
+		redirectToWebNext(w, r, form.Next)
 		return
 	}
-	if body == "" {
-		http.Redirect(w, r, next, http.StatusSeeOther)
+
+	recordID, ok := validateChatterPost(w, r, form)
+	if !ok {
 		return
 	}
-	if utf8.RuneCountInString(body) > 10000 {
-		http.Error(w, "Message too long", http.StatusBadRequest)
-		return
-	}
-	if _, ok := requireRegisteredModel(w, modelName); !ok {
-		return
-	}
-	if modelName == "mail.message" {
-		http.Error(w, "Invalid model", http.StatusBadRequest)
-		return
-	}
-	idStr := strings.TrimSpace(r.PostFormValue("res_id"))
-	rid, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil || rid <= 0 {
-		http.Error(w, "Invalid res_id", http.StatusBadRequest)
-		return
-	}
-	if _, err := orm.SearchOne(r.Context(), modelName, map[string]interface{}{"id": int(rid)}); err != nil {
-		http.Error(w, "Record not found", http.StatusNotFound)
-		return
-	}
-	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), modelName, "write"); err != nil {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-	author := "User"
-	if err := mail.PostMessage(r.Context(), modelName, rid, body, mail.SubtypeComment, author); err != nil {
-		WebLogf(r.Context(), "/web/chatter/post", "chatter post %s id=%d: %v", modelName, rid, err)
+
+	if err := postChatterComment(r.Context(), form.ModelName, recordID, form.Body); err != nil {
+		WebLogf(r.Context(), chatterPostRoute, "chatter post %s id=%d: %v", form.ModelName, recordID, err)
 		http.Error(w, "Post failed", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, next, http.StatusSeeOther)
+
+	redirectToWebNext(w, r, form.Next)
+}
+
+type chatterPostForm struct {
+	ModelName   string
+	RecordIDRaw string
+	Body        string
+	Next        string
+}
+
+func parseChatterPostForm(r *http.Request) chatterPostForm {
+	return chatterPostForm{
+		ModelName:   strings.TrimSpace(r.PostFormValue(recordModelField)),
+		RecordIDRaw: strings.TrimSpace(r.PostFormValue(chatterRecordIDField)),
+		Body:        strings.TrimSpace(r.PostFormValue(chatterBodyField)),
+		Next:        SafeWebNext(r.PostFormValue(nextField), homeRoute),
+	}
+}
+
+func validateChatterPost(w http.ResponseWriter, r *http.Request, form chatterPostForm) (recordID int64, ok bool) {
+	if form.ModelName == "" {
+		http.Error(w, "Missing model", http.StatusBadRequest)
+		return 0, false
+	}
+	if chatterBodyTooLong(form.Body) {
+		http.Error(w, "Message too long", http.StatusBadRequest)
+		return 0, false
+	}
+	if _, registered := requireRegisteredModel(w, form.ModelName); !registered {
+		return 0, false
+	}
+	if form.ModelName == mailMessageModel {
+		http.Error(w, "Invalid model", http.StatusBadRequest)
+		return 0, false
+	}
+
+	recordID, parseOK := parseChatterRecordID(w, form.RecordIDRaw)
+	if !parseOK {
+		return 0, false
+	}
+	if !chatterTargetRecordExists(r, form.ModelName, recordID) {
+		http.Error(w, "Record not found", http.StatusNotFound)
+		return 0, false
+	}
+	if !requireModelAccess(w, r, form.ModelName, "write") {
+		return 0, false
+	}
+
+	return recordID, true
+}
+
+func parseChatterRecordID(w http.ResponseWriter, rawRecordID string) (int64, bool) {
+	recordID, err := strconv.ParseInt(rawRecordID, 10, 64)
+	if err != nil || recordID <= 0 {
+		http.Error(w, "Invalid res_id", http.StatusBadRequest)
+		return 0, false
+	}
+	return recordID, true
+}
+
+func chatterTargetRecordExists(r *http.Request, modelName string, recordID int64) bool {
+	_, err := orm.SearchOne(r.Context(), modelName, map[string]interface{}{"id": int(recordID)})
+	return err == nil
+}
+
+func chatterBodyTooLong(body string) bool {
+	return utf8.RuneCountInString(body) > maxChatterBodyRunes
+}
+
+func postChatterComment(ctx context.Context, modelName string, recordID int64, body string) error {
+	return mail.PostMessage(ctx, modelName, recordID, body, mail.SubtypeComment, chatterDefaultAuthor)
 }

@@ -5,7 +5,7 @@
         <record id="action_core.company" model="sys.action.window">
             <field name="name">Companies</field>
             <field name="core_model">core.company</field>
-            <field name="view_mode">tree,kanban,form</field>
+            <field name="view_mode">list,kanban,form</field>
             <field name="help">Maintain the legal entities used across the database: fiscal position, identifiers, and contact channels.</field>
         </record>
     </data>

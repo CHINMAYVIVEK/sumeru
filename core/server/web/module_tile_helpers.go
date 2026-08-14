@@ -3,96 +3,70 @@ package web
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
+	"sumeru/core/engine/render"
 	"sumeru/core/module"
 	"sumeru/core/orm"
 )
 
-type appTile struct {
-	Name         string
-	DisplayName  string
-	Version      string
-	Description  string
-	Author       string
-	IconLetter   string
-	IconHue      int
-	OpenMenuHref string
-}
-
-func loadInstalledAppTiles(ctx context.Context, searchQ string) ([]appTile, error) {
-	raw, err := module.ListModules(ctx)
+// loadInstalledAppTiles returns installed, active application modules sorted by display name.
+// When forHome is true, sprite WebIcon is omitted (home uses static PNG icons only).
+func loadInstalledAppTiles(ctx context.Context, forHome bool) ([]render.AppTile, error) {
+	moduleRows, err := module.ListModules(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var tiles []appTile
-	for _, row := range raw {
-		name := orm.AsString(row["name"])
-		if name == "" {
+	var tiles []render.AppTile
+	for _, row := range moduleRows {
+		parsed, ok := parseModuleRow(row)
+		if !ok || !parsed.Application || parsed.State != "installed" || !parsed.Active {
 			continue
 		}
-		if !orm.AsBool(row["application"]) {
-			continue
+		openHref := appsRoute
+		if menuID := render.RootMenuIDForModule(ctx, parsed.Name); menuID > 0 {
+			openHref = menuHrefFromMenuID(menuID)
 		}
-		if orm.AsString(row["state"]) != "installed" {
-			continue
+		iconURL := render.ModuleIconURL(ctx, parsed.Name)
+		webIcon := ""
+		if !forHome && iconURL == "" {
+			webIcon = render.RootMenuWebIconForModule(ctx, parsed.Name)
 		}
-		if !orm.AsBool(row["active"]) {
-			continue
-		}
-		dn := orm.AsString(row["display_name"])
-		if dn == "" {
-			dn = name
-		}
-		desc := orm.AsString(row["description"])
-		if searchQ != "" && !homeSearchMatches(searchQ, name, dn, desc) {
-			continue
-		}
-		openHref := "/web/apps"
-		if mid := rootMenuIDForModule(ctx, name); mid > 0 {
-			openHref = fmt.Sprintf("/web?menu_id=%d", mid)
-		}
-		tiles = append(tiles, appTile{
-			Name:         name,
-			DisplayName:  dn,
-			Version:      orm.AsString(row["version"]),
-			Description:  desc,
-			Author:       orm.AsString(row["author"]),
-			IconLetter:   iconLetterFromName(dn),
-			IconHue:      iconHueFromString(name),
+		tiles = append(tiles, render.AppTile{
+			Name:         parsed.Name,
+			DisplayName:  parsed.DisplayName,
+			Version:      parsed.Version,
+			Description:  parsed.Description,
+			Author:       parsed.Author,
+			IconLetter:   render.IconLetterFromName(parsed.DisplayName),
+			IconHue:      render.IconHueFromString(parsed.Name),
+			IconURL:      iconURL,
+			WebIcon:      webIcon,
 			OpenMenuHref: openHref,
 		})
 	}
+	sort.Slice(tiles, func(i, j int) bool {
+		displayI := strings.ToLower(strings.TrimSpace(tiles[i].DisplayName))
+		displayJ := strings.ToLower(strings.TrimSpace(tiles[j].DisplayName))
+		if displayI != displayJ {
+			return displayI < displayJ
+		}
+		return tiles[i].Name < tiles[j].Name
+	})
 	return tiles, nil
 }
 
-func iconLetterFromName(name string) string {
-	if r := []rune(strings.TrimSpace(name)); len(r) > 0 {
-		return strings.ToUpper(string(r[0]))
-	}
-	return "?"
+// menuHrefFromMenuID builds a workspace URL for a numeric menu id.
+func menuHrefFromMenuID(menuID int) string {
+	return fmt.Sprintf("/web?menu_id=%d", menuID)
 }
 
-func rootMenuIDForModule(ctx context.Context, moduleName string) int {
-	if orm.DB == nil || strings.TrimSpace(moduleName) == "" {
-		return 0
+// menuHrefFromXMLID resolves a menu XML id to a workspace URL, or "" when not found.
+func menuHrefFromXMLID(ctx context.Context, menuXMLID string) string {
+	menuID, _, err := orm.ResolveXmlId(ctx, menuXMLID)
+	if err != nil || menuID <= 0 {
+		return ""
 	}
-	tbl := orm.MustQuotedTableName("sys.menu")
-	q := `SELECT id FROM ` + tbl + ` WHERE module = $1 AND parent_id IS NULL ORDER BY sequence ASC, id ASC LIMIT 1`
-	var id int
-	if err := orm.DB.QueryRowContext(ctx, q, strings.TrimSpace(moduleName)).Scan(&id); err != nil {
-		return 0
-	}
-	return id
-}
-
-func iconHueFromString(s string) int {
-	h := 265
-	for _, c := range strings.TrimSpace(s) {
-		h = (h*31 + int(c)) % 360
-		if h < 0 {
-			h += 360
-		}
-	}
-	return h
+	return menuHrefFromMenuID(menuID)
 }

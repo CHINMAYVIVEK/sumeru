@@ -12,18 +12,21 @@ import (
 	"sumeru/core/orm"
 )
 
+// Install pipeline per module: resolveDeps → markPending → syncSchema → loadData → finalize.
+// XML record sync (views, menus, actions) runs inside loadData via SyncToDB.
+
 // InstallModuleByName marks the module installed and loads its XML (and dependencies first).
-func InstallModuleByName(context context.Context, moduleName string) error {
-	if err := orm.CheckModelAccess(context, orm.SecurityUID(context), "sys.module", "write"); err != nil {
+func InstallModuleByName(ctx context.Context, moduleName string) error {
+	if err := orm.CheckModelAccess(ctx, orm.SecurityUID(ctx), "sys.module", "write"); err != nil {
 		return err
 	}
-	systemContext := orm.ContextWithBypass(context, true)
+	systemContext := orm.ContextWithBypass(ctx, true)
 	installMu.Lock()
 	defer installMu.Unlock()
 	return installModuleUnlocked(systemContext, moduleName)
 }
 
-func installModuleUnlocked(context context.Context, moduleName string) error {
+func installModuleUnlocked(ctx context.Context, moduleName string) error {
 	start := time.Now()
 	defer func() {
 		metrics.ObserveDuration("sumeru_module_install_duration_seconds", time.Since(start))
@@ -44,7 +47,7 @@ func installModuleUnlocked(context context.Context, moduleName string) error {
 		if _, has := DiscoveredAddons[dependencyName]; !has {
 			continue
 		}
-		moduleRow, err := moduleRow(context, dependencyName)
+		moduleRow, err := moduleRow(ctx, dependencyName)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return fmt.Errorf("dependency %q is not registered", dependencyName)
@@ -52,13 +55,13 @@ func installModuleUnlocked(context context.Context, moduleName string) error {
 			return err
 		}
 		if moduleStateString(moduleRow) != "installed" {
-			if err := installModuleUnlocked(context, dependencyName); err != nil {
+			if err := installModuleUnlocked(ctx, dependencyName); err != nil {
 				return fmt.Errorf("install dependency %q: %w", dependencyName, err)
 			}
 		}
 	}
 
-	return reloadModuleData(context, moduleName, moduleReloadInstall)
+	return reloadModuleData(ctx, moduleName, moduleReloadInstall)
 }
 
 type moduleReloadMode int
@@ -75,17 +78,30 @@ func reloadModuleData(ctx context.Context, moduleName string, mode moduleReloadM
 		return fmt.Errorf("unknown module %q", moduleName)
 	}
 
+	if err := markModuleReloadPending(ctx, moduleName, mode); err != nil {
+		return err
+	}
+	if err := syncModuleSchema(ctx, moduleName, mode); err != nil {
+		return err
+	}
+	if err := loadModuleXMLData(ctx, moduleName, mode, addon); err != nil {
+		return err
+	}
+	return finalizeModuleReload(ctx, moduleName, mode)
+}
+
+func markModuleReloadPending(ctx context.Context, moduleName string, mode moduleReloadMode) error {
 	switch mode {
 	case moduleReloadInstall:
-		if err := setModuleState(ctx, moduleName, "to_install", true); err != nil {
-			return err
-		}
+		return setModuleState(ctx, moduleName, "to_install", true)
 	case moduleReloadUpdate:
-		if err := setModuleStateOnly(ctx, moduleName, "to_upgrade"); err != nil {
-			return err
-		}
+		return setModuleStateOnly(ctx, moduleName, "to_upgrade")
+	default:
+		return fmt.Errorf("unknown reload mode")
 	}
+}
 
+func syncModuleSchema(ctx context.Context, moduleName string, mode moduleReloadMode) error {
 	if err := orm.SyncRegistrySchemaForModule(moduleName); err != nil {
 		_ = setModuleLastError(ctx, moduleName, err.Error())
 		if mode == moduleReloadInstall {
@@ -93,17 +109,19 @@ func reloadModuleData(ctx context.Context, moduleName string, mode moduleReloadM
 		}
 		return fmt.Errorf("schema sync: %w", err)
 	}
+	return nil
+}
 
+func loadModuleXMLData(ctx context.Context, moduleName string, mode moduleReloadMode, addon *Addon) error {
 	if mode == moduleReloadUpdate {
 		if err := deleteModuleMetadata(ctx, moduleName); err != nil {
 			return err
 		}
 	}
+	return recordSyncToDBResult(ctx, moduleName, addon.SyncToDB(ctx))
+}
 
-	if fatal := recordSyncToDBResult(ctx, moduleName, addon.SyncToDB(ctx)); fatal != nil {
-		return fatal
-	}
-
+func finalizeModuleReload(ctx context.Context, moduleName string, mode moduleReloadMode) error {
 	switch mode {
 	case moduleReloadInstall:
 		if err := setModuleState(ctx, moduleName, "installed", true); err != nil {
@@ -146,11 +164,11 @@ func setModuleLastError(ctx context.Context, moduleName, msg string) error {
 }
 
 // UninstallModuleByName removes XML-linked metadata for the module and marks it uninstalled.
-func UninstallModuleByName(context context.Context, moduleName string) error {
-	if err := orm.CheckModelAccess(context, orm.SecurityUID(context), "sys.module", "write"); err != nil {
+func UninstallModuleByName(ctx context.Context, moduleName string) error {
+	if err := orm.CheckModelAccess(ctx, orm.SecurityUID(ctx), "sys.module", "write"); err != nil {
 		return err
 	}
-	systemContext := orm.ContextWithBypass(context, true)
+	systemContext := orm.ContextWithBypass(ctx, true)
 	installMu.Lock()
 	defer installMu.Unlock()
 
@@ -185,14 +203,14 @@ func UninstallModuleByName(context context.Context, moduleName string) error {
 	return nil
 }
 
-func deleteModuleMetadata(context context.Context, moduleName string) error {
+func deleteModuleMetadata(ctx context.Context, moduleName string) error {
 	modelDataTable := orm.MustQuotedTableName("sys.model.data")
 
 	viewTable, err := orm.QuotedTableName("sys.view")
 	if err != nil {
 		return fmt.Errorf("delete sys.view: %w", err)
 	}
-	if _, err := orm.DB.ExecContext(context, ModuleViewDeleteQuery(viewTable, modelDataTable), moduleName); err != nil {
+	if _, err := orm.DB.ExecContext(ctx, ModuleViewDeleteQuery(viewTable, modelDataTable), moduleName); err != nil {
 		return fmt.Errorf("delete sys.view: %w", err)
 	}
 
@@ -203,11 +221,11 @@ func deleteModuleMetadata(context context.Context, moduleName string) error {
 			return fmt.Errorf("delete %s: %w", modelName, err)
 		}
 		deleteQuery := `DELETE FROM ` + tableName + ` WHERE id IN (SELECT core_id FROM ` + modelDataTable + ` WHERE module = $1 AND model = $2)`
-		if _, err := orm.DB.ExecContext(context, deleteQuery, moduleName, modelName); err != nil {
+		if _, err := orm.DB.ExecContext(ctx, deleteQuery, moduleName, modelName); err != nil {
 			return fmt.Errorf("delete %s: %w", modelName, err)
 		}
 	}
-	if _, err := orm.DB.ExecContext(context, `DELETE FROM `+modelDataTable+` WHERE module = $1`, moduleName); err != nil {
+	if _, err := orm.DB.ExecContext(ctx, `DELETE FROM `+modelDataTable+` WHERE module = $1`, moduleName); err != nil {
 		return err
 	}
 	return nil
@@ -227,11 +245,11 @@ func ModuleViewDeleteQuery(viewTable, modelDataTable string) string {
 }
 
 // SetModuleActive toggles visibility of menus for an installed module without removing data.
-func SetModuleActive(context context.Context, moduleName string, active bool) error {
-	if err := orm.CheckModelAccess(context, orm.SecurityUID(context), "sys.module", "write"); err != nil {
+func SetModuleActive(ctx context.Context, moduleName string, active bool) error {
+	if err := orm.CheckModelAccess(ctx, orm.SecurityUID(ctx), "sys.module", "write"); err != nil {
 		return err
 	}
-	systemContext := orm.ContextWithBypass(context, true)
+	systemContext := orm.ContextWithBypass(ctx, true)
 	installMu.Lock()
 	defer installMu.Unlock()
 
@@ -265,8 +283,8 @@ func SetModuleActive(context context.Context, moduleName string, active bool) er
 }
 
 // ListModules returns sys.module rows for the Apps UI (non-application modules included for completeness).
-func ListModules(context context.Context) ([]map[string]interface{}, error) {
-	moduleRows, err := orm.DB.QueryContext(context,
+func ListModules(ctx context.Context) ([]map[string]interface{}, error) {
+	moduleRows, err := orm.DB.QueryContext(ctx,
 		`SELECT id, name, display_name, author, version, description, state, application, active FROM `+
 			orm.MustQuotedTableName("sys.module")+` ORDER BY application DESC, name`,
 	)

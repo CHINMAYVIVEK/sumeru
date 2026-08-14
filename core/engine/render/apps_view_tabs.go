@@ -68,3 +68,40 @@ func AppsViewTabs(currentLayout, msg, module, filter, scope, search string) []Vi
 	}
 	return out
 }
+
+// HomeViewTabs builds Grid / List links for the Home dashboard.
+func HomeViewTabs(currentLayout string) []ViewSwitchTab {
+	cur := strings.ToLower(strings.TrimSpace(currentLayout))
+	if cur == "" {
+		cur = "grid"
+	}
+	if cur == "kanban" {
+		cur = "grid"
+	}
+	if cur != "list" {
+		cur = "grid"
+	}
+
+	order := []struct {
+		layoutKey string
+		label     string
+		mode      string
+	}{
+		{"grid", "Grid", "apps_grid"},
+		{"list", "List", "apps_list"},
+	}
+	var out []ViewSwitchTab
+	for _, o := range order {
+		q := url.Values{}
+		if o.layoutKey == "list" || o.layoutKey == "grid" {
+			q.Set("layout", o.layoutKey)
+		}
+		out = append(out, ViewSwitchTab{
+			Label:  o.label,
+			Href:   "/web/home?" + q.Encode(),
+			Mode:   o.mode,
+			Active: cur == o.layoutKey,
+		})
+	}
+	return out
+}

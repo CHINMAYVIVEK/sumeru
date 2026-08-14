@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,45 +11,65 @@ import (
 
 // SwitchCompanyPost sets the signed-in user's company_id (must exist in core.company).
 func SwitchCompanyPost(w http.ResponseWriter, r *http.Request) {
-	if !requireLogin(w, r) {
+	if !requireLoginAndPOST(w, r) {
 		return
 	}
-	if !RequirePOST(w, r) {
+
+	form := parseCompanySwitchForm(r)
+	userID := SessionUserID(r)
+	if userID <= 0 {
+		http.Redirect(w, r, loginRoute, http.StatusSeeOther)
 		return
 	}
-	if !ParsePostForm(w, r) {
+
+	switchActiveCompany(r.Context(), userID, form.CompanyID)
+	redirectToWebNext(w, r, form.Next)
+}
+
+type companySwitchForm struct {
+	CompanyID int
+	Next      string
+}
+
+func parseCompanySwitchForm(r *http.Request) companySwitchForm {
+	companyID, _ := strconv.Atoi(strings.TrimSpace(r.PostFormValue(companyIDFormField)))
+	return companySwitchForm{
+		CompanyID: companyID,
+		Next:      r.PostFormValue(nextField),
+	}
+}
+
+func switchActiveCompany(ctx context.Context, userID, companyID int) {
+	if companyID <= 0 || !companyRecordExists(ctx, companyID) {
 		return
 	}
-	if !validateSessionCSRF(w, r) {
+	if !orm.UserAllowedCompany(ctx, userID, int64(companyID)) {
 		return
 	}
-	cid, err := strconv.Atoi(strings.TrimSpace(r.PostFormValue("company_id")))
-	if err != nil || cid <= 0 {
-		http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
+	if err := updateUserActiveCompany(ctx, userID, companyID); err != nil {
+		WebLogf(ctx, companySwitchRoute, "update company_id: %v", err)
 		return
 	}
-	ctx := r.Context()
-	if _, err := orm.SearchOne(ctx, "core.company", map[string]interface{}{"id": cid}); err != nil {
-		http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
-		return
-	}
-	uid := SessionUserID(r)
-	if uid <= 0 {
-		http.Redirect(w, r, "/web/login", http.StatusSeeOther)
-		return
-	}
-	if !orm.UserAllowedCompany(ctx, uid, int64(cid)) {
-		http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
-		return
-	}
-	userTbl := orm.MustQuotedTableName("core.user")
-	if _, err := orm.DB.ExecContext(ctx, `UPDATE `+userTbl+` SET company_id = $1 WHERE id = $2`, cid, uid); err != nil {
-		WebLogf(ctx, "/web/company/switch", "update company_id: %v", err)
-	} else {
-		WebLogNavigation(ctx, "/web/company/switch", "company_switch", "Active company switched", map[string]interface{}{
-			"company_id": cid,
-			"user_id":    uid,
-		})
-	}
-	http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
+	WebLogNavigation(ctx, companySwitchRoute, "company_switch", "Active company switched", map[string]interface{}{
+		"company_id": companyID,
+		"user_id":    userID,
+	})
+}
+
+func companyRecordExists(ctx context.Context, companyID int) bool {
+	_, err := orm.SearchOne(ctx, coreCompanyModel, map[string]interface{}{"id": companyID})
+	return err == nil
+}
+
+func updateUserActiveCompany(ctx context.Context, userID, companyID int) error {
+	userTable := orm.MustQuotedTableName(coreUserModel)
+	_, err := orm.DB.ExecContext(ctx,
+		`UPDATE `+userTable+` SET company_id = $1 WHERE id = $2`,
+		companyID, userID,
+	)
+	return err
+}
+
+func redirectToWebNext(w http.ResponseWriter, r *http.Request, rawNext string) {
+	http.Redirect(w, r, SafeWebNext(rawNext, homeRoute), http.StatusSeeOther)
 }
