@@ -32,28 +32,28 @@ type setupInitRequest struct {
 }
 
 // SetupInitHandler runs database sync, installs base, bootstraps security from the JSON wizard payload, then restarts.
-func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	ctx := request.Context()
-	if !RequirePOST(responseWriter, request) {
+func SetupInitHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if !RequirePOST(w, r) {
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(request.Body, maxSetupInitBodyBytes+1))
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxSetupInitBodyBytes+1))
 	if err != nil {
-		http.Error(responseWriter, "Could not read body", http.StatusBadRequest)
+		http.Error(w, "Could not read body", http.StatusBadRequest)
 		return
 	}
 	if len(body) > maxSetupInitBodyBytes {
-		http.Error(responseWriter, "Request body too large", http.StatusRequestEntityTooLarge)
+		http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
 		return
 	}
 
 	var payload setupInitRequest
 	if err := json.Unmarshal(body, &payload); err != nil {
-		http.Error(responseWriter, "Expected JSON with company_name, lang, admin_name, email, password", http.StatusBadRequest)
+		http.Error(w, "Expected JSON with company_name, lang, admin_name, email, password", http.StatusBadRequest)
 		return
 	}
-	if !allowSetupRequest(responseWriter, request, payload.SetupToken) {
+	if !allowSetupRequest(w, r, payload.SetupToken) {
 		return
 	}
 
@@ -72,7 +72,7 @@ func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request)
 			Message: "First-time install sync failed", Component: "web", Operation: "setup",
 			Status: "failure", Err: err,
 		})
-		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -81,7 +81,7 @@ func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request)
 			Message: "Install base module failed", Component: "web", Operation: "setup",
 			Status: "failure", Err: err,
 		})
-		http.Error(responseWriter, fmt.Sprintf("Install base failed: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Install base failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -90,7 +90,7 @@ func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request)
 			Message: "Security bootstrap failed", Component: "web", Operation: "setup",
 			Status: "failure", Err: err,
 		})
-		http.Error(responseWriter, fmt.Sprintf("Security bootstrap failed: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Security bootstrap failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -105,7 +105,7 @@ func SetupInitHandler(responseWriter http.ResponseWriter, request *http.Request)
 			applog.Fatal(context.Background(), "Setup self-restart failed", "err", err)
 		}
 	}()
-	fmt.Fprintln(responseWriter, "Setup complete — server is restarting…")
+	fmt.Fprintln(w, "Setup complete — server is restarting…")
 }
 
 // SetupPageHandler renders the setup page from templates/setup.html.

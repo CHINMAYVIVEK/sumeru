@@ -1,13 +1,11 @@
 package web
 
 import (
-	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"sumeru/core/engine/parser"
 	"sumeru/core/engine/render"
 	"sumeru/core/orm"
 	"sumeru/core/server/config"
@@ -18,194 +16,77 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
 	}
+	ctx := r.Context()
 	actionIDStr := r.URL.Query().Get("action")
 	menuIDStr := r.URL.Query().Get("menu_id")
 
 	if mid := strings.TrimSpace(menuIDStr); mid != "" {
-		if !menuAccessAllowed(r.Context(), mid) {
-			WebLogf(r.Context(), "/web", "menu_id=%s denied by access_groups", mid)
+		if !menuAccessAllowed(ctx, mid) {
+			WebLogf(ctx, "/web", "menu_id=%s denied by access_groups", mid)
 			http.Redirect(w, r, "/web/home", http.StatusFound)
 			return
 		}
 	}
 
-	actionID := ResolveWindowActionID(r.Context(), actionIDStr, menuIDStr)
-
-	if actionID == 0 {
-		if menuIDPointsToAppLogs(r.Context(), menuIDStr) {
-			http.Redirect(w, r, "/web/settings/app-logs", http.StatusFound)
-			return
+	actionID := ResolveWindowActionID(ctx, actionIDStr, menuIDStr)
+	if dest, ok := resolveWorkspaceRedirect(ctx, actionIDStr, menuIDStr, actionID); ok {
+		if actionID == 0 && dest == "/web/apps" {
+			WebLogf(ctx, "/web", "no action for query action=%q menu_id=%q; redirecting to apps", actionIDStr, menuIDStr)
 		}
-		// Settings root (and other Settings menus without a window action) open the settings hub.
-		if render.IsMenuUnderSettingsRoot(r.Context(), menuIDStr) {
-			http.Redirect(w, r, "/web/settings", http.StatusFound)
-			return
-		}
-		// Home root / overview without a window action → home dashboard (preserve menu_id).
-		if isHomeMenuTree(r.Context(), menuIDStr) {
-			dest := "/web/home"
-			if mid := strings.TrimSpace(menuIDStr); mid != "" {
-				dest = "/web/home?menu_id=" + mid
-			}
-			http.Redirect(w, r, dest, http.StatusFound)
-			return
-		}
-		// Other apps with no resolvable action: do not silently land on Home (menu_id=1).
-		WebLogf(r.Context(), "/web", "no action for query action=%q menu_id=%q; redirecting to apps", actionIDStr, menuIDStr)
-		http.Redirect(w, r, "/web/apps", http.StatusFound)
+		http.Redirect(w, r, dest, http.StatusFound)
 		return
 	}
 
-	actionData, err := orm.SearchOne(r.Context(), "sys.action.window", map[string]interface{}{"id": actionID})
+	actionData, err := orm.SearchOne(ctx, "sys.action.window", map[string]interface{}{"id": actionID})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Action %d not found", actionID), http.StatusNotFound)
 		return
 	}
 
-	targetModel := actionWindowTargetModel(actionData)
-	viewMode := strings.TrimSpace(orm.AsString(actionData["view_mode"]))
-	if targetModel == "" {
-		http.Error(w, "Action has no target model", http.StatusInternalServerError)
-		return
-	}
-
-	modes := splitViewModes(viewMode)
-	if len(modes) == 0 {
-		modes = []string{"tree"}
-	}
-
-	if vt := strings.TrimSpace(r.URL.Query().Get("view_type")); vt != "" {
-		modes = append([]string{normalizeViewMode(vt)}, modes...)
-	}
-
-	if idStr := strings.TrimSpace(r.URL.Query().Get("id")); idStr != "" {
-		if _, err := strconv.Atoi(idStr); err == nil {
-			modes = append([]string{"form"}, modes...)
-		}
-	}
-
-	var viewData map[string]interface{}
-	var selectedMode string
-	var lastErr error
-	for _, mode := range modes {
-		nm := normalizeViewMode(mode)
-		if nm == "" {
-			continue
-		}
-		vd, err := orm.FindUIDefaultView(r.Context(), targetModel, nm)
-		if err == nil {
-			viewData = vd
-			selectedMode = nm
-			break
-		}
-		lastErr = err
-	}
-	if viewData == nil {
-		msg := fmt.Sprintf("No view for model %s (tried modes: %s)", targetModel, strings.Join(modes, ", "))
-		if lastErr != nil && lastErr != sql.ErrNoRows {
-			msg = fmt.Sprintf("%s: %v", msg, lastErr)
-		}
-		http.Error(w, msg, http.StatusNotFound)
-		return
-	}
-
-	arch := orm.AsString(viewData["arch"])
-	if strings.TrimSpace(arch) == "" {
-		http.Error(w, "View arch is empty", http.StatusInternalServerError)
-		return
-	}
-
-	view, err := parser.ParseViewFromArch(arch)
+	resolved, err := resolveWorkspaceView(ctx, r, actionData)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error parsing view architecture: %v", err), http.StatusInternalServerError)
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "No view for model") {
+			status = http.StatusNotFound
+		} else if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "invalid id") {
+			status = http.StatusNotFound
+		} else if strings.Contains(err.Error(), "invalid id") {
+			status = http.StatusBadRequest
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 
-	menuID := r.URL.Query().Get("menu_id")
-	idQ := strings.TrimSpace(r.URL.Query().Get("id"))
-	editing := strings.TrimSpace(r.URL.Query().Get("edit")) == "1"
-
-	vr := &render.ViewRecordData{ActionID: actionID}
-	vr.CSRFToken = CSRFTokenForRequest(r)
-	for _, f := range ConsumePageFlashes(r, w) {
-		vr.FlashMessages = append(vr.FlashMessages, render.FlashMessage{
-			Kind:  f.Kind,
-			Title: f.Title,
-			Body:  f.Body,
-		})
-	}
-	// ResModel + RecordID drive readonly vs edit (?edit=1) for workspace forms; keep both in sync whenever loading a record.
-	vr.ResModel = targetModel
-	vr.FormEditing = editing
-	vr.FormBaseQuery = formBaseQueryValues(actionID, menuID, "form", idQ)
-	if idQ != "" {
-		if rid, err := strconv.Atoi(idQ); err == nil && rid > 0 {
-			vr.RecordID = rid
+	req := parseWorkspaceRequest(r, actionID)
+	viewRecord, err := buildViewRecordData(ctx, w, r, req, resolved, actionData)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "not found") {
+			status = http.StatusNotFound
+		} else if strings.Contains(err.Error(), "invalid id") {
+			status = http.StatusBadRequest
 		}
-	}
-	vr.ViewTabs = render.WorkspaceViewTabs(r.Context(), targetModel, actionID, menuID, selectedMode, idQ)
-
-	switch selectedMode {
-	case "form":
-		idStr := strings.TrimSpace(r.URL.Query().Get("id"))
-		if idStr != "" {
-			id, err := strconv.Atoi(idStr)
-			if err != nil {
-				http.Error(w, "Invalid id", http.StatusBadRequest)
-				return
-			}
-			rec, err := orm.SearchOne(r.Context(), targetModel, map[string]interface{}{"id": id})
-			if err != nil {
-				if err == sql.ErrNoRows {
-					http.Error(w, fmt.Sprintf("Record %d not found", id), http.StatusNotFound)
-					return
-				}
-				WebLogf(r.Context(), "/web", "load record %s id=%d: %v", targetModel, id, err)
-				http.Error(w, "Failed to load record", http.StatusInternalServerError)
-				return
-			}
-			if targetModel == "core.user" {
-				if cids, err := orm.UserCompanyIDsForUser(r.Context(), id); err == nil {
-					rec["company_ids"] = cids
-				}
-			}
-			vr.Record = rec
-		}
-	case "tree", "list":
-		rows, err := orm.SearchLimit(r.Context(), targetModel, actionListDomain(r.Context(), actionData), 500)
-		if err != nil {
-			WebLogf(r.Context(), "/web", "list %s: %v", targetModel, err)
-			http.Error(w, "Failed to load records", http.StatusInternalServerError)
-			return
-		}
-		vr.ListRows = rows
-	case "kanban":
-		rows, err := orm.SearchLimit(r.Context(), targetModel, actionListDomain(r.Context(), actionData), 200)
-		if err != nil {
-			WebLogf(r.Context(), "/web", "kanban %s: %v", targetModel, err)
-			http.Error(w, "Failed to load records", http.StatusInternalServerError)
-			return
-		}
-		vr.ListRows = rows
+		WebLogf(ctx, "/web", "load view data: %v", err)
+		http.Error(w, err.Error(), status)
+		return
 	}
 
-	html := render.RenderView(r.Context(), view, menuID, config.AppConfig.TemplatesPath, vr)
+	html := render.RenderView(ctx, resolved.view, req.menuID, config.AppConfig.TemplatesPath, viewRecord)
 
 	recordID := 0
-	if idQ != "" {
-		if rid, err := strconv.Atoi(idQ); err == nil {
+	if req.recordID != "" {
+		if rid, err := strconv.Atoi(req.recordID); err == nil {
 			recordID = rid
 		}
 	}
-	WebLogNavigation(r.Context(), r.URL.Path, "view_open", "Workspace view opened", map[string]interface{}{
-		"menu_id":    menuID,
-		"action_id":  actionID,
-		"model":      targetModel,
-		"view_type":  selectedMode,
-		"record_id":  recordID,
-		"edit":       editing,
+	WebLogNavigation(ctx, r.URL.Path, "view_open", "Workspace view opened", map[string]interface{}{
+		"menu_id":   req.menuID,
+		"action_id": actionID,
+		"model":     resolved.targetModel,
+		"view_type": resolved.selectedMode,
+		"record_id": recordID,
+		"edit":      req.formEdit,
 	})
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(html))
+	writeHTML(w, ctx, r.URL.Path, html)
 }

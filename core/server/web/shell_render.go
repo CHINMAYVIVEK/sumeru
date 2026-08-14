@@ -68,6 +68,9 @@ func renderShellPage(w http.ResponseWriter, r *http.Request, opts shellPageOpts)
 	if page.CSRFToken == "" {
 		page.CSRFToken = CSRFTokenForRequest(r)
 	}
+	if route == "/web/home" {
+		page.HomeNavActive = true
+	}
 
 	html, err := render.RenderPage(ctx, config.AppConfig.TemplatesPath, page)
 	if err != nil {

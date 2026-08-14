@@ -1,17 +1,12 @@
 package web
 
 import (
-	"bytes"
-	"html/template"
 	"net/http"
-	"path/filepath"
 	"strings"
 
-	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/render"
 	"sumeru/core/module"
 	"sumeru/core/orm"
-	"sumeru/core/server/config"
 )
 
 type appsModule struct {
@@ -109,7 +104,7 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		if am.DisplayName == "" {
 			am.DisplayName = am.Name
 		}
-		am.IconLetter = iconLetterFromName(am.DisplayName)
+		am.IconLetter = render.IconLetterFromName(am.DisplayName)
 		mods = append(mods, am)
 	}
 
@@ -136,37 +131,6 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmplPath := filepath.Join(config.AppConfig.TemplatesPath, "apps_inner.html")
-	innerTmpl, err := template.ParseFiles(tmplPath)
-	if err != nil {
-		WebLogEvent(ctx, r.URL.Path, "Failed to parse apps inner template", "render", "failure", err,
-			map[string]interface{}{"template": tmplPath})
-		http.Error(w, platformmsg.MsgHTTPTemplateError, http.StatusInternalServerError)
-		return
-	}
-	var innerBuf bytes.Buffer
-	data := appsPageData{
-		Title:          "Apps",
-		Message:        msg,
-		CSRFToken:      CSRFTokenForRequest(r),
-		Modules:        mods,
-		AppModules:     appMods,
-		TechModules:    techMods,
-		Layout:         layout,
-		Filter:         filter,
-		Scope:          scope,
-		Search:         searchQ,
-		Nav:            buildAppsNavVM(layout, filter, scope, searchQ),
-		ModuleDetail:   detail,
-		ViewBreadcrumb: breadcrumb,
-	}
-	if err := innerTmpl.Execute(&innerBuf, data); err != nil {
-		WebLogEvent(ctx, r.URL.Path, "Failed to execute apps inner template", "render", "failure", err, nil)
-		http.Error(w, "Template error", http.StatusInternalServerError)
-		return
-	}
-
-	topMenus, sidebarMenus, activeModuleID, _ := render.LoadShellMenus(r.Context(), "")
 	listHref := "/web/apps"
 	if bq := appsBrowseQuery(layout, filter, scope, searchQ); bq != "" {
 		listHref = "/web/apps?" + bq
@@ -179,28 +143,38 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		Title:               "Apps",
 		ViewBreadcrumb:      breadcrumb,
 		ModuleName:          "Apps",
-		Content:             template.HTML(innerBuf.String()),
-		TopMenus:            topMenus,
-		SidebarMenus:        sidebarMenus,
-		ActiveModuleID:      activeModuleID,
-		ActiveMenuID:        "",
 		ViewStylesheetURLs:  []string{"/static/css/sumeru-apps.css"},
 		AppsNavActive:       true,
-		ExtraStylesheetURLs: render.ExtraStylesheetURLs,
 		ViewTabs:            render.AppsViewTabs(layout, msg, moduleParam, filter, scope, searchQ),
-		BreadcrumbItems:     render.BuildAppsBreadcrumbs(r.Context(), listHref, detailTitle),
-		CSRFToken:           CSRFTokenForRequest(r),
+		BreadcrumbItems:     render.BuildAppsBreadcrumbs(ctx, listHref, detailTitle),
 	}
 	if detail != nil {
 		page.ActivityContextModel = "sys.module"
 		page.ActivityContextRecordID = int64(detail.ID)
 	}
-	html, err := render.RenderPage(ctx, config.AppConfig.TemplatesPath, page)
-	if err != nil {
-		WebLogEvent(ctx, r.URL.Path, "Failed to render apps page layout", "render", "failure", err, nil)
-		http.Error(w, "Layout render error", http.StatusInternalServerError)
-		return
-	}
+
+	renderShellPage(w, r, shellPageOpts{
+		Route:               "/web/apps",
+		InnerTemplate:       "apps_inner.html",
+		InnerData: appsPageData{
+			Title:          "Apps",
+			Message:        msg,
+			CSRFToken:      CSRFTokenForRequest(r),
+			Modules:        mods,
+			AppModules:     appMods,
+			TechModules:    techMods,
+			Layout:         layout,
+			Filter:         filter,
+			Scope:          scope,
+			Search:         searchQ,
+			Nav:            buildAppsNavVM(layout, filter, scope, searchQ),
+			ModuleDetail:   detail,
+			ViewBreadcrumb: breadcrumb,
+		},
+		Page:                page,
+		ExtraStylesheetURLs: []string{"/static/css/sumeru-apps.css"},
+	})
+
 	navFields := map[string]interface{}{
 		"layout": layout,
 		"filter": filter,
@@ -211,5 +185,4 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 		navFields["module"] = moduleParam
 	}
 	WebLogNavigation(ctx, r.URL.Path, "apps_open", "Apps page opened", navFields)
-	writeHTML(w, ctx, r.URL.Path, html)
 }

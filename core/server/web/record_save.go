@@ -9,8 +9,6 @@ import (
 
 	"sumeru/addons/mail"
 	"sumeru/core/orm"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 // RecordSaveHandler applies POSTed field values to an existing row (or creates one when id is empty).
@@ -43,7 +41,9 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Save failed", http.StatusInternalServerError)
 			return
 		}
-		applyCoreUserSecurityPost(r, modelName, newID)
+		if modelName == "core.user" {
+			orm.ApplyUserSecurityPost(r.Context(), orm.SecurityUID(r.Context()), newID, r.PostForm)
+		}
 		_ = mail.PostMessage(r.Context(), modelName, int64(newID), fmt.Sprintf("Record created (id %d).", newID), mail.SubtypeNotification, "System")
 		redir := appendRecordIDToNext(next, newID)
 		http.Redirect(w, r, redir, http.StatusSeeOther)
@@ -65,7 +65,9 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Save failed", http.StatusInternalServerError)
 		return
 	}
-	applyCoreUserSecurityPost(r, modelName, id)
+	if modelName == "core.user" {
+		orm.ApplyUserSecurityPost(r.Context(), orm.SecurityUID(r.Context()), id, r.PostForm)
+	}
 	_ = mail.PostMessage(r.Context(), modelName, int64(id), fmt.Sprintf("Record updated (id %d).", id), mail.SubtypeNotification, "System")
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
@@ -136,71 +138,4 @@ func postFormToModelValues(inst orm.Model, form url.Values) (map[string]interfac
 		return nil, fmt.Errorf("no valid fields to save")
 	}
 	return out, nil
-}
-
-func applyCoreUserSecurityPost(r *http.Request, modelName string, userID int) {
-	if modelName != "core.user" || userID <= 0 {
-		return
-	}
-	actor := orm.SecurityUID(r.Context())
-	if err := orm.CheckModelAccess(r.Context(), actor, "core.user", "write"); err != nil {
-		return
-	}
-	if _, ok := r.Form["company_ids"]; ok {
-		if !orm.UserHasGroupXML(r.Context(), actor, "base.group_system") {
-			WebLogf(r.Context(), "/web/record/save", "deny set companies for user %d: actor %d not system admin", userID, actor)
-		} else {
-			var cids []int
-			for _, s := range r.Form["company_ids"] {
-				n, err := strconv.Atoi(strings.TrimSpace(s))
-				if err == nil && n > 0 {
-					cids = append(cids, n)
-				}
-			}
-			if err := orm.SetUserCompanyLinks(r.Context(), userID, cids); err != nil {
-				WebLogf(r.Context(), "/web/record/save", "set user %d companies: %v", userID, err)
-			}
-		}
-	}
-	if r.PostFormValue("security_groups_touched") == "1" {
-		if !orm.UserHasGroupXML(r.Context(), actor, "base.group_system") {
-			WebLogf(r.Context(), "/web/record/save", "deny set groups for user %d: actor %d not system admin", userID, actor)
-			return
-		}
-		var gids []int
-		if ut := strings.TrimSpace(r.PostFormValue("security_user_type")); ut != "" {
-			if n, err := strconv.Atoi(ut); err == nil && n > 0 {
-				gids = append(gids, n)
-			}
-		}
-		for _, s := range r.Form["security_group_ids"] {
-			n, err := strconv.Atoi(strings.TrimSpace(s))
-			if err == nil && n > 0 {
-				gids = append(gids, n)
-			}
-		}
-		if err := orm.SetUserGroupLinks(r.Context(), userID, gids); err != nil {
-			WebLogf(r.Context(), "/web/record/save", "set user %d groups: %v", userID, err)
-		}
-	}
-	if _, ok := r.Form["password_plain"]; ok {
-		if !orm.UserHasGroupXML(r.Context(), actor, "base.group_system") {
-			WebLogf(r.Context(), "/web/record/save", "deny password change for user %d: actor %d not system admin", userID, actor)
-			return
-		}
-		if pw := strings.TrimSpace(r.PostFormValue("password_plain")); pw != "" {
-			if err := orm.ValidatePasswordPolicy(pw); err != nil {
-				WebLogf(r.Context(), "/web/record/save", "password policy: %v", err)
-				return
-			}
-			hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
-			if err != nil {
-				WebLogf(r.Context(), "/web/record/save", "bcrypt: %v", err)
-				return
-			}
-			if err := orm.UpdateRecordByID(r.Context(), "core.user", userID, map[string]interface{}{"password": string(hash)}); err != nil {
-				WebLogf(r.Context(), "/web/record/save", "password update user %d: %v", userID, err)
-			}
-		}
-	}
 }

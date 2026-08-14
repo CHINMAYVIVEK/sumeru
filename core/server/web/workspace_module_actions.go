@@ -13,22 +13,11 @@ import (
 
 // ModuleActionHandler handles POST actions: install, uninstall, activate, deactivate.
 func ModuleActionHandler(w http.ResponseWriter, r *http.Request) {
-	if !requireLogin(w, r) {
+	if !requireLoginAndPOST(w, r) {
 		return
 	}
 	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), "sys.module", "write"); err != nil {
 		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/web/apps", http.StatusSeeOther)
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Redirect(w, r, appsRedirectPath("invalid_form", r), http.StatusSeeOther)
-		return
-	}
-	if !validateSessionCSRF(w, r) {
 		return
 	}
 	layout := strings.ToLower(strings.TrimSpace(r.FormValue("apps_layout")))
