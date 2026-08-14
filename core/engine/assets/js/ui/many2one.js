@@ -1,6 +1,8 @@
 /**
  * Many2one typeahead against /web/rel/search.
  */
+import { fetchRelSearchRows } from "../lib/rel-search.js";
+
 export function initMany2One() {
   document.querySelectorAll("[data-sum-m2o]").forEach((root) => {
     const comodel = root.getAttribute("data-comodel") || "";
@@ -20,36 +22,29 @@ export function initMany2One() {
         hide();
         return;
       }
-      rows.forEach((r) => {
+      rows.forEach((row) => {
         const li = document.createElement("li");
         li.className = "sum-m2o-option";
-        li.textContent = r.name || String(r.id);
+        li.textContent = row.name || String(row.id);
         li.addEventListener("mousedown", (ev) => {
           ev.preventDefault();
-          idInput.value = String(r.id);
-          search.value = r.name || String(r.id);
+          idInput.value = String(row.id);
+          search.value = row.name || String(row.id);
           hide();
         });
         list.appendChild(li);
       });
       list.hidden = false;
     };
-    const fetchRows = async (q) => {
-      const url = `/web/rel/search?model=${encodeURIComponent(comodel)}&q=${encodeURIComponent(q || "")}&limit=20`;
-      const res = await fetch(url, { credentials: "same-origin" });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data.results) ? data.results : [];
-    };
     search.addEventListener("input", () => {
       idInput.value = "";
       clearTimeout(timer);
       timer = window.setTimeout(async () => {
-        show(await fetchRows(search.value.trim()));
+        show(await fetchRelSearchRows(comodel, { query: search.value.trim(), limit: 20 }));
       }, 220);
     });
     search.addEventListener("focus", async () => {
-      if (search.value.trim()) show(await fetchRows(search.value.trim()));
+      if (search.value.trim()) show(await fetchRelSearchRows(comodel, { query: search.value.trim(), limit: 20 }));
     });
     search.addEventListener("blur", () => {
       window.setTimeout(hide, 150);

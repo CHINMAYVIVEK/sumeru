@@ -1,7 +1,10 @@
 /**
  * Settings hub (/web/settings): client-side filter for section cards.
  */
-(function initSettingsHub() {
+import { initSearchShortcut } from "./search-shortcut.js";
+import { tokenizeQuery, matchesAllTokens } from "../lib/token-match.js";
+
+export function initSettingsHub() {
   const root = document.querySelector(".sum-settings-hub");
   if (!root) return;
 
@@ -12,15 +15,12 @@
   const sections = () => Array.from(wrap.querySelectorAll(".sum-settings-hub-section"));
 
   function applyFilter() {
-    const q = input.value.trim().toLowerCase();
-    const tokens = q ? q.split(/\s+/).filter(Boolean) : [];
+    const tokens = tokenizeQuery(input.value);
     let anyVisible = false;
-    for (const sec of sections()) {
-      const hay = (sec.getAttribute("data-sum-settings-filter") || "").toLowerCase();
-      const match =
-        tokens.length === 0 ||
-        tokens.every((t) => hay.includes(t));
-      sec.classList.toggle("is-filtered-out", !match);
+    for (const section of sections()) {
+      const filterText = section.getAttribute("data-sum-settings-filter") || "";
+      const match = matchesAllTokens(filterText, tokens);
+      section.classList.toggle("is-filtered-out", !match);
       if (match) anyVisible = true;
     }
     let empty = wrap.querySelector(".sum-settings-hub-filter-empty");
@@ -38,15 +38,7 @@
   }
 
   input.addEventListener("input", applyFilter);
+  initSearchShortcut("sum-settings-hub-q", { skipWhenLauncherOpen: false });
+}
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
-    const tag = document.activeElement && document.activeElement.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-    e.preventDefault();
-    input.focus();
-    try {
-      input.select();
-    } catch (_) {}
-  });
-})();
+initSettingsHub();

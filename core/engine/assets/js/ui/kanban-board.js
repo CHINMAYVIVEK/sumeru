@@ -1,17 +1,14 @@
 /**
  * Grouped kanban: drag cards between columns and persist via POST /web/kanban/move.
  */
+import { moveKanbanRecord } from "../lib/kanban-move.js";
+
 export function initKanbanBoard() {
   const board = document.querySelector(".sum-kanban-board--grouped[data-draggable='1']");
   if (!board) return;
 
   const model = board.dataset.model || "";
   const groupField = board.dataset.groupField || "";
-  const csrf =
-    board.dataset.csrf ||
-    document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ||
-    document.querySelector('input[name="csrf_token"]')?.value ||
-    "";
 
   let dragCard = null;
   let sourceColumn = null;
@@ -81,24 +78,13 @@ export function initKanbanBoard() {
       if (prevColumn && prevColumn !== col) updateColumnCount(prevColumn);
 
       try {
-        const res = await fetch("/web/kanban/move", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": csrf,
-          },
-          credentials: "same-origin",
-          body: JSON.stringify({
-            model,
-            record_id: recordId,
-            field: groupField,
-            value: groupValue,
-            csrf_token: csrf,
-          }),
+        await moveKanbanRecord({
+          model,
+          recordId,
+          field: groupField,
+          value: groupValue,
+          csrfEl: board,
         });
-        if (!res.ok) {
-          throw new Error("move failed");
-        }
       } catch (_) {
         if (prevColumn) {
           const prevZone = prevColumn.querySelector(".sum-kanban-cards");
