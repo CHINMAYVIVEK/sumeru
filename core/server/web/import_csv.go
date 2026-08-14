@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -15,33 +16,24 @@ const maxImportBody = 8 << 20
 
 // ImportCSVHandler imports CSV rows into a model: POST multipart model=… & file=…
 func ImportCSVHandler(w http.ResponseWriter, r *http.Request) {
-	if !requireLogin(w, r) {
+	if !requireLoginMultipartPost(w, r, maxImportBody) {
 		return
 	}
-	if !RequirePOST(w, r) {
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxImportBody)
-	if err := r.ParseMultipartForm(maxImportBody); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
-		return
-	}
-	if !validateSessionCSRF(w, r) {
-		return
-	}
-	model := strings.TrimSpace(r.FormValue("model"))
-	if model == "" {
+
+	modelName := strings.TrimSpace(r.FormValue("model"))
+	if modelName == "" {
 		http.Error(w, "model required", http.StatusBadRequest)
 		return
 	}
-	if _, ok := requireRegisteredModel(w, model); !ok {
+	modelInst, ok := requireRegisteredModel(w, modelName)
+	if !ok {
 		return
 	}
 	ctx := r.Context()
-	if err := orm.CheckModelAccess(ctx, orm.SecurityUID(ctx), model, "create"); err != nil {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+	if !requireModelAccess(w, r, modelName, "create") {
 		return
 	}
+
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "file required", http.StatusBadRequest)
@@ -49,72 +41,82 @@ func ImportCSVHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	created, err := importCSVRows(ctx, modelInst, file)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	redirectWithWebMessage(w, r, r.FormValue("next"), "imported_"+strconv.Itoa(created))
+}
+
+func importCSVRows(ctx context.Context, modelInst orm.Model, file io.Reader) (int, error) {
 	reader := csv.NewReader(file)
 	reader.TrimLeadingSpace = true
 	header, err := reader.Read()
 	if err != nil {
-		http.Error(w, "empty csv", http.StatusBadRequest)
-		return
+		return 0, fmt.Errorf("empty csv")
 	}
 	for i := range header {
 		header[i] = strings.TrimSpace(header[i])
 	}
-	inst := orm.Registry[model]
-	allowed := map[string]struct{}{}
-	for _, f := range inst.Fields() {
-		if f.Name != "" && f.Name != "id" {
-			allowed[f.Name] = struct{}{}
-		}
-	}
+
+	allowedFields := buildAllowedImportFields(modelInst)
 	created := 0
 	for {
-		rec, err := reader.Read()
+		record, err := reader.Read()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			http.Error(w, fmt.Sprintf("csv error after %d rows: %v", created, err), http.StatusBadRequest)
-			return
+			return created, fmt.Errorf("csv error after %d rows: %v", created, err)
 		}
-		vals := map[string]interface{}{}
-		for i, col := range header {
-			if col == "" || col == "id" {
+		values := map[string]interface{}{}
+		for i, column := range header {
+			if column == "" || column == "id" {
 				continue
 			}
-			if _, ok := allowed[col]; !ok {
+			if _, ok := allowedFields[column]; !ok {
 				continue
 			}
-			if i >= len(rec) {
+			if i >= len(record) {
 				continue
 			}
-			vals[col] = coerceCSV(rec[i])
+			values[column] = coerceCSV(record[i])
 		}
-		if len(vals) == 0 {
+		if len(values) == 0 {
 			continue
 		}
-		if _, err := orm.Create(ctx, inst, vals); err != nil {
-			http.Error(w, fmt.Sprintf("row %d: %v", created+1, err), http.StatusBadRequest)
-			return
+		if _, err := orm.Create(ctx, modelInst, values); err != nil {
+			return created, fmt.Errorf("row %d: %v", created+1, err)
 		}
 		created++
 	}
-	next := SafeWebNext(r.FormValue("next"), "/web/home")
-	http.Redirect(w, r, next+"&msg=imported_"+strconv.Itoa(created), http.StatusSeeOther)
+	return created, nil
 }
 
-func coerceCSV(s string) interface{} {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return s
+func buildAllowedImportFields(modelInst orm.Model) map[string]struct{} {
+	allowed := map[string]struct{}{}
+	for _, field := range modelInst.Fields() {
+		if field.Name != "" && field.Name != "id" {
+			allowed[field.Name] = struct{}{}
+		}
 	}
-	if s == "true" || s == "TRUE" {
+	return allowed
+}
+
+func coerceCSV(value string) interface{} {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return value
+	}
+	if value == "true" || value == "TRUE" {
 		return true
 	}
-	if s == "false" || s == "FALSE" {
+	if value == "false" || value == "FALSE" {
 		return false
 	}
-	if n, err := strconv.ParseInt(s, 10, 64); err == nil {
-		return n
+	if number, err := strconv.ParseInt(value, 10, 64); err == nil {
+		return number
 	}
-	return s
+	return value
 }

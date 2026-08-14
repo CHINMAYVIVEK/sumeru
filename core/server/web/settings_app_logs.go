@@ -37,7 +37,10 @@ func AppLogsHandler(w http.ResponseWriter, r *http.Request) {
 		Title:              "App Logs",
 		ViewBreadcrumb:     "Event Log",
 		SettingsNavActive:  true,
-		ViewStylesheetURLs: []string{"/static/css/sumeru-workspace.css"},
+		ViewStylesheetURLs: []string{
+			"/static/css/sumeru-workspace.css",
+			"/static/css/sumeru-pages.css",
+		},
 	}
 	if appLogsMenuID > 0 {
 		page.BreadcrumbItems = render.BuildAppLogsBreadcrumbs(reqCtx, appLogsMenuID)

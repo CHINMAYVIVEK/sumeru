@@ -15,19 +15,30 @@ func writeJSON(w http.ResponseWriter, ctx context.Context, route string, v inter
 	}
 }
 
-func requireSystemAdmin(w http.ResponseWriter, r *http.Request, redirectOnDeny bool) bool {
-	ctx := r.Context()
-	uid := orm.SecurityUID(ctx)
+func writeJSONOK(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write([]byte(`{"ok":true}`))
+}
+
+// resolveRequestUID returns SecurityUID from context, falling back to the session cookie.
+func resolveRequestUID(r *http.Request) int {
+	uid := orm.SecurityUID(r.Context())
 	if uid <= 0 {
 		uid = SessionUserID(r)
 	}
-	if orm.UserHasGroupXML(ctx, uid, "base.group_system") {
+	return uid
+}
+
+func requireSystemAdmin(w http.ResponseWriter, r *http.Request, redirectOnDeny bool) bool {
+	ctx := r.Context()
+	uid := resolveRequestUID(r)
+	if orm.UserHasGroupXML(ctx, uid, groupSystemXML) {
 		return true
 	}
 	if redirectOnDeny {
-		http.Redirect(w, r, "/web/home", http.StatusFound)
+		http.Redirect(w, r, homeRoute, http.StatusFound)
 	} else {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		http.Error(w, forbiddenMessage, http.StatusForbidden)
 	}
 	return false
 }
@@ -36,7 +47,7 @@ func requireModelAccess(w http.ResponseWriter, r *http.Request, model, perm stri
 	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), model, perm); err != nil {
 		WebLogEvent(r.Context(), r.URL.Path, "Model access denied", "access", "failure", err,
 			map[string]interface{}{"resource": model, "permission": perm})
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		http.Error(w, forbiddenMessage, http.StatusForbidden)
 		return false
 	}
 	return true
@@ -44,21 +55,30 @@ func requireModelAccess(w http.ResponseWriter, r *http.Request, model, perm stri
 
 func requireMenuAccess(w http.ResponseWriter, r *http.Request, menuXMLID string) bool {
 	ctx := r.Context()
-	uid := orm.SecurityUID(ctx)
-	if uid <= 0 {
-		uid = SessionUserID(r)
-	}
-	mid, _, err := orm.ResolveXmlId(ctx, menuXMLID)
-	if err == nil && mid > 0 {
-		if rec, err := orm.SearchOne(ctx, "sys.menu", map[string]interface{}{"id": mid}); err == nil {
-			if orm.UserMayAccessMenu(ctx, uid, orm.AsString(rec["access_groups"])) {
+	uid := resolveRequestUID(r)
+	menuID, _, err := orm.ResolveXmlId(ctx, menuXMLID)
+	if err == nil && menuID > 0 {
+		if rec, err := orm.SearchOne(ctx, sysMenuModel, map[string]interface{}{"id": menuID}); err == nil {
+			if userMayAccessMenuRecord(ctx, uid, rec) {
 				return true
 			}
 		}
 	}
-	if orm.UserHasGroupXML(ctx, uid, "base.group_system") {
+	if orm.UserHasGroupXML(ctx, uid, groupSystemXML) {
 		return true
 	}
-	http.Error(w, "Forbidden", http.StatusForbidden)
+	http.Error(w, forbiddenMessage, http.StatusForbidden)
 	return false
+}
+
+func userMayAccessMenuRecord(ctx context.Context, uid int, menuRecord map[string]interface{}) bool {
+	return orm.UserMayAccessMenu(ctx, uid, orm.AsString(menuRecord["access_groups"]))
+}
+
+func userMayAccessMenuByID(ctx context.Context, uid int, menuID int) bool {
+	rec, err := orm.SearchOne(ctx, sysMenuModel, map[string]interface{}{"id": menuID})
+	if err != nil {
+		return false
+	}
+	return userMayAccessMenuRecord(ctx, uid, rec)
 }

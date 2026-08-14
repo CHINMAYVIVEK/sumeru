@@ -1,7 +1,6 @@
 package web
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,6 +34,5 @@ func RelSearchHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{"results": rows})
+	writeJSON(w, r.Context(), r.URL.Path, map[string]interface{}{"results": rows})
 }

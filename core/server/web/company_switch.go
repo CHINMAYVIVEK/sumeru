@@ -10,45 +10,44 @@ import (
 
 // SwitchCompanyPost sets the signed-in user's company_id (must exist in core.company).
 func SwitchCompanyPost(w http.ResponseWriter, r *http.Request) {
-	if !requireLogin(w, r) {
+	if !requireLoginAndPOST(w, r) {
 		return
 	}
-	if !RequirePOST(w, r) {
+
+	companyID, err := strconv.Atoi(strings.TrimSpace(r.PostFormValue(companyIDFormField)))
+	if err != nil || companyID <= 0 {
+		redirectToWebNext(w, r, r.PostFormValue("next"))
 		return
 	}
-	if !ParsePostForm(w, r) {
-		return
-	}
-	if !validateSessionCSRF(w, r) {
-		return
-	}
-	cid, err := strconv.Atoi(strings.TrimSpace(r.PostFormValue("company_id")))
-	if err != nil || cid <= 0 {
-		http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
-		return
-	}
+
 	ctx := r.Context()
-	if _, err := orm.SearchOne(ctx, "core.company", map[string]interface{}{"id": cid}); err != nil {
-		http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
+	if _, err := orm.SearchOne(ctx, coreCompanyModel, map[string]interface{}{"id": companyID}); err != nil {
+		redirectToWebNext(w, r, r.PostFormValue("next"))
 		return
 	}
-	uid := SessionUserID(r)
-	if uid <= 0 {
-		http.Redirect(w, r, "/web/login", http.StatusSeeOther)
+
+	userID := SessionUserID(r)
+	if userID <= 0 {
+		http.Redirect(w, r, loginRoute, http.StatusSeeOther)
 		return
 	}
-	if !orm.UserAllowedCompany(ctx, uid, int64(cid)) {
-		http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
+	if !orm.UserAllowedCompany(ctx, userID, int64(companyID)) {
+		redirectToWebNext(w, r, r.PostFormValue("next"))
 		return
 	}
-	userTbl := orm.MustQuotedTableName("core.user")
-	if _, err := orm.DB.ExecContext(ctx, `UPDATE `+userTbl+` SET company_id = $1 WHERE id = $2`, cid, uid); err != nil {
-		WebLogf(ctx, "/web/company/switch", "update company_id: %v", err)
+
+	userTable := orm.MustQuotedTableName(coreUserModel)
+	if _, err := orm.DB.ExecContext(ctx, `UPDATE `+userTable+` SET company_id = $1 WHERE id = $2`, companyID, userID); err != nil {
+		WebLogf(ctx, companySwitchRoute, "update company_id: %v", err)
 	} else {
-		WebLogNavigation(ctx, "/web/company/switch", "company_switch", "Active company switched", map[string]interface{}{
-			"company_id": cid,
-			"user_id":    uid,
+		WebLogNavigation(ctx, companySwitchRoute, "company_switch", "Active company switched", map[string]interface{}{
+			"company_id": companyID,
+			"user_id":    userID,
 		})
 	}
-	http.Redirect(w, r, SafeWebNext(r.PostFormValue("next"), "/web/home"), http.StatusSeeOther)
+	redirectToWebNext(w, r, r.PostFormValue("next"))
+}
+
+func redirectToWebNext(w http.ResponseWriter, r *http.Request, rawNext string) {
+	http.Redirect(w, r, SafeWebNext(rawNext, homeRoute), http.StatusSeeOther)
 }

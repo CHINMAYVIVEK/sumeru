@@ -135,7 +135,7 @@ func SetupPageHandler(w http.ResponseWriter, r *http.Request) {
 		SetupTokenRequired bool
 	}{
 		DbName:             config.AppConfig.DbName,
-		Stylesheets:        assets.DefaultStylesheetURLs(),
+		Stylesheets:        assets.LoginStylesheetURLs(),
 		SetupTokenRequired: strings.TrimSpace(config.AppConfig.SetupToken) != "",
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
