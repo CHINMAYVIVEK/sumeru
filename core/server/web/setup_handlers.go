@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -20,7 +19,7 @@ import (
 	"sumeru/core/server/config"
 )
 
-const maxSetupInitBodyBytes = 1 << 17 // 128 KiB
+const setupRestartDelay = 400 * time.Millisecond
 
 type setupInitRequest struct {
 	CompanyName string `json:"company_name"`
@@ -31,6 +30,12 @@ type setupInitRequest struct {
 	SetupToken  string `json:"setup_token"`
 }
 
+type setupPageData struct {
+	DbName             string
+	Stylesheets        []string
+	SetupTokenRequired bool
+}
+
 // SetupInitHandler runs database sync, installs base, bootstraps security from the JSON wizard payload, then restarts.
 func SetupInitHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -38,110 +43,125 @@ func SetupInitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, maxSetupInitBodyBytes+1))
-	if err != nil {
+	requestBody, readOK := readBoundedRequestBody(r, maxSetupInitBodyBytes)
+	if !readOK {
 		http.Error(w, "Could not read body", http.StatusBadRequest)
 		return
 	}
-	if len(body) > maxSetupInitBodyBytes {
+	if int64(len(requestBody)) > maxSetupInitBodyBytes {
 		http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
 		return
 	}
 
-	var payload setupInitRequest
-	if err := json.Unmarshal(body, &payload); err != nil {
-		http.Error(w, "Expected JSON with company_name, lang, admin_name, email, password", http.StatusBadRequest)
+	payload, ok := parseSetupInitRequest(w, requestBody)
+	if !ok {
 		return
 	}
 	if !allowSetupRequest(w, r, payload.SetupToken) {
 		return
 	}
 
-	params := orm.SetupAdminParams{
+	if err := runFirstTimeSetup(ctx, toSetupAdminParams(payload)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	scheduleSetupRestart()
+	fmt.Fprintln(w, setupCompleteMessage)
+}
+
+// SetupPageHandler renders the setup page from templates/setup.html.
+func SetupPageHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireSetupEnvironment(w, r) {
+		return
+	}
+	writeSetupPage(w, r.Context(), buildSetupPageData())
+}
+
+func parseSetupInitRequest(w http.ResponseWriter, requestBody []byte) (setupInitRequest, bool) {
+	var payload setupInitRequest
+	if err := json.Unmarshal(requestBody, &payload); err != nil {
+		http.Error(w, "Expected JSON with company_name, lang, admin_name, email, password", http.StatusBadRequest)
+		return setupInitRequest{}, false
+	}
+	return payload, true
+}
+
+func toSetupAdminParams(payload setupInitRequest) orm.SetupAdminParams {
+	return orm.SetupAdminParams{
 		CompanyName: payload.CompanyName,
 		Lang:        payload.Lang,
 		FullName:    payload.AdminName,
 		Email:       payload.Email,
 		Password:    payload.Password,
 	}
+}
 
+func runFirstTimeSetup(ctx context.Context, adminParams orm.SetupAdminParams) error {
 	securityContext := orm.ContextWithBypass(context.Background(), true)
 
 	if err := module.RunFirstTimeInstallSync(securityContext); err != nil {
-		applog.Error(ctx, applog.Event{
-			Message: "First-time install sync failed", Component: "web", Operation: "setup",
-			Status: "failure", Err: err,
-		})
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		logSetupFailure(ctx, "First-time install sync failed", err)
+		return err
 	}
-
-	if err := module.InstallModuleByName(securityContext, "base"); err != nil {
-		applog.Error(ctx, applog.Event{
-			Message: "Install base module failed", Component: "web", Operation: "setup",
-			Status: "failure", Err: err,
-		})
-		http.Error(w, fmt.Sprintf("Install base failed: %v", err), http.StatusInternalServerError)
-		return
+	if err := module.InstallModuleByName(securityContext, baseModuleName); err != nil {
+		logSetupFailure(ctx, "Install base module failed", err)
+		return fmt.Errorf("install base failed: %w", err)
 	}
-
-	if err := orm.EnsureBootstrapSecurityFromSetup(params); err != nil {
-		applog.Error(ctx, applog.Event{
-			Message: "Security bootstrap failed", Component: "web", Operation: "setup",
-			Status: "failure", Err: err,
-		})
-		http.Error(w, fmt.Sprintf("Security bootstrap failed: %v", err), http.StatusInternalServerError)
-		return
+	if err := orm.EnsureBootstrapSecurityFromSetup(adminParams); err != nil {
+		logSetupFailure(ctx, "Security bootstrap failed", err)
+		return fmt.Errorf("security bootstrap failed: %w", err)
 	}
-
 	if err := orm.RunMenuDataFixes(); err != nil {
-		applog.WarnMsg(ctx, "web", "setup", "Menu data fixes reported issues", err, nil)
+		applog.WarnMsg(ctx, "web", setupOperation, "Menu data fixes reported issues", err, nil)
 	}
+	return nil
+}
 
+func logSetupFailure(ctx context.Context, message string, err error) {
+	applog.Error(ctx, applog.Event{
+		Message:   message,
+		Component: "web",
+		Operation: setupOperation,
+		Status:    "failure",
+		Err:       err,
+	})
+}
+
+func scheduleSetupRestart() {
 	go func() {
-		time.Sleep(400 * time.Millisecond)
-		applog.InfoMsg(context.Background(), "web", "setup", "Self-restarting server after setup", nil)
+		time.Sleep(setupRestartDelay)
+		applog.InfoMsg(context.Background(), "web", setupOperation, "Self-restarting server after setup", nil)
 		if err := syscall.Exec(os.Args[0], os.Args, os.Environ()); err != nil {
 			applog.Fatal(context.Background(), "Setup self-restart failed", "err", err)
 		}
 	}()
-	fmt.Fprintln(w, "Setup complete — server is restarting…")
 }
 
-// SetupPageHandler renders the setup page from templates/setup.html.
-func SetupPageHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	if orm.IsInitialized() {
-		http.Error(w, "Setup already completed", http.StatusForbidden)
-		return
-	}
-	if config.AppConfig.SetupLocalhostOnly && !isLoopbackIP(clientIP(r)) {
-		http.Error(w, "Setup is restricted to localhost", http.StatusForbidden)
-		return
-	}
-	tmplPath := filepath.Join(config.AppConfig.TemplatesPath, "setup.html")
-	tmpl, err := template.ParseFiles(tmplPath)
-	if err != nil {
-		applog.Error(ctx, applog.Event{
-			Message: "Failed to parse setup template", Component: "web", Operation: "setup",
-			Status: "failure", Err: err, Context: map[string]interface{}{"template": tmplPath},
-		})
-		http.Error(w, "Setup template missing", http.StatusInternalServerError)
-		return
-	}
-	data := struct {
-		DbName             string
-		Stylesheets        []string
-		SetupTokenRequired bool
-	}{
+func buildSetupPageData() setupPageData {
+	return setupPageData{
 		DbName:             config.AppConfig.DbName,
 		Stylesheets:        assets.LoginStylesheetURLs(),
 		SetupTokenRequired: strings.TrimSpace(config.AppConfig.SetupToken) != "",
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.Execute(w, data); err != nil {
+}
+
+func writeSetupPage(w http.ResponseWriter, ctx context.Context, pageData setupPageData) {
+	templatePath := filepath.Join(config.AppConfig.TemplatesPath, setupTemplateFile)
+	templateFile, err := template.ParseFiles(templatePath)
+	if err != nil {
 		applog.Error(ctx, applog.Event{
-			Message: "Failed to execute setup template", Component: "web", Operation: "setup",
+			Message: "Failed to parse setup template", Component: "web", Operation: setupOperation,
+			Status: "failure", Err: err, Context: map[string]interface{}{"template": templatePath},
+		})
+		http.Error(w, "Setup template missing", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := templateFile.Execute(w, pageData); err != nil {
+		applog.Error(ctx, applog.Event{
+			Message: "Failed to execute setup template", Component: "web", Operation: setupOperation,
 			Status: "failure", Err: err,
 		})
 	}
