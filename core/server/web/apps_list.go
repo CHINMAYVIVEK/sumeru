@@ -1,12 +1,10 @@
 package web
 
 import (
+	"context"
 	"net/http"
-	"strings"
 
 	"sumeru/core/engine/render"
-	"sumeru/core/module"
-	"sumeru/core/orm"
 )
 
 type appsModule struct {
@@ -50,139 +48,127 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireSystemAdmin(w, r, true) {
 		return
 	}
+
 	ctx := r.Context()
-	msg := strings.TrimSpace(r.URL.Query().Get("msg"))
-	layout := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("layout")))
-	if layout == "" {
-		layout = "grid"
-	}
-	if layout == "kanban" {
-		layout = "grid"
-	}
-	if layout != "grid" && layout != "list" {
-		layout = "grid"
-	}
+	browse := parseAppsBrowseState(r)
 
-	moduleParam := strings.TrimSpace(r.URL.Query().Get("module"))
-	editing := strings.TrimSpace(r.URL.Query().Get("edit")) == "1"
-	filter := normalizeAppsFilter(r.URL.Query().Get("filter"))
-	scope := normalizeAppsScope(r.URL.Query().Get("scope"))
-	searchQ := strings.TrimSpace(r.URL.Query().Get("q"))
-
-	raw, err := module.ListModules(ctx)
-	if err != nil {
-		WebLogEvent(ctx, r.URL.Path, "Failed to list modules for apps page", "load", "failure", err, nil)
-		http.Error(w, "Failed to list modules", http.StatusInternalServerError)
-		return
-	}
-
-	var mods []appsModule
-	for _, row := range raw {
-		name := orm.AsString(row["name"])
-		if name == "" {
-			continue
-		}
-		state := orm.AsString(row["state"])
-		active := orm.AsBool(row["active"])
-		app := orm.AsBool(row["application"])
-
-		am := appsModule{
-			Name:          name,
-			DisplayName:   orm.AsString(row["display_name"]),
-			Author:        orm.AsString(row["author"]),
-			Version:       orm.AsString(row["version"]),
-			Description:   orm.AsString(row["description"]),
-			State:         state,
-			Application:   app,
-			Active:        active,
-			IsCore:        name == "base",
-			CanInstall:    state != "installed",
-			CanUninstall:  state == "installed" && name != "base",
-			CanDeactivate: state == "installed" && active && name != "base",
-			CanActivate:   state == "installed" && !active && name != "base",
-		}
-		if am.DisplayName == "" {
-			am.DisplayName = am.Name
-		}
-		am.IconLetter = render.IconLetterFromName(am.DisplayName)
-		mods = append(mods, am)
-	}
-
-	var appMods, techMods []appsModule
-	for _, m := range mods {
-		if !appsModuleMatchesSearch(m, searchQ) || !appsModuleMatchesFilter(m, filter) {
-			continue
-		}
-		if m.Application {
-			appMods = append(appMods, m)
-		} else {
-			techMods = append(techMods, m)
-		}
-	}
-	switch scope {
-	case "apps":
-		techMods = nil
-	case "technical":
-		appMods = nil
-	}
-
-	detail, breadcrumb, ok := loadAppsModuleDetail(w, r, moduleParam, editing, mods, layout, filter, scope, searchQ)
+	moduleRows, ok := listModulesOr500(w, r, "Failed to list modules for apps page")
 	if !ok {
 		return
 	}
 
-	listHref := "/web/apps"
-	if bq := appsBrowseQuery(layout, filter, scope, searchQ); bq != "" {
-		listHref = "/web/apps?" + bq
+	allModules := buildAppsModuleList(moduleRows)
+	appModules, techModules := filterAppsModulesByBrowse(allModules, browse)
+
+	detail, breadcrumb, ok := loadAppsModuleDetail(
+		w, r,
+		browse.ModuleName,
+		browse.Editing,
+		allModules,
+		browse.Layout,
+		browse.Filter,
+		browse.Scope,
+		browse.SearchQuery,
+	)
+	if !ok {
+		return
 	}
+
+	listHref := appsLink(browse.Layout, browse.Filter, browse.Scope, browse.SearchQuery)
 	detailTitle := ""
 	if detail != nil {
 		detailTitle = detail.DisplayName
 	}
+
 	page := render.PageData{
-		Title:               "Apps",
-		ViewBreadcrumb:      breadcrumb,
-		ModuleName:          "Apps",
-		ViewStylesheetURLs:  []string{"/static/css/sumeru-apps.css"},
-		AppsNavActive:       true,
-		ViewTabs:            render.AppsViewTabs(layout, msg, moduleParam, filter, scope, searchQ),
-		BreadcrumbItems:     render.BuildAppsBreadcrumbs(ctx, listHref, detailTitle),
+		Title:              appsPageTitle,
+		ViewBreadcrumb:     breadcrumb,
+		ModuleName:         appsPageTitle,
+		ViewStylesheetURLs: []string{appsStylesheetURL},
+		AppsNavActive:      true,
+		SuppressSidebar:    true,
+		ViewTabs: render.AppsViewTabs(
+			browse.Layout,
+			browse.Message,
+			browse.ModuleName,
+			browse.Filter,
+			browse.Scope,
+			browse.SearchQuery,
+		),
+		BreadcrumbItems: render.BuildAppsBreadcrumbs(ctx, listHref, detailTitle),
 	}
 	if detail != nil {
-		page.ActivityContextModel = "sys.module"
+		page.ActivityContextModel = appsModuleModel
 		page.ActivityContextRecordID = int64(detail.ID)
 	}
 
 	renderShellPage(w, r, shellPageOpts{
-		Route:               "/web/apps",
-		InnerTemplate:       "apps_inner.html",
+		Route:         appsRoute,
+		InnerTemplate: appsInnerTemplate,
 		InnerData: appsPageData{
-			Title:          "Apps",
-			Message:        msg,
+			Title:          appsPageTitle,
+			Message:        browse.Message,
 			CSRFToken:      CSRFTokenForRequest(r),
-			Modules:        mods,
-			AppModules:     appMods,
-			TechModules:    techMods,
-			Layout:         layout,
-			Filter:         filter,
-			Scope:          scope,
-			Search:         searchQ,
-			Nav:            buildAppsNavVM(layout, filter, scope, searchQ),
+			Modules:        allModules,
+			AppModules:     appModules,
+			TechModules:    techModules,
+			Layout:         browse.Layout,
+			Filter:         browse.Filter,
+			Scope:          browse.Scope,
+			Search:         browse.SearchQuery,
+			Nav:            buildAppsNavVM(browse.Layout, browse.Filter, browse.Scope, browse.SearchQuery),
 			ModuleDetail:   detail,
 			ViewBreadcrumb: breadcrumb,
 		},
-		Page:                page,
-		ExtraStylesheetURLs: []string{"/static/css/sumeru-apps.css"},
+		Page: page,
 	})
 
-	navFields := map[string]interface{}{
-		"layout": layout,
-		"filter": filter,
-		"scope":  scope,
-		"search": searchQ,
+	logAppsPageOpen(ctx, r.URL.Path, browse)
+}
+
+func buildAppsModuleList(moduleRows []map[string]interface{}) []appsModule {
+	modules := make([]appsModule, 0, len(moduleRows))
+	for _, row := range moduleRows {
+		parsed, rowOK := parseModuleRow(row)
+		if !rowOK {
+			continue
+		}
+		modules = append(modules, appsModuleFromParsed(parsed))
 	}
-	if moduleParam != "" {
-		navFields["module"] = moduleParam
+	return modules
+}
+
+// appsModuleFromParsed maps a normalized module row to the Apps list view model, including action flags.
+func appsModuleFromParsed(parsed moduleRow) appsModule {
+	isCore := parsed.Name == "base"
+	isInstalled := parsed.State == "installed"
+	return appsModule{
+		Name:          parsed.Name,
+		DisplayName:   parsed.DisplayName,
+		Author:        parsed.Author,
+		Version:       parsed.Version,
+		Description:   parsed.Description,
+		State:         parsed.State,
+		Application:   parsed.Application,
+		Active:        parsed.Active,
+		IsCore:        isCore,
+		CanInstall:    !isInstalled,
+		CanUninstall:  isInstalled && !isCore,
+		CanDeactivate: isInstalled && parsed.Active && !isCore,
+		CanActivate:   isInstalled && !parsed.Active && !isCore,
+		IconLetter:    render.IconLetterFromName(parsed.DisplayName),
 	}
-	WebLogNavigation(ctx, r.URL.Path, "apps_open", "Apps page opened", navFields)
+}
+
+func logAppsPageOpen(ctx context.Context, route string, browse appsBrowseState) {
+	fields := map[string]interface{}{
+		"layout": browse.Layout,
+		"filter": browse.Filter,
+		"scope":  browse.Scope,
+		"search": browse.SearchQuery,
+	}
+	if browse.ModuleName != "" {
+		fields["module"] = browse.ModuleName
+	}
+	WebLogNavigation(ctx, route, "apps_open", "Apps page opened", fields)
 }

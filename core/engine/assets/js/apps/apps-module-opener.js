@@ -1,10 +1,25 @@
 /**
  * Apps catalog: open module detail when clicking card/row chrome (not actions).
- * Only registered on /web/apps.
+ * Loaded only on /web/apps via apps_inner.html.
  */
 
+function isAppsPage() {
+  return location.pathname === "/web/apps";
+}
+
+function openModuleDetail(mod, layout) {
+  const q = new URLSearchParams();
+  q.set("module", mod);
+  q.set("layout", layout);
+  const cur = new URLSearchParams(window.location.search);
+  for (const key of ["filter", "scope", "q"]) {
+    if (cur.has(key)) q.set(key, cur.get(key));
+  }
+  window.location.href = "/web/apps?" + q.toString();
+}
+
 export function initAppsModuleOpener() {
-  if (location.pathname !== "/web/apps") return;
+  if (!isAppsPage()) return;
 
   document.addEventListener(
     "click",
@@ -17,14 +32,7 @@ export function initAppsModuleOpener() {
       const mod = hit.getAttribute("data-module");
       const layout = hit.getAttribute("data-apps-layout") || "grid";
       if (!mod) return;
-      const q = new URLSearchParams();
-      q.set("module", mod);
-      q.set("layout", layout);
-      const cur = new URLSearchParams(window.location.search);
-      for (const key of ["filter", "scope", "q"]) {
-        if (cur.has(key)) q.set(key, cur.get(key));
-      }
-      window.location.href = "/web/apps?" + q.toString();
+      openModuleDetail(mod, layout);
     },
     true
   );
