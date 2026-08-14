@@ -32,7 +32,7 @@ func RenderForm(ctx context.Context, view *parser.View, vr *ViewRecordData) stri
 	sb.WriteString(`<div class="sum-form-sheet-bg">`)
 
 	if chrome {
-		renderWorkspaceFormToolbar(&sb, vr, view.Header, record)
+		renderWorkspaceFormToolbar(ctx, &sb, vr, view.Header, record)
 	} else if view.Header != nil {
 		renderHeader(ctx, &sb, view.Header, record, vr)
 	}

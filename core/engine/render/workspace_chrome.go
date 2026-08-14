@@ -1,6 +1,7 @@
 package render
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"net/url"
@@ -9,7 +10,7 @@ import (
 	"sumeru/core/engine/parser"
 )
 
-func renderWorkspaceFormToolbar(sb *strings.Builder, vr *ViewRecordData, header *parser.Header, record map[string]interface{}) {
+func renderWorkspaceFormToolbar(ctx context.Context, sb *strings.Builder, vr *ViewRecordData, header *parser.Header, record map[string]interface{}) {
 	if vr == nil || strings.TrimSpace(vr.ResModel) == "" {
 		return
 	}
@@ -24,7 +25,7 @@ func renderWorkspaceFormToolbar(sb *strings.Builder, vr *ViewRecordData, header 
 	if base != "" {
 		if !hasID {
 			if qv, err := url.ParseQuery(base); err == nil {
-				qv.Set("view_type", "tree")
+				qv.Set("view_type", "list")
 				qv.Del("id")
 				cancelURL = "/web?" + qv.Encode()
 			} else {
@@ -40,19 +41,14 @@ func renderWorkspaceFormToolbar(sb *strings.Builder, vr *ViewRecordData, header 
 	}
 	nextEsc := template.HTMLEscapeString(cancelURL)
 
-	sb.WriteString(`<div class="sum-tree-control sum-ws-record-toolbar">`)
-	sb.WriteString(`<div class="sum-tree-control-left">`)
+	sb.WriteString(`<div class="sum-list-control sum-ws-record-toolbar">`)
+	sb.WriteString(`<div class="sum-list-control-left">`)
 
 	if hasID && !vr.FormEditing {
-		sb.WriteString(`<a href="` + template.HTMLEscapeString(editURL) + `" class="sum-tree-btn-ghost">Edit</a>`)
+		sb.WriteString(`<a href="` + template.HTMLEscapeString(editURL) + `" class="sum-list-btn-ghost">Edit</a>`)
 	}
-	if hasID && vr.FormEditing {
-		sb.WriteString(`<button type="submit" form="sum-workspace-record-form" class="sum-tree-btn-new">Save</button>`)
-		sb.WriteString(`<a href="` + template.HTMLEscapeString(cancelURL) + `" class="sum-tree-btn-ghost">Cancel</a>`)
-	}
-	if !hasID {
-		sb.WriteString(`<button type="submit" form="sum-workspace-record-form" class="sum-tree-btn-new">Save</button>`)
-		sb.WriteString(`<a href="` + template.HTMLEscapeString(cancelURL) + `" class="sum-tree-btn-ghost">Cancel</a>`)
+	if !hasID || vr.FormEditing {
+		writeSaveCancelButtons(sb, cancelURL)
 	}
 
 	if header != nil {
@@ -63,7 +59,7 @@ func renderWorkspaceFormToolbar(sb *strings.Builder, vr *ViewRecordData, header 
 
 	sb.WriteString(`<div class="sum-ws-toolbar-right">`)
 	if header != nil {
-		writeStatusbarChips(sb, header, record)
+		writeStatusbarChips(ctx, sb, header, record, vr)
 	}
 	sb.WriteString(`</div>`)
 

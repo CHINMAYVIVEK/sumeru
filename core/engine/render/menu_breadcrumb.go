@@ -37,6 +37,21 @@ func MenuWebURL(menuID, actionID int) string {
 	return fmt.Sprintf("/web?menu_id=%d", menuID)
 }
 
+// listViewURL returns the list view URL for a form workspace query string.
+func listViewURL(formBaseQuery string) string {
+	formBaseQuery = strings.TrimSpace(formBaseQuery)
+	if formBaseQuery == "" {
+		return ""
+	}
+	u, err := url.ParseQuery(formBaseQuery)
+	if err != nil {
+		return ""
+	}
+	u.Set("view_type", "list")
+	u.Del("id")
+	return "/web?" + u.Encode()
+}
+
 type menuCrumb struct {
 	ID       int
 	Name     string
@@ -86,7 +101,7 @@ func BuildWorkspaceBreadcrumbs(ctx context.Context, activeMenuID string, viewTyp
 
 	chain := collectMenuAncestors(ctx, mid)
 	vt := strings.ToLower(strings.TrimSpace(viewType))
-	isMatrix := vt == "tree" || vt == "list" || vt == "kanban"
+	isMatrix := vt == "list" || vt == "kanban"
 	settingsRootID := 0
 	if IsMenuUnderSettingsRoot(ctx, activeMenuID) {
 		if rid, _, err := orm.ResolveXmlId(ctx, "base.menu_settings_root"); err == nil && rid > 0 {
@@ -103,11 +118,9 @@ func BuildWorkspaceBreadcrumbs(ctx context.Context, activeMenuID string, viewTyp
 		if isLast && isMatrix {
 			href = ""
 		}
-		if isLast && vt == "form" && recordID > 0 && strings.TrimSpace(formBaseQuery) != "" {
-			if u, err := url.ParseQuery(strings.TrimSpace(formBaseQuery)); err == nil {
-				u.Set("view_type", "tree")
-				u.Del("id")
-				href = "/web?" + u.Encode()
+		if isLast && vt == "form" && recordID > 0 {
+			if listHref := listViewURL(formBaseQuery); listHref != "" {
+				href = listHref
 			}
 		}
 		items = append(items, BreadcrumbItem{Label: m.Name, Href: href})
@@ -127,7 +140,7 @@ func BuildWorkspaceBreadcrumbs(ctx context.Context, activeMenuID string, viewTyp
 		return items
 	}
 
-	// List/tree/kanban: menu chain already names the screen (e.g. "All Companies"); do not append model list title ("Companies").
+	// List/kanban: menu chain already names the screen (e.g. "All Companies"); do not append model list title ("Companies").
 	if isMatrix && len(chain) > 0 {
 		return items
 	}
