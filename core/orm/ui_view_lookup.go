@@ -9,7 +9,7 @@ import (
 )
 
 // FindUIDefaultView returns the highest-priority sys.view for a model and type.
-// view_mode "list" maps to type "tree". Record rules are applied in SQL like Search.
+// Record rules are applied in SQL like Search.
 func FindUIDefaultView(ctx context.Context, modelName, viewType string) (result map[string]interface{}, err error) {
 	start := time.Now()
 	defer func() {
@@ -25,9 +25,10 @@ func FindUIDefaultView(ctx context.Context, modelName, viewType string) (result 
 		}
 	}
 	vt := strings.TrimSpace(strings.ToLower(viewType))
-	if vt == "list" {
-		vt = "tree"
-	}
+	return findUIDefaultViewByType(ctx, uid, modelName, vt)
+}
+
+func findUIDefaultViewByType(ctx context.Context, uid int, modelName, vt string) (map[string]interface{}, error) {
 	domain := [][]interface{}{
 		{"model", "=", modelName},
 		{"type", "=", vt},
@@ -57,16 +58,27 @@ func FindUIDefaultView(ctx context.Context, modelName, viewType string) (result 
 		return nil, err
 	}
 	defer rows.Close()
-
 	if !rows.Next() {
-		err = sql.ErrNoRows
-		return nil, err
+		return nil, sql.ErrNoRows
 	}
-
 	cols, _ := rows.Columns()
-	result, err = scanRowToMap(cols, rows)
-	if err != nil {
-		return nil, err
+	return scanRowToMap(cols, rows)
+}
+
+// FindUIViewByName returns a sys.view row by unique name (typically the XML view id).
+func FindUIViewByName(ctx context.Context, modelName, viewType, viewName string) (result map[string]interface{}, err error) {
+	start := time.Now()
+	defer func() {
+		logORMOperationKV(ctx, start, "find_ui_view_by_name", "sys.view", err, "target_model", modelName, "view_type", viewType, "view_name", viewName, "found", result != nil)
+	}()
+	viewName = strings.TrimSpace(viewName)
+	if viewName == "" {
+		return nil, sql.ErrNoRows
 	}
-	return result, nil
+	vt := strings.TrimSpace(strings.ToLower(viewType))
+	return SearchOne(ctx, "sys.view", map[string]interface{}{
+		"model": modelName,
+		"type":  vt,
+		"name":  viewName,
+	})
 }

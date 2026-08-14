@@ -2,7 +2,6 @@ package module
 
 import (
 	"context"
-	"sumeru/core/applog"
 	"fmt"
 	"strings"
 
@@ -23,7 +22,7 @@ func syncMenusFromItems(ctx context.Context, moduleName string, menus []parser.M
 			if err == nil && actionID != 0 {
 				menuValues["action_id"] = actionID
 			} else {
-				applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.menu %s.%s action %q unresolved: %v", moduleName, menu.ID, menu.Action, err))
+				syncWarn(ctx, "Warning: sys.menu %s.%s action %q unresolved: %v", moduleName, menu.ID, menu.Action, err)
 			}
 		}
 		if sanitizedIcon := sanitizeWebIcon(menu.WebIcon); sanitizedIcon != "" {
@@ -40,7 +39,7 @@ func syncMenusFromItems(ctx context.Context, moduleName string, menus []parser.M
 		menuValues := buildValues(menu)
 		menuValues["parent_id"] = nil
 		if _, err := upsertMenuRow(ctx, moduleName, menu.ID, menuValues); err != nil {
-			applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.menu root %s.%s: %v", moduleName, menu.ID, err))
+			syncWarn(ctx, "Warning: sys.menu root %s.%s: %v", moduleName, menu.ID, err)
 		}
 	}
 
@@ -66,7 +65,7 @@ func syncMenusFromItems(ctx context.Context, moduleName string, menus []parser.M
 			menuValues := buildValues(menu)
 			menuValues["parent_id"] = parentID
 			if _, err := upsertMenuRow(ctx, moduleName, menu.ID, menuValues); err != nil {
-				applog.L(context.Background()).Warn("module_sync", "msg", fmt.Sprintf("Warning: sys.menu child %s.%s: %v", moduleName, menu.ID, err))
+				syncWarn(ctx, "Warning: sys.menu child %s.%s: %v", moduleName, menu.ID, err)
 				next = append(next, menu)
 				continue
 			}

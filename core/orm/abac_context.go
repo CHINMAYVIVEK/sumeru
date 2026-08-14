@@ -3,6 +3,7 @@ package orm
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 // UserCompanyIDs returns allowed company ids for uid (M2M + current company_id).
@@ -76,4 +77,60 @@ func ActiveCompanyIDForUser(ctx context.Context, uid int) int64 {
 		return 0
 	}
 	return companyID.Int64
+}
+
+// --- Company membership (M2M links) ---
+
+// UserCompanyIDsForUser returns allowed company ids from core.user.company.rel.
+func UserCompanyIDsForUser(ctx context.Context, userID int) ([]int, error) {
+	if userID <= 0 || DB == nil {
+		return nil, nil
+	}
+	table := MustQuotedTableName("core.user.company.rel")
+	rows, err := DB.QueryContext(ctx, `SELECT company_id FROM `+table+` WHERE user_id = $1 ORDER BY company_id`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []int
+	for rows.Next() {
+		var companyID int
+		if err := rows.Scan(&companyID); err != nil {
+			return nil, err
+		}
+		if companyID > 0 {
+			out = append(out, companyID)
+		}
+	}
+	return out, rows.Err()
+}
+
+// SetUserCompanyLinks replaces allowed-company membership for a user.
+func SetUserCompanyLinks(ctx context.Context, userID int, companyIDs []int) error {
+	if DB == nil {
+		return fmt.Errorf("no database")
+	}
+	if userID <= 0 {
+		return fmt.Errorf("invalid user id")
+	}
+	table := MustQuotedTableName("core.user.company.rel")
+	if _, err := DB.ExecContext(ctx, `DELETE FROM `+table+` WHERE user_id = $1`, userID); err != nil {
+		return err
+	}
+	seen := map[int]struct{}{}
+	for _, companyID := range companyIDs {
+		if companyID <= 0 {
+			continue
+		}
+		if _, ok := seen[companyID]; ok {
+			continue
+		}
+		seen[companyID] = struct{}{}
+		if _, err := DB.ExecContext(ctx,
+			`INSERT INTO `+table+` (user_id, company_id) VALUES ($1, $2) ON CONFLICT (user_id, company_id) DO NOTHING`,
+			userID, companyID); err != nil {
+			return err
+		}
+	}
+	return nil
 }

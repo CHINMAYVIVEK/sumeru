@@ -11,10 +11,10 @@ func TestInferSysViewTypeFromArch(t *testing.T) {
 		arch string
 		want string
 	}{
-		{"<tree string=\"X\"><field name=\"a\"/></tree>", "tree"},
+		{"<list string=\"X\"><field name=\"a\"/></list>", "list"},
 		{"  <form><sheet/></form>", "form"},
 		{"<kanban><field name=\"n\"/></kanban>", "kanban"},
-		{"<view type=\"tree\" model=\"m\"><tree/></view>", "tree"},
+		{"<view type=\"list\" model=\"m\"><list/></view>", "list"},
 		{"", ""},
 		{"<unknown/>", ""},
 	}
