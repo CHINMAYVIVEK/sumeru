@@ -8,31 +8,68 @@ import (
 	"sumeru/core/orm"
 )
 
-// RelSearchHandler GET /web/rel/search?model=core.partner&q=acme
-// Optional: filter_field=country_id&filter_id=12 for cascade dropdowns.
+// RelSearchHandler serves GET /web/rel/search for many2one typeahead and cascade filters.
 func RelSearchHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
 	}
-	model := strings.TrimSpace(r.URL.Query().Get("model"))
-	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	limit := 20
-	if s := strings.TrimSpace(r.URL.Query().Get("limit")); s != "" {
-		if n, err := strconv.Atoi(s); err == nil {
-			limit = n
-		}
-	}
-	filterField := strings.TrimSpace(r.URL.Query().Get("filter_field"))
-	var filterID int64
-	if s := strings.TrimSpace(r.URL.Query().Get("filter_id")); s != "" {
-		if n, err := strconv.ParseInt(s, 10, 64); err == nil {
-			filterID = n
-		}
-	}
-	rows, err := orm.RelNameSearchFiltered(r.Context(), model, q, limit, filterField, filterID)
+
+	request := parseRelSearchRequest(r)
+	rows, err := orm.RelNameSearchFiltered(
+		r.Context(),
+		request.ModelName,
+		request.Query,
+		request.Limit,
+		request.FilterField,
+		request.FilterID,
+	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	writeJSON(w, r.Context(), r.URL.Path, map[string]interface{}{"results": rows})
+
+	writeJSON(w, r.Context(), relSearchRoute, map[string]interface{}{"results": rows})
+}
+
+type relSearchRequest struct {
+	ModelName   string
+	Query       string
+	Limit       int
+	FilterField string
+	FilterID    int64
+}
+
+func parseRelSearchRequest(r *http.Request) relSearchRequest {
+	query := r.URL.Query()
+	return relSearchRequest{
+		ModelName:   strings.TrimSpace(query.Get(recordModelField)),
+		Query:       strings.TrimSpace(query.Get(relSearchQueryParam)),
+		Limit:       queryIntOrDefault(query.Get(relSearchLimitParam), defaultRelSearchLimit),
+		FilterField: strings.TrimSpace(query.Get(relSearchFilterFieldParam)),
+		FilterID:    queryInt64OrZero(query.Get(relSearchFilterIDParam)),
+	}
+}
+
+func queryIntOrDefault(raw string, defaultValue int) int {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return defaultValue
+	}
+	parsed, err := strconv.Atoi(raw)
+	if err != nil {
+		return defaultValue
+	}
+	return parsed
+}
+
+func queryInt64OrZero(raw string) int64 {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0
+	}
+	parsed, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return parsed
 }

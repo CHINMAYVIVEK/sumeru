@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,89 +14,106 @@ import (
 	"sumeru/core/server/api"
 )
 
-const maxRPCBody = 4 << 20
-
 // APIHealthHandler returns {"ok":true} for probes (no auth).
 func APIHealthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+	writeJSONOK(w)
 }
 
 // RPCJSONHandler is model RPC: POST JSON {"model","method","args","kwargs"} with session or API key auth.
 func RPCJSONHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	metrics.Inc("sumeru_rpc_requests_total")
-	defer func() {
-		metrics.ObserveDuration("sumeru_rpc_duration_seconds", time.Since(start))
-	}()
+	metrics.Inc(rpcMetricRequests)
+	defer metrics.ObserveDuration(rpcMetricDuration, time.Since(start))
 
 	if r.Method != http.MethodPost {
 		api.WriteResponse(w, http.StatusMethodNotAllowed, api.Fail(api.CodeMethodNotAllowed, "Method not allowed", nil))
 		return
 	}
-	uid := AuthenticatedUserID(r)
-	if uid <= 0 {
+
+	userID := AuthenticatedUserID(r)
+	if userID <= 0 {
 		api.WriteResponse(w, http.StatusUnauthorized, api.Fail(api.CodeUnauthorized, "Unauthorized", nil))
 		return
 	}
-	ct := strings.TrimSpace(strings.ToLower(r.Header.Get("Content-Type")))
-	if ct != "" && !strings.HasPrefix(ct, "application/json") {
+
+	if !acceptsJSONContentType(r.Header.Get("Content-Type")) {
 		api.WriteResponse(w, http.StatusUnsupportedMediaType, api.Fail(api.CodeUnsupportedMediaType, "Content-Type must be application/json", nil))
 		return
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, maxRPCBody+1))
-	if err != nil {
+
+	requestBody, readOK := readBoundedRequestBody(r, maxRPCBodyBytes)
+	if !readOK {
 		api.WriteResponse(w, http.StatusBadRequest, api.Fail(api.CodeInvalidBody, "Could not read request body", nil))
 		return
 	}
-	if len(body) > maxRPCBody {
+	if int64(len(requestBody)) > maxRPCBodyBytes {
 		api.WriteResponse(w, http.StatusRequestEntityTooLarge, api.Fail(api.CodePayloadTooLarge, "Request body too large", nil))
 		return
 	}
-	ctx := orm.ContextWithUID(r.Context(), uid)
-	if cid := orm.CompanyIDFromContext(r.Context()); cid > 0 {
-		ctx = orm.ContextWithCompanyID(ctx, cid)
-	} else if uid > 0 {
-		ctx = orm.ContextWithCompanyID(ctx, orm.ActiveCompanyIDForUser(ctx, uid))
-	}
-	resp, status := api.Dispatch(ctx, body)
 
-	modelName, methodName := rpcModelMethod(body)
-	ev := applog.Event{
+	ctx := rpcSecurityContext(r, userID)
+	response, statusCode := api.Dispatch(ctx, requestBody)
+	logRPCDispatch(ctx, requestBody, response, statusCode, start)
+	api.WriteResponse(w, statusCode, response)
+}
+
+func acceptsJSONContentType(contentType string) bool {
+	normalized := strings.TrimSpace(strings.ToLower(contentType))
+	return normalized == "" || strings.HasPrefix(normalized, jsonContentTypePrefix)
+}
+
+func readBoundedRequestBody(r *http.Request, maxBytes int64) ([]byte, bool) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxBytes+1))
+	if err != nil {
+		return nil, false
+	}
+	return body, true
+}
+
+func rpcSecurityContext(r *http.Request, userID int) context.Context {
+	ctx := orm.ContextWithUID(r.Context(), userID)
+	if companyID := orm.CompanyIDFromContext(r.Context()); companyID > 0 {
+		return orm.ContextWithCompanyID(ctx, companyID)
+	}
+	return orm.ContextWithCompanyID(ctx, orm.ActiveCompanyIDForUser(ctx, userID))
+}
+
+func logRPCDispatch(ctx context.Context, requestBody []byte, response api.RPCResponse, statusCode int, start time.Time) {
+	modelName, methodName := parseRPCCallMeta(requestBody)
+	event := applog.Event{
 		Component: "rpc",
 		Operation: methodName,
 		Duration:  time.Since(start),
 		Context: map[string]interface{}{
 			"resource":    modelName,
 			"method":      methodName,
-			"status_code": status,
+			"status_code": statusCode,
 		},
 	}
-	if !resp.OK && resp.Error != nil {
-		ev.Message = "RPC call failed"
-		ev.Status = "failure"
-		ev.Context["error_code"] = resp.Error.Code
-		ev.Context["error"] = resp.Error.Message
-		applog.Error(ctx, ev)
-	} else {
-		ev.Message = "RPC call completed"
-		ev.Status = "success"
-		applog.Info(ctx, ev)
+	if !response.OK && response.Error != nil {
+		event.Message = "RPC call failed"
+		event.Status = "failure"
+		event.Context["error_code"] = response.Error.Code
+		event.Context["error"] = response.Error.Message
+		applog.Error(ctx, event)
+		return
 	}
-	api.WriteResponse(w, status, resp)
+	event.Message = "RPC call completed"
+	event.Status = "success"
+	applog.Info(ctx, event)
 }
 
-func rpcModelMethod(body []byte) (model, method string) {
-	var req struct {
+func parseRPCCallMeta(requestBody []byte) (modelName, methodName string) {
+	var meta struct {
 		Model  string `json:"model"`
 		Method string `json:"method"`
 	}
-	if err := json.Unmarshal(body, &req); err != nil {
+	if err := json.Unmarshal(requestBody, &meta); err != nil {
 		return "", ""
 	}
-	return req.Model, req.Method
+	return meta.Model, meta.Method
 }
