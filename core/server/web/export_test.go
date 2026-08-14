@@ -1,0 +1,324 @@
+package web
+
+import (
+	"context"
+	"net/http"
+	"time"
+
+	"sumeru/core/engine/render"
+	"sumeru/core/orm"
+)
+
+// Type aliases for external tests in core/server/web (web_test package).
+type (
+	ShellPageOpts      = shellPageOpts
+	SetupInitRequest   = setupInitRequest
+	AppsBrowseState    = appsBrowseState
+	ModuleRow          = moduleRow
+	PinnedAppsRequest  = pinnedAppsRequest
+	WorkspaceRequest   = workspaceRequest
+	AppsModule         = appsModule
+	SettingsHubSection = settingsHubSection
+)
+
+// Route and query constants for external tests.
+const (
+	TestHomeRoute              = homeRoute
+	TestWorkspaceRoute         = workspaceRoute
+	TestAppsRoute              = appsRoute
+	TestSettingsRoute          = settingsRoute
+	TestAppLogsRoute           = appLogsRoute
+	TestRootRoute              = rootRoute
+	TestSetupRoute             = setupRoute
+	TestLoginRoute             = loginRoute
+	TestPinnedAppsRoute        = pinnedAppsRoute
+	TestRelSearchRoute         = relSearchRoute
+	TestRecordSaveRoute        = recordSaveRoute
+	TestRecordDeleteRoute      = recordDeleteRoute
+	TestChatterPostRoute       = chatterPostRoute
+	TestCompanySwitchRoute     = companySwitchRoute
+	TestModuleActionRoute      = moduleActionRoute
+	TestAPIRPCRoute            = apiRPCRoute
+	TestWorkspaceActionParam   = workspaceActionParam
+	TestWorkspaceMenuIDParam   = workspaceMenuIDParam
+	TestWorkspaceViewTypeParam = workspaceViewTypeParam
+	TestWorkspaceRecordIDParam = workspaceRecordIDParam
+	TestWorkspaceViewModeForm  = workspaceViewModeForm
+	TestWorkspaceViewModeList  = workspaceViewModeList
+	TestAppsLayoutList         = appsLayoutList
+	TestAppsLayoutGrid         = appsLayoutGrid
+	TestAppsLayoutField        = appsLayoutField
+	TestFlashMessageParam      = flashMessageParam
+	TestResetPasswordMsg       = resetPasswordMsg
+	TestResetPasswordRoute     = resetPasswordRoute
+	TestRecordModelField       = recordModelField
+	TestNextField              = nextField
+	TestModuleActionInstall    = moduleActionInstall
+	TestLegacyKanbanLayout     = legacyKanbanLayout
+	TestDefaultPageTitle       = defaultPageTitle
+	TestSetupInitRoute         = setupInitRoute
+	TestForwardedForHeader     = forwardedForHeader
+	TestSetupTokenHeader       = setupTokenHeader
+	TestModuleMsgUnknownAction = moduleMsgUnknownAction
+	TestAppLogsPageTitle       = appLogsPageTitle
+	TestAppLogsBreadcrumb      = appLogsBreadcrumb
+	TestSettingsHubPageTitle   = settingsHubPageTitle
+)
+
+// Numeric and URL constants for external tests.
+var (
+	TestWorkspaceStylesheetURL   = workspaceStylesheetURL
+	TestPagesStylesheetURL       = pagesStylesheetURL
+	TestSettingsHubStylesheetURL = settingsHubStylesheetURL
+	TestMaxRPCBodyBytes          int64 = maxRPCBodyBytes
+	TestDefaultRelSearchLimit    = defaultRelSearchLimit
+	TestMaxChatterBodyRunes      = maxChatterBodyRunes
+	TestSetupRateLimitWindow     = setupRateLimitWindow
+	TestSetupRateLimitMax        = setupRateLimitMax
+)
+
+func HTTPStatusFromWorkspaceError(err error) int { return httpStatusFromWorkspaceError(err) }
+
+func WorkspaceQueryParams(r *http.Request) (actionQuery, menuQuery string) {
+	return workspaceQueryParams(r)
+}
+
+func RedirectIfMenuAccessDenied(w http.ResponseWriter, r *http.Request, menuQuery string) bool {
+	return redirectIfMenuAccessDenied(w, r, menuQuery)
+}
+
+func ParseMenuIDString(menuQuery string) (menuID int, ok bool) { return parseMenuIDString(menuQuery) }
+
+func ResolveActionIDFromQuery(ctx context.Context, actionQuery string) int {
+	return resolveActionIDFromQuery(ctx, actionQuery)
+}
+
+func MenuRecordActionID(menuRecord map[string]interface{}) (actionID int, ok bool) {
+	return menuRecordActionID(menuRecord)
+}
+
+func ParseWorkspaceRequest(r *http.Request, actionID int) WorkspaceRequest {
+	return parseWorkspaceRequest(r, actionID)
+}
+
+func WorkspaceRequestFields(req WorkspaceRequest) (actionID int, menuID, viewType, recordID string, formEdit bool) {
+	return req.actionID, req.menuID, req.viewType, req.recordID, req.formEdit
+}
+
+func HomeRouteWithMenu(menuID string) string { return homeRouteWithMenu(menuID) }
+
+func PrependViewMode(mode string, modes []string) []string { return prependViewMode(mode, modes) }
+
+func IsNumericRecordID(recordID string) bool { return isNumericRecordID(recordID) }
+
+func WorkspaceViewModeCandidates(r *http.Request, actionData map[string]interface{}) []string {
+	return workspaceViewModeCandidates(r, actionData)
+}
+
+func ParsePositiveRecordID(recordIDRaw string) (int, bool) { return parsePositiveRecordID(recordIDRaw) }
+
+func URLWithQueryParam(path, param, value string) (string, error) {
+	return urlWithQueryParam(path, param, value)
+}
+
+func RedirectWithWebMessage(w http.ResponseWriter, r *http.Request, rawNext, message string) {
+	redirectWithWebMessage(w, r, rawNext, message)
+}
+
+func NormalizeGridListLayout(raw string) string { return normalizeGridListLayout(raw) }
+
+func LayoutFromQuery(r *http.Request) string { return layoutFromQuery(r) }
+
+func LayoutFromForm(r *http.Request, fieldName string) string { return layoutFromForm(r, fieldName) }
+
+func ParsePinnedAppsJSONBody(r *http.Request) (PinnedAppsRequest, bool) {
+	return parsePinnedAppsJSONBody(r)
+}
+
+func ParsePinnedAppsFormBody(r *http.Request) (PinnedAppsRequest, bool) {
+	return parsePinnedAppsFormBody(r)
+}
+
+func DecodePinnedModulesField(raw string) ([]string, bool) { return decodePinnedModulesField(raw) }
+
+func NormalizePinnedModules(modules []string) []string { return normalizePinnedModules(modules) }
+
+func ParsePinnedAppsRequest(r *http.Request) (PinnedAppsRequest, bool) {
+	return parsePinnedAppsRequest(r)
+}
+
+func ResolveShellRoute(opts ShellPageOpts, r *http.Request) string { return resolveShellRoute(opts, r) }
+
+func ResolveExtraStylesheets(pageStylesheets, optStylesheets []string) []string {
+	return resolveExtraStylesheets(pageStylesheets, optStylesheets)
+}
+
+func ApplyShellPageDefaults(page render.PageData, opts ShellPageOpts, route string, r *http.Request, moduleName string, sidebarMenus []render.SidebarMenu) render.PageData {
+	return applyShellPageDefaults(page, opts, route, r, moduleName, sidebarMenus)
+}
+
+func ClientIP(r *http.Request) string { return clientIP(r) }
+
+func IsLoopbackIP(ip string) bool { return isLoopbackIP(ip) }
+
+func SetupTokenFromRequest(r *http.Request, bodyToken string) string {
+	return setupTokenFromRequest(r, bodyToken)
+}
+
+func PruneSetupAttempts(attempts []time.Time, now time.Time) []time.Time {
+	return pruneSetupAttempts(attempts, now)
+}
+
+func AllowSetupRateLimit(w http.ResponseWriter, requestIP string) bool {
+	return allowSetupRateLimit(w, requestIP)
+}
+
+func ResetSetupRateLimiterForTest() { setupRateLimiter.attemptsByIP = make(map[string][]time.Time) }
+
+func ParseSetupInitRequest(w http.ResponseWriter, body []byte) (SetupInitRequest, bool) {
+	return parseSetupInitRequest(w, body)
+}
+
+func ToSetupAdminParams(request SetupInitRequest) orm.SetupAdminParams {
+	return toSetupAdminParams(request)
+}
+
+func BuildSetupPageData() setupPageData { return buildSetupPageData() }
+
+func SettingsHubSectionFromSidebar(sidebarSection render.SidebarMenu) (SettingsHubSection, bool) {
+	return settingsHubSectionFromSidebar(sidebarSection)
+}
+
+func BuildSettingsHubPageData(ctx context.Context, menuIDStr string) render.PageData {
+	return buildSettingsHubPageData(ctx, menuIDStr)
+}
+
+func AppLogsViewStylesheets() []string { return appLogsViewStylesheets() }
+
+func BuildAppLogsPageData(ctx context.Context, menuID int) render.PageData {
+	return buildAppLogsPageData(ctx, menuID)
+}
+
+func ResolveMenuID(ctx context.Context, menuXMLID string) (menuID int, menuIDStr string) {
+	return resolveMenuID(ctx, menuXMLID)
+}
+
+func AcceptsJSONContentType(contentType string) bool { return acceptsJSONContentType(contentType) }
+
+func ParseRPCCallMeta(requestBody []byte) (modelName, methodName string) {
+	return parseRPCCallMeta(requestBody)
+}
+
+func ReadBoundedRequestBody(r *http.Request, maxBytes int64) ([]byte, bool) {
+	return readBoundedRequestBody(r, maxBytes)
+}
+
+func ServeMuxOrDefault(mux *http.ServeMux) *http.ServeMux { return serveMuxOrDefault(mux) }
+
+func RootRedirectHome(w http.ResponseWriter, r *http.Request) { rootRedirectHome(w, r) }
+
+func RootRedirectSetup(w http.ResponseWriter, r *http.Request) { rootRedirectSetup(w, r) }
+
+func RedirectFoundTo(dest string) http.HandlerFunc { return redirectFoundTo(dest) }
+
+func ParseRelSearchRequest(r *http.Request) relSearchRequest { return parseRelSearchRequest(r) }
+
+func QueryIntOrDefault(raw string, fallback int) int { return queryIntOrDefault(raw, fallback) }
+
+func QueryInt64OrZero(raw string) int64 { return queryInt64OrZero(raw) }
+
+func ParseRecordSaveForm(r *http.Request) recordSaveForm { return parseRecordSaveForm(r) }
+
+func IsNewRecord(recordIDRaw string) bool { return isNewRecord(recordIDRaw) }
+
+func WorkspaceFormURL(next string, recordID int) string { return workspaceFormURL(next, recordID) }
+
+func IsSkippedSaveFormField(field string) bool { return isSkippedSaveFormField(field) }
+
+func CoerceSaveFieldValue(fieldName string, fieldType orm.FieldType, raw string) (interface{}, bool, error) {
+	return coerceSaveFieldValue(fieldName, fieldType, raw)
+}
+
+func ParseRecordDeleteRequest(w http.ResponseWriter, r *http.Request) (recordDeleteRequest, bool) {
+	return parseRecordDeleteRequest(w, r)
+}
+
+func SplitCommaSeparatedValues(raw string) []string { return splitCommaSeparatedValues(raw) }
+
+func SplitViewModes(viewMode string) []string { return splitViewModes(viewMode) }
+
+func NormalizeViewMode(viewMode string) string { return normalizeViewMode(viewMode) }
+
+func FormBaseQueryValues(actionID int, menuID, viewType, recordID string) string {
+	return formBaseQueryValues(actionID, menuID, viewType, recordID)
+}
+
+func WorkspaceListURL(actionID, menuID string) string { return workspaceListURL(actionID, menuID) }
+
+func FormOrQueryValue(r *http.Request, field string) string { return formOrQueryValue(r, field) }
+
+func ParseChatterPostForm(r *http.Request) chatterPostForm { return parseChatterPostForm(r) }
+
+func ChatterBodyTooLong(body string) bool { return chatterBodyTooLong(body) }
+
+func ParseChatterRecordID(w http.ResponseWriter, recordIDRaw string) (int64, bool) {
+	return parseChatterRecordID(w, recordIDRaw)
+}
+
+func CoerceCSVValue(raw string) interface{} { return coerceCSVValue(raw) }
+
+func ImportableRowValues(header []string, record []string, allowedFields map[string]struct{}) map[string]interface{} {
+	return importableRowValues(header, record, allowedFields)
+}
+
+func IsImportableColumn(column string, allowedFields map[string]struct{}) bool {
+	return isImportableColumn(column, allowedFields)
+}
+
+func ImportCSVFlashMessage(createdCount int) string { return importCSVFlashMessage(createdCount) }
+
+func ParseCompanySwitchForm(r *http.Request) companySwitchForm { return parseCompanySwitchForm(r) }
+
+func LoginURLWithReturn(returnTo string) string { return loginURLWithReturn(returnTo) }
+
+func BearerToken(header string) string { return bearerToken(header) }
+
+func ParseLoginCredentials(r *http.Request) loginCredentials { return parseLoginCredentials(r) }
+
+func AppsRedirectURL(msg string, browse AppsBrowseState) string { return appsRedirectURL(msg, browse) }
+
+func ParseAppsBrowseStateFromForm(r *http.Request) AppsBrowseState {
+	return parseAppsBrowseStateFromForm(r)
+}
+
+func AppsDetailRedirectURL(msg string, browse AppsBrowseState) string {
+	return appsDetailRedirectURL(msg, browse)
+}
+
+func ParseModuleActionForm(r *http.Request) moduleActionForm { return parseModuleActionForm(r) }
+
+func RunModuleLifecycleAction(ctx context.Context, action, moduleName string) (string, error) {
+	return runModuleLifecycleAction(ctx, action, moduleName)
+}
+
+func AppsModuleFromParsed(row ModuleRow) AppsModule { return appsModuleFromParsed(row) }
+
+func FilterAppsModulesByBrowse(modules []AppsModule, browse AppsBrowseState) (appModules, techModules []AppsModule) {
+	return filterAppsModulesByBrowse(modules, browse)
+}
+
+func AppsDetailURL(layout, filter, scope, searchQuery, moduleName string, editing bool) string {
+	return appsDetailURL(layout, filter, scope, searchQuery, moduleName, editing)
+}
+
+func FindAppsModule(modules []AppsModule, moduleName string) (AppsModule, bool) {
+	return findAppsModule(modules, moduleName)
+}
+
+func APIKeyTargetUserID(r *http.Request) int { return apiKeyTargetUserID(r) }
+
+func ParseModuleRow(values map[string]interface{}) (ModuleRow, bool) { return parseModuleRow(values) }
+
+func ModuleDisplayName(moduleName, displayName string) string {
+	return moduleDisplayName(moduleName, displayName)
+}
