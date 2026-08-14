@@ -21,14 +21,8 @@ type settingsHubSection struct {
 	Links      []settingsHubLink
 }
 
-// settingsHubAppTile is an installed application module with a quick open link.
-type settingsHubAppTile struct {
-	Name         string
-	DisplayName  string
-	IconLetter   string
-	IconHue      int
-	OpenMenuHref string
-}
+// settingsHubAppTile is an alias for render.AppTile in settings hub templates.
+type settingsHubAppTile = render.AppTile
 
 type settingsHubData struct {
 	Sections          []settingsHubSection
@@ -37,6 +31,8 @@ type settingsHubData struct {
 }
 
 // SettingsHubHandler renders the Settings overview at /web/settings.
+// Requires base.group_user; admin-only sections (Localization, Users, etc.) need base.group_system
+// and are omitted from the hub when the user lacks that group.
 func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 	if !requireLogin(w, r) {
 		return
@@ -87,13 +83,7 @@ func SettingsHubHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var appTiles []settingsHubAppTile
 	for _, t := range raw {
-		appTiles = append(appTiles, settingsHubAppTile{
-			Name:         t.Name,
-			DisplayName:  t.DisplayName,
-			IconLetter:   t.IconLetter,
-			IconHue:      t.IconHue,
-			OpenMenuHref: t.OpenMenuHref,
-		})
+		appTiles = append(appTiles, t)
 	}
 
 	companiesHref := ""
