@@ -1,6 +1,10 @@
-package render
+package render_test
 
-import "testing"
+import (
+	"testing"
+
+	"sumeru/core/engine/render"
+)
 
 func TestUserInitialsFromName(t *testing.T) {
 	tests := []struct {
@@ -15,7 +19,7 @@ func TestUserInitialsFromName(t *testing.T) {
 		{"Mary Jane Watson", "MW"},
 	}
 	for _, tt := range tests {
-		if got := UserInitialsFromName(tt.in); got != tt.want {
+		if got := render.UserInitialsFromName(tt.in); got != tt.want {
 			t.Errorf("UserInitialsFromName(%q) = %q; want %q", tt.in, got, tt.want)
 		}
 	}

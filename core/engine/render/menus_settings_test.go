@@ -1,9 +1,10 @@
-package render
+package render_test
 
 import (
 	"testing"
 
 	"sumeru/core/engine/parser"
+	"sumeru/core/engine/render"
 )
 
 func TestBuildSidebarMenus_localizationSection(t *testing.T) {
@@ -17,8 +18,8 @@ func TestBuildSidebarMenus_localizationSection(t *testing.T) {
 	menuAllowed := func(mi parser.MenuItem) bool {
 		return mi.AccessGroups == "base.group_system"
 	}
-	sections := buildSidebarMenus(allMenus, "100", menuAllowed)
-	var localization *SidebarMenu
+	sections := render.BuildSidebarMenus(allMenus, "100", menuAllowed)
+	var localization *render.SidebarMenu
 	for i := range sections {
 		if sections[i].Name == "Localization" {
 			localization = &sections[i]
@@ -53,7 +54,7 @@ func TestBuildSidebarMenus_skipsEmptySections(t *testing.T) {
 		{ID: "220", Name: "Empty section", ParentID: "200", Sequence: 200},
 	}
 	menuAllowed := func(parser.MenuItem) bool { return true }
-	sections := buildSidebarMenus(allMenus, "200", menuAllowed)
+	sections := render.BuildSidebarMenus(allMenus, "200", menuAllowed)
 	if len(sections) != 1 {
 		t.Fatalf("sections = %d; want 1 (empty section skipped)", len(sections))
 	}
@@ -63,19 +64,19 @@ func TestBuildSidebarMenus_skipsEmptySections(t *testing.T) {
 }
 
 func TestSidebarHasMenus(t *testing.T) {
-	if SidebarHasMenus(nil) {
+	if render.SidebarHasMenus(nil) {
 		t.Fatal("nil menus should be false")
 	}
-	if SidebarHasMenus([]SidebarMenu{{Name: "Empty", SubMenus: nil}}) {
+	if render.SidebarHasMenus([]render.SidebarMenu{{Name: "Empty", SubMenus: nil}}) {
 		t.Fatal("section without links should be false")
 	}
-	if !SidebarHasMenus([]SidebarMenu{{Name: "Links", SubMenus: []parser.MenuItem{{Name: "One"}}}}) {
+	if !render.SidebarHasMenus([]render.SidebarMenu{{Name: "Links", SubMenus: []parser.MenuItem{{Name: "One"}}}}) {
 		t.Fatal("section with links should be true")
 	}
 }
 
 func TestResolveActiveModuleID_noDefaultWhenMenuMissing(t *testing.T) {
-	got := resolveActiveModuleID(nil, "")
+	got := render.ResolveActiveModuleID(nil, "")
 	if got != "" {
 		t.Fatalf("active module = %q; want empty when menu_id missing", got)
 	}
