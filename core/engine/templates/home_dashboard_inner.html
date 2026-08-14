@@ -8,7 +8,7 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
             </span>
             <label class="visually-hidden" for="sum-home-q">Search applications</label>
-            <input id="sum-home-q" name="q" type="search" class="sum-home-hub-search-input" value="{{.Search}}" placeholder="Search apps by name, technical name, or description…" autocomplete="off" />
+            <input id="sum-home-q" name="q" type="search" class="sum-home-hub-search-input" value="{{.Search}}" placeholder="Search apps by name, technical name, or description… ( / to focus · Ctrl+K anywhere )" autocomplete="off" />
             <button type="submit" class="sum-home-hub-search-submit">Search</button>
             {{if .Search}}
             <a href="/web/home{{if .MenuID}}?menu_id={{.MenuID}}{{end}}" class="sum-home-hub-search-clear">Clear</a>
@@ -16,13 +16,21 @@
         </form>
     </div>
 
+    <div id="sum-home-recent" class="sum-home-hub-recent" hidden>
+        <h2 class="sum-home-hub-recent-title">Recent</h2>
+        <div id="sum-home-recent-apps" class="sum-home-hub-apps" role="list"></div>
+    </div>
+
     {{if .EmptyMsg}}
     <p class="sum-home-hub-empty" role="status">{{.EmptyMsg}}</p>
     {{else}}
     <div class="sum-home-hub-apps" role="list">
         {{range .Tiles}}
-        <div class="sum-home-hub-app" role="listitem">
-            <a href="{{.OpenMenuHref}}" class="sum-home-hub-app-main" title="{{.DisplayName}} — {{.Name}}{{if .Description}}. {{.Description}}{{end}}">
+        <div class="sum-home-hub-app" role="listitem" data-module="{{.Name}}">
+            <button type="button" class="sum-home-hub-app-pin" data-module="{{.Name}}" aria-label="Pin {{.DisplayName}} to top bar" title="Pin to top bar">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 17v5M9 3h6l1 7h4l-6 8v-3H9v3L3 10h4z"/></svg>
+            </button>
+            <a href="{{.OpenMenuHref}}" class="sum-home-hub-app-main" data-module="{{.Name}}" title="{{.DisplayName}} — {{.Name}}{{if .Description}}. {{.Description}}{{end}}">
                 <div class="sum-home-hub-app-icon" style="--sum-home-icon-h: {{.IconHue}};" aria-hidden="true">
                     <span class="sum-home-hub-app-letter">{{.IconLetter}}</span>
                 </div>

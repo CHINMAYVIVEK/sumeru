@@ -2,9 +2,9 @@
 <sumeru>
     <data>
         <!-- ============================================================
-             core.group — tree + form
+             core.group — list + form
         ============================================================ -->
-        <view id="view_core.group_tree" model="core.group" type="tree">
+        <view id="view_core.group_list" model="core.group" type="list">
             <field name="name" string="Name"/>
             <field name="category_id" string="Application"/>
             <field name="sequence" string="Sequence"/>
@@ -31,9 +31,9 @@
         </view>
 
         <!-- ============================================================
-             sys.access — tree + form
+             sys.access — list + form
         ============================================================ -->
-        <view id="view_sys.access_tree" model="sys.access" type="tree">
+        <view id="view_sys.access_list" model="sys.access" type="list">
             <field name="name" string="Name"/>
             <field name="model" string="Model"/>
             <field name="perm_read" string="Read"/>
@@ -65,9 +65,9 @@
         </view>
 
         <!-- ============================================================
-             sys.rule — tree + form
+             sys.rule — list + form
         ============================================================ -->
-        <view id="view_sys.rule_tree" model="sys.rule" type="tree">
+        <view id="view_sys.rule_list" model="sys.rule" type="list">
             <field name="name" string="Name"/>
             <field name="model" string="Model"/>
             <field name="active" string="Active"/>
@@ -101,31 +101,31 @@
         </view>
 
         <!-- ============================================================
-             Actions — point to both tree and form so "New" works
+             Actions — point to both list and form so "New" works
         ============================================================ -->
         <record id="access_action_core.group" model="sys.action.window">
             <field name="name">access_action_core.group</field>
             <field name="core_model">core.group</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <record id="access_action_core.group_user_types" model="sys.action.window">
             <field name="name">access_action_core.group_user_types</field>
             <field name="core_model">core.group</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <field name="domain">[["category_id","=","base.module_category_user_types"]]</field>
         </record>
 
         <record id="access_action_sys.access" model="sys.action.window">
             <field name="name">access_action_sys.access</field>
             <field name="core_model">sys.access</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <record id="access_action_sys.rule" model="sys.action.window">
             <field name="name">access_action_sys.rule</field>
             <field name="core_model">sys.rule</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <!-- ============================================================

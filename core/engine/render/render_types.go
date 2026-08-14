@@ -56,7 +56,13 @@ type PageData struct {
 	ExtraStylesheetURLs []string
 	LogoURL             string
 	// BrandLockupHref is the shell logo/name link target (default: home dashboard via EnrichShellPageData).
-	BrandLockupHref   string
+	BrandLockupHref string
+	// HomeNavHref is the pinned "All apps" top-bar link (default: HomeWebURL).
+	HomeNavHref string
+	// HomeNavActive highlights the All apps pill on /web/home.
+	HomeNavActive bool
+	// AppLauncherJSON is installed-app metadata for the global Ctrl+K launcher (JSON array).
+	AppLauncherJSON template.JS
 	ShellCompany      string
 	ShellUser         string
 	ShellUserImage    template.URL    // profile photo for top bar (template.URL so data: URLs are not scrubbed); empty → initials
@@ -123,6 +129,12 @@ type ViewRecordData struct {
 	Record   map[string]interface{}
 	ListRows []map[string]interface{}
 	ViewTabs []ViewSwitchTab // optional; copied onto PageData for base layout
+
+	// Grouped kanban (when default_group_by is set on the view).
+	KanbanColumns    []KanbanColumn
+	KanbanGroupField string
+	KanbanDraggable  bool
+	KanbanModel      string
 
 	// Workspace form chrome (/web): Edit / Save / Cancel and POST save target.
 	ResModel       string // e.g. core.company

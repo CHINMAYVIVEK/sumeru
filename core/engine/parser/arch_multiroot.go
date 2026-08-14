@@ -18,16 +18,30 @@ type archFormRoot struct {
 	Group   []Group  `xml:"group"`
 }
 
-type archTreeRoot struct {
-	XMLName xml.Name `xml:"tree"`
+type archListRoot struct {
+	XMLName xml.Name `xml:"list"`
 	String  string   `xml:"string,attr"`
 	Open    string   `xml:"open,attr"`
 	Field   []Field  `xml:"field"`
 }
 
 type archKanbanRoot struct {
-	XMLName xml.Name `xml:"kanban"`
-	Field   []Field  `xml:"field"`
+	XMLName          xml.Name `xml:"kanban"`
+	DefaultGroupBy   string   `xml:"default_group_by,attr"`
+	GroupBy          string   `xml:"group_by,attr"`
+	RecordsDraggable string   `xml:"records_draggable,attr"`
+	QuickCreate      string   `xml:"quick_create,attr"`
+	Field            []Field  `xml:"field"`
+}
+
+func applyKanbanRootAttrs(v *View, k archKanbanRoot) {
+	if v == nil {
+		return
+	}
+	v.DefaultGroupBy = k.DefaultGroupBy
+	v.GroupBy = k.GroupBy
+	v.RecordsDraggable = k.RecordsDraggable
+	v.QuickCreate = k.QuickCreate
 }
 
 // promoteNestedForm lifts children of a nested <form> under <view> onto View so
@@ -67,7 +81,7 @@ func parseViewFromArchInternal(arch string) (*View, error) {
 	if err := xml.Unmarshal([]byte(arch), &v); err == nil {
 		promoteNestedForm(&v)
 		if viewLooksPopulated(&v) {
-			applyTreeListOpenFlag(&v)
+			applyListOpenFlag(&v)
 			return &v, nil
 		}
 	}
@@ -85,26 +99,28 @@ func parseViewFromArchInternal(arch string) (*View, error) {
 		}, nil
 	}
 
-	var t archTreeRoot
-	if err := xml.Unmarshal([]byte(arch), &t); err == nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(arch)), "<tree") {
+	var l archListRoot
+	if err := xml.Unmarshal([]byte(arch), &l); err == nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(arch)), "<list") {
 		return &View{
-			Type:           "tree",
-			Field:          t.Field,
-			TreeOpenAttr:   t.Open,
-			TreeNoRowOpen:  treeOpenAttrDisablesRowNavigation(t.Open),
+			Type:          "list",
+			Field:         l.Field,
+			ListOpenAttr:  l.Open,
+			ListNoRowOpen: listOpenAttrDisablesRowNavigation(l.Open),
 		}, nil
 	}
 
 	var k archKanbanRoot
 	if err := xml.Unmarshal([]byte(arch), &k); err == nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(arch)), "<kanban") {
-		return &View{Type: "kanban", Field: k.Field}, nil
+		v := &View{Type: "kanban", Field: k.Field}
+		applyKanbanRootAttrs(v, k)
+		return v, nil
 	}
 
 	if err := xml.Unmarshal([]byte(arch), &v); err != nil {
 		return nil, fmt.Errorf("parse view arch: %w", err)
 	}
 	if !viewLooksPopulated(&v) {
-		return nil, fmt.Errorf("parse view arch: unsupported or empty root (use <view>, <form>, <tree>, or <kanban>)")
+		return nil, fmt.Errorf("parse view arch: unsupported or empty root (use <view>, <form>, <list>, or <kanban>)")
 	}
 	return &v, nil
 }

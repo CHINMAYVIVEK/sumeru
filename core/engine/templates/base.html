@@ -27,7 +27,7 @@
                         <path d="M4 6h16M4 12h16M4 18h7" />
                     </svg>
                 </button>
-                <a href="{{.BrandLockupHref}}" class="sum-brand-lockup">
+                <a href="{{.BrandLockupHref}}" class="sum-brand-lockup" title="All applications (Home)">
                     {{if .LogoURL}}
                     <img src="{{.LogoURL}}" alt="" class="sum-logo" width="32" height="32" />
                     {{end}}
@@ -36,9 +36,18 @@
                     </span>
                 </a>
                 <nav class="sum-top-nav" aria-label="Main modules">
+                    <a href="{{.HomeNavHref}}"
+                        class="top-menu-item top-menu-item--home top-menu-item--pinned {{if .HomeNavActive}}active{{end}}"
+                        title="All applications">
+                        {{template "sumMenuIcon" "apps"}}
+                        <span class="top-menu-item-label">All apps</span>
+                    </a>
                     {{range .TopMenus}}
                     <a href="{{.Action}}"
-                        class="top-menu-item {{if and (not $.AppsNavActive) (eq .ID $.ActiveModuleID)}}active{{end}}">
+                        class="top-menu-item top-menu-item--module {{if and (not $.AppsNavActive) (eq .ID $.ActiveModuleID)}}active{{end}}"
+                        title="{{.Name}}"
+                        data-module="{{.Module}}"
+                        data-menu-id="{{.ID}}">
                         {{template "sumMenuIcon" .WebIcon}}
                         <span class="top-menu-item-label">{{.Name}}</span>
                     </a>
@@ -46,13 +55,15 @@
                     {{/* Settings — internal users; Apps — system admin */}}
                     {{if .SettingsNavAllowed}}
                     <a href="/web/settings"
-                        class="top-menu-item top-menu-item--settings {{if .SettingsNavActive}}active{{end}}">
+                        class="top-menu-item top-menu-item--settings top-menu-item--pinned {{if .SettingsNavActive}}active{{end}}"
+                        title="Settings">
                         {{template "sumMenuIcon" "settings"}}
                         <span class="top-menu-item-label">Settings</span>
                     </a>
                     {{end}}
                     {{if .AppsNavAllowed}}
-                    <a href="/web/apps" class="top-menu-item top-menu-item--apps {{if .AppsNavActive}}active{{end}}">
+                    <a href="/web/apps" class="top-menu-item top-menu-item--apps top-menu-item--pinned {{if .AppsNavActive}}active{{end}}"
+                        title="Apps administration">
                         {{template "sumMenuIcon" "apps"}}
                         <span class="top-menu-item-label">Apps</span>
                     </a>
@@ -187,7 +198,7 @@
                                         <rect x="3" y="14" width="7" height="7" rx="1" />
                                     </svg>
                                 </span>
-                                {{else if eq .Mode "tree"}}
+                                {{else if eq .Mode "list"}}
                                 <span class="sum-view-tab-icon" aria-hidden="true">
                                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="1.75">
@@ -297,6 +308,22 @@
             </main>
         </div>
     </div>
+    <dialog id="sum-app-launcher" class="sum-app-launcher" aria-label="Application launcher">
+        <div class="sum-app-launcher-panel">
+            <div class="sum-app-launcher-search-row">
+                <svg class="sum-app-launcher-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.35-4.35" />
+                </svg>
+                <input id="sum-app-launcher-input" type="search" class="sum-app-launcher-input"
+                    placeholder="Search applications…" autocomplete="off" aria-label="Search applications" />
+            </div>
+            <ul id="sum-app-launcher-results" class="sum-app-launcher-results" role="listbox"></ul>
+            <p class="sum-app-launcher-hint"><kbd>Ctrl</kbd>+<kbd>K</kbd> anywhere · <kbd>Esc</kbd> close · ↑↓ navigate · Enter open</p>
+        </div>
+    </dialog>
+    <script type="application/json" id="sum-app-launcher-data">{{.AppLauncherJSON}}</script>
     <script type="module" src="/static/js/core.js"></script>
 </body>
 

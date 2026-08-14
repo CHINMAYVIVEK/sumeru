@@ -3,18 +3,34 @@ package orm
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
-// Legacy schema fixes that are not expressed as additive columns on Model.Fields():
-// - widen sys.view.arch to TEXT
-// - composite index on mail.message
-// - backfill sys.menu.module from the XML-id registry table (sys_model_data)
+// One-off database repairs invoked at server startup (see run.go).
 //
-// Registered model columns are added by SyncRegistrySchema (schema_sync.go), invoked on
-// server startup and on module install (-i) / update (-u).
+// SyncRegistrySchema handles the normal path: add columns declared on models.
+// This file covers everything else — widen a column type, fix corrupt rows,
+// add an index, or upgrade data left over from an older convention.
+//
+// Every function here is idempotent and safe to run on each boot.
 
-// BackfillSysMenuModule sets sys.menu.module from sys_model_data for rows missing it.
-func BackfillSysMenuModule() error {
+// --- Menu data ---
+
+// RunMenuDataFixes repairs sys.menu rows that break navigation if left alone.
+func RunMenuDataFixes() error {
+	var errs []error
+	if err := backfillSysMenuModule(); err != nil {
+		errs = append(errs, fmt.Errorf("backfill sys.menu.module: %w", err))
+	}
+	if err := fixSysMenuSelfParent(); err != nil {
+		errs = append(errs, fmt.Errorf("fix sys.menu self-parent: %w", err))
+	}
+	return errors.Join(errs...)
+}
+
+// Older installs never stored which addon owns a menu row. The XML-id registry
+// (sys.model.data) has that mapping — copy it across where module is blank.
+func backfillSysMenuModule() error {
 	if DB == nil {
 		return nil
 	}
@@ -24,18 +40,16 @@ func BackfillSysMenuModule() error {
 	}
 	menuTbl := MustQuotedTableName("sys.menu")
 	dataTbl := MustQuotedTableName("sys.model.data")
-	q := `UPDATE ` + menuTbl + ` m
+	_, err = DB.Exec(`UPDATE ` + menuTbl + ` m
 		SET module = d.module
 		FROM ` + dataTbl + ` d
 		WHERE d.model = 'sys.menu' AND d.core_id = m.id
-		  AND (m.module IS NULL OR TRIM(m.module) = '')`
-	_, err = DB.Exec(q)
+		  AND (m.module IS NULL OR TRIM(m.module) = '')`)
 	return err
 }
 
-// FixSysMenuSelfParent clears parent_id when it incorrectly equals the row id (bad data hides
-// roots from the shell top bar). Safe to run on every startup.
-func FixSysMenuSelfParent() error {
+// A menu pointing at itself as parent never surfaces in the top bar. Clear it.
+func fixSysMenuSelfParent() error {
 	if DB == nil {
 		return nil
 	}
@@ -44,52 +58,91 @@ func FixSysMenuSelfParent() error {
 	return err
 }
 
-// RunMenuDataFixes applies startup/setup menu repairs (module backfill + self-parent cleanup).
-func RunMenuDataFixes() error {
-	var errs []error
-	if err := BackfillSysMenuModule(); err != nil {
-		errs = append(errs, fmt.Errorf("backfill sys.menu.module: %w", err))
-	}
-	if err := FixSysMenuSelfParent(); err != nil {
-		errs = append(errs, fmt.Errorf("fix sys.menu self-parent: %w", err))
-	}
-	return errors.Join(errs...)
-}
+// --- Column widenings ---
 
-// EnsureSysViewArchText widens sys.view.arch for large inherited views.
+// EnsureSysViewArchText promotes sys.view.arch to TEXT so large inherited views fit.
 func EnsureSysViewArchText() error {
-	if DB == nil {
-		return nil
-	}
-	tn := MustQuotedTableName("sys.view")
-	_, err := DB.Exec(`ALTER TABLE ` + tn + ` ALTER COLUMN arch TYPE TEXT USING arch::text`)
-	return err
+	return widenColumnToText("sys.view", "arch")
 }
 
-// EnsureCoreUserImageText widens core.user.image so data-URL avatars can be stored
-// (Char maps to VARCHAR(255), which rejects typical base64 payloads).
+// EnsureCoreUserImageText promotes core.user.image to TEXT (Char is VARCHAR(255),
+// which is too small for typical base64 avatar payloads).
 func EnsureCoreUserImageText() error {
 	if DB == nil {
 		return nil
 	}
-	tnPhysical := MustModelToTableName("core.user")
-	ok, err := tableExists(tnPhysical)
-	if err != nil || !ok {
+	if ok, err := tableExists(MustModelToTableName("core.user")); err != nil || !ok {
 		return err
 	}
-	tn := MustQuotedTableName("core.user")
-	_, err = DB.Exec(`ALTER TABLE ` + tn + ` ALTER COLUMN image TYPE TEXT USING image::text`)
+	return widenColumnToText("core.user", "image")
+}
+
+func widenColumnToText(modelName, column string) error {
+	if DB == nil {
+		return nil
+	}
+	table := MustQuotedTableName(modelName)
+	_, err := DB.Exec(`ALTER TABLE ` + table + ` ALTER COLUMN ` + column + ` TYPE TEXT USING ` + column + `::text`)
 	return err
 }
 
-// EnsureMailMessageModelResIndex adds a composite index for chatter and activity queries.
+// --- View type: tree → list ---
+
+// Replacements applied when upgrading stored view arch from the old Odoo "tree"
+// convention to "list". MigrateSysViewTreeToList uses the same rules in SQL.
+var legacyTreeToListArchReplacements = [][2]string{
+	{"<tree", "<list"},
+	{"</tree>", "</list>"},
+	{`type="tree"`, `type="list"`},
+	{`type='tree'`, `type='list'`},
+}
+
+// RewriteViewArchTreeToList applies legacyTreeToListArchReplacements to a single arch string.
+func RewriteViewArchTreeToList(arch string) string {
+	for _, pair := range legacyTreeToListArchReplacements {
+		arch = strings.ReplaceAll(arch, pair[0], pair[1])
+	}
+	return arch
+}
+
+// MigrateSysViewTreeToList upgrades sys.view rows still on the pre-list view type.
+// Fresh installs and module syncs already write type=list; this is for existing DBs.
+func MigrateSysViewTreeToList() error {
+	if DB == nil {
+		return nil
+	}
+	if ok, err := tableExists(MustModelToTableName("sys.view")); err != nil || !ok {
+		return err
+	}
+	viewTable := MustQuotedTableName("sys.view")
+
+	if _, err := DB.Exec(`UPDATE ` + viewTable + ` SET type = 'list' WHERE type = 'tree'`); err != nil {
+		return err
+	}
+
+	// Nested REPLACE mirrors legacyTreeToListArchReplacements (innermost first).
+	archExpr := "arch"
+	for i := len(legacyTreeToListArchReplacements) - 1; i >= 0; i-- {
+		old, new := legacyTreeToListArchReplacements[i][0], legacyTreeToListArchReplacements[i][1]
+		archExpr = fmt.Sprintf("REPLACE(%s, '%s', '%s')", archExpr, quoteSQLString(old), quoteSQLString(new))
+	}
+
+	_, err := DB.Exec(`UPDATE ` + viewTable + ` SET arch = ` + archExpr + `
+		WHERE arch LIKE '%<tree%' OR arch LIKE '%</tree>%'
+		   OR arch LIKE '%type="tree"%' OR arch LIKE '%type=''tree''%'`)
+	return err
+}
+
+// --- Indexes ---
+
+// EnsureMailMessageModelResIndex speeds up chatter and activity lookups by (model, record, time).
 func EnsureMailMessageModelResIndex() error {
 	if DB == nil {
 		return nil
 	}
-	tnPhysical := MustModelToTableName("mail.message") // physical name for index id; quote only in ON clause
-	tn := MustQuotedTableName("mail.message")
-	q := `CREATE INDEX IF NOT EXISTS idx_` + tnPhysical + `_model_core_created ON ` + tn + ` (model, core_id, create_date DESC)`
-	_, err := DB.Exec(q)
+	tablePhysical := MustModelToTableName("mail.message")
+	tableQuoted := MustQuotedTableName("mail.message")
+	indexName := "idx_" + tablePhysical + "_model_core_created"
+	_, err := DB.Exec(`CREATE INDEX IF NOT EXISTS ` + indexName + ` ON ` + tableQuoted + ` (model, core_id, create_date DESC)`)
 	return err
 }

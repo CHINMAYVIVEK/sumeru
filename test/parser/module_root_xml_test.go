@@ -36,7 +36,7 @@ func TestPeekModuleXMLRootName_sumeru(t *testing.T) {
 
 func TestActionHelpNestedInnerXML(t *testing.T) {
 	in := []byte(`<sumeru><data>
-		<action id="action_contacts" type="window" model="core.partner" name="Contacts" view_mode="tree,form,kanban">
+		<action id="action_contacts" type="window" model="core.partner" name="Contacts" view_mode="list,form,kanban">
 			<help>
 				<p class="sum-view-nocontent-smiling-face">Create your first Contact!</p>
 			</help>

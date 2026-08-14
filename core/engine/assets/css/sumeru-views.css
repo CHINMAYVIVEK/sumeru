@@ -733,6 +733,49 @@
   border: 1px solid var(--sum-line);
 }
 
+.sum-statusbar-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.sum-statusbar-stage {
+  padding: 0.3rem 0.65rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  border-radius: var(--sum-radius-sm);
+  border: 1px solid var(--sum-line);
+  background: var(--sum-surface);
+  color: var(--sum-muted-ink);
+  cursor: pointer;
+}
+
+.sum-statusbar-stage--current {
+  background: color-mix(in srgb, var(--sum-header) 18%, var(--sum-surface));
+  border-color: color-mix(in srgb, var(--sum-header) 45%, var(--sum-line));
+  color: var(--sum-ink);
+}
+
+.sum-priority-stars {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.sum-priority-star {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--sum-line-strong);
+  cursor: pointer;
+}
+
+.sum-priority-star--on {
+  color: #f5a623;
+}
+
 .sum-header-btn--disabled {
   opacity: 0.65;
   cursor: not-allowed;

@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"sort"
 	"strings"
 
 	"sumeru/core/engine/parser"
+	"sumeru/core/orm"
 )
 
 func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, record map[string]interface{}, vr *ViewRecordData) {
-	_ = ctx
 	sb.WriteString(`<div class="sum-form-statusbar">`)
 
 	if len(h.Button) > 0 {
@@ -36,17 +37,21 @@ func renderHeader(ctx context.Context, sb *strings.Builder, h *parser.Header, re
 	}
 
 	sb.WriteString(`<div class="sum-statusbar-status">`)
-	writeStatusbarChips(sb, h, record)
+	writeStatusbarChips(ctx, sb, h, record, vr)
 	sb.WriteString(`</div>`)
 
 	sb.WriteString(`</div>`)
 }
 
-func writeStatusbarChips(sb *strings.Builder, h *parser.Header, record map[string]interface{}) {
+func writeStatusbarChips(ctx context.Context, sb *strings.Builder, h *parser.Header, record map[string]interface{}, vr *ViewRecordData) {
 	if h == nil {
 		return
 	}
 	for _, hf := range h.Field {
+		if hf.Widget == "statusbar" && isStatusbarClickable(hf) {
+			renderClickableStatusbar(ctx, sb, hf, record, vr)
+			continue
+		}
 		val := recStr(record, hf.Name)
 		if val == "" {
 			continue
@@ -55,6 +60,72 @@ func writeStatusbarChips(sb *strings.Builder, h *parser.Header, record map[strin
 		sb.WriteString(template.HTMLEscapeString(val))
 		sb.WriteString(`</span>`)
 	}
+}
+
+func isStatusbarClickable(f parser.Field) bool {
+	opt := strings.ToLower(strings.TrimSpace(f.Options))
+	return strings.Contains(opt, "clickable")
+}
+
+func renderClickableStatusbar(ctx context.Context, sb *strings.Builder, f parser.Field, record map[string]interface{}, vr *ViewRecordData) {
+	fd := fieldDef(vrResModel(vr), f.Name)
+	if fd == nil || fd.Type != orm.Many2One || fd.Relation == "" {
+		val := recStr(record, f.Name)
+		if val != "" {
+			sb.WriteString(`<span class="sum-statusbar-chip">` + template.HTMLEscapeString(val) + `</span>`)
+		}
+		return
+	}
+	currentID := int64(0)
+	if raw, ok := rawField(record, f.Name); ok {
+		currentID, _ = orm.CoerceInt64(raw)
+	}
+	rows, err := orm.Search(ctx, fd.Relation, nil)
+	if err != nil || len(rows) == 0 {
+		return
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		si, _ := orm.CoerceInt64(rows[i]["sequence"])
+		sj, _ := orm.CoerceInt64(rows[j]["sequence"])
+		if si != sj {
+			return si < sj
+		}
+		return orm.AsString(rows[i]["name"]) < orm.AsString(rows[j]["name"])
+	})
+	model := vrResModel(vr)
+	recordID := 0
+	csrf := ""
+	if vr != nil {
+		recordID = vr.RecordID
+		csrf = vr.CSRFToken
+	}
+	sb.WriteString(`<div class="sum-statusbar-stages" data-sum-statusbar`)
+	sb.WriteString(` data-model="` + template.HTMLEscapeString(model) + `"`)
+	sb.WriteString(` data-record-id="` + template.HTMLEscapeString(fmt.Sprintf("%d", recordID)) + `"`)
+	sb.WriteString(` data-field="` + template.HTMLEscapeString(f.Name) + `"`)
+	sb.WriteString(` data-csrf="` + template.HTMLEscapeString(csrf) + `"`)
+	sb.WriteString(`>`)
+	for _, row := range rows {
+		rid, ok := orm.CoerceInt64(row["id"])
+		if !ok || rid <= 0 {
+			continue
+		}
+		cls := "sum-statusbar-stage"
+		if rid == currentID {
+			cls += " sum-statusbar-stage--current"
+		}
+		sb.WriteString(`<button type="button" class="` + cls + `" data-stage-id="` + template.HTMLEscapeString(fmt.Sprintf("%d", rid)) + `">`)
+		sb.WriteString(template.HTMLEscapeString(orm.AsString(row["name"])))
+		sb.WriteString(`</button>`)
+	}
+	sb.WriteString(`</div>`)
+}
+
+func vrResModel(vr *ViewRecordData) string {
+	if vr == nil {
+		return ""
+	}
+	return strings.TrimSpace(vr.ResModel)
 }
 
 func renderButtonBox(sb *strings.Builder, d parser.Div) {

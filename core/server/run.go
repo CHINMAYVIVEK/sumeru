@@ -113,6 +113,9 @@ func Run() {
 	if err := orm.EnsureSysViewArchText(); err != nil {
 		applog.WarnMsg(ctx, "server", "startup", "sys.view.arch column migration note", err, nil)
 	}
+	if err := orm.MigrateSysViewTreeToList(); err != nil {
+		applog.WarnMsg(ctx, "server", "startup", "sys.view tree→list migration note", err, nil)
+	}
 	if err := orm.EnsureCoreUserImageText(); err != nil {
 		applog.WarnMsg(ctx, "server", "startup", "core.user.image column migration note", err, nil)
 	}

@@ -110,6 +110,7 @@
   gap: 0.35rem;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 /* Top bar: keep chrome icon buttons white on the dark gradient header */
@@ -155,6 +156,8 @@
   padding: 0 0.5rem;
   border-radius: 10px;
   margin-right: 0.25rem;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .sum-brand-lockup:hover {
@@ -174,6 +177,9 @@
   letter-spacing: var(--sum-letter-spacing-tight);
   color: var(--sum-topbar-fg) !important;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 10rem;
 }
 
 .sum-brand-text {
@@ -191,12 +197,21 @@
   gap: 2px;
   margin-left: 0.25rem;
   min-width: 0;
+  flex: 1;
   overflow-x: auto;
-  scrollbar-width: none;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sum-top-nav::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+
+.sum-top-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
 }
 
 .sum-top-nav .top-menu-item {
@@ -212,7 +227,12 @@
   text-decoration: none !important;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: all var(--sum-dur) var(--sum-ease);
+}
+
+.top-menu-item.is-topbar-hidden {
+  display: none !important;
 }
 
 .sum-top-nav .top-menu-item:hover {
@@ -786,4 +806,185 @@
   color: var(--sum-header);
   border-color: color-mix(in srgb, var(--sum-header) 28%, var(--sum-line));
   box-shadow: var(--sum-shadow-sm);
+}
+
+/* --- Top bar: narrow viewports --- */
+@media (max-width: 768px) {
+  .sum-top-nav .top-menu-item-label {
+    display: none;
+  }
+
+  .sum-top-nav .top-menu-item {
+    padding: 0 0.55rem;
+  }
+
+  .sum-brand-text {
+    display: none;
+  }
+
+  .sum-brand {
+    max-width: 0;
+  }
+
+  .sum-dropdown-user-name {
+    display: none;
+  }
+
+  .sum-dropdown-trigger--user {
+    max-width: none;
+    padding: 0.28rem;
+  }
+}
+
+/* --- Global app launcher (Ctrl+K) --- */
+.sum-app-launcher {
+  padding: 0;
+  border: none;
+  max-width: none;
+  max-height: none;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.sum-app-launcher::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.sum-app-launcher-panel {
+  width: min(32rem, calc(100vw - 2rem));
+  margin: 12vh auto 0;
+  background: var(--sum-surface);
+  border-radius: var(--sum-radius);
+  border: 1px solid var(--sum-line-strong);
+  box-shadow: var(--sum-shadow-lg);
+  overflow: hidden;
+}
+
+.sum-app-launcher-search-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--sum-line);
+}
+
+.sum-app-launcher-search-icon {
+  flex-shrink: 0;
+  color: var(--sum-muted);
+}
+
+.sum-app-launcher-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: var(--sum-font-size-md);
+  background: transparent;
+  color: var(--sum-ink);
+}
+
+.sum-app-launcher-results {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0;
+  max-height: min(24rem, 50vh);
+  overflow-y: auto;
+}
+
+.sum-app-launcher-result {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  color: var(--sum-ink);
+}
+
+.sum-app-launcher-result:hover,
+.sum-app-launcher-result.is-active {
+  background: var(--sum-row-hover-bg);
+}
+
+.sum-app-launcher-result-letter {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--sum-font-weight-bold);
+  font-size: var(--sum-font-size-sm);
+  background: color-mix(in srgb, var(--sum-header) 14%, var(--sum-surface));
+  color: var(--sum-header);
+  flex-shrink: 0;
+}
+
+.sum-app-launcher-result-body {
+  min-width: 0;
+}
+
+.sum-app-launcher-result-name {
+  font-weight: var(--sum-font-weight-medium);
+}
+
+.sum-app-launcher-result-meta {
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sum-app-launcher-hint {
+  margin: 0;
+  padding: 0.5rem 1rem 0.75rem;
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-muted);
+}
+
+.sum-app-launcher-hint kbd {
+  font: inherit;
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  border: 1px solid var(--sum-line);
+  background: var(--sum-surface-alt);
+}
+
+.sum-home-hub-recent {
+  margin-bottom: 1.25rem;
+}
+
+.sum-home-hub-recent-title {
+  margin: 0 0 0.65rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
+  color: var(--sum-muted);
+}
+
+.sum-home-hub-app-pin {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--sum-surface);
+  color: var(--sum-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--sum-shadow-sm);
+}
+
+.sum-home-hub-app-pin.is-pinned {
+  color: var(--sum-gold);
+}
+
+.sum-home-hub-app {
+  position: relative;
 }

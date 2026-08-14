@@ -27,16 +27,7 @@ func splitComma(s string) []string {
 }
 
 func normalizeViewMode(mode string) string {
-	m := strings.ToLower(strings.TrimSpace(mode))
-	if m == "" {
-		return m
-	}
-	switch m {
-	case "list":
-		return "tree"
-	default:
-		return m
-	}
+	return strings.ToLower(strings.TrimSpace(mode))
 }
 
 // formBaseQueryValues builds a stable /web query string (no leading "?") for form Edit/Cancel/Save redirects.

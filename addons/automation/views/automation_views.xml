@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <sumeru>
     <data>
-        <view id="view_sys.cron_tree" model="sys.cron" type="tree">
+        <view id="view_sys.cron_list" model="sys.cron" type="list">
             <field name="name" string="Name"/>
             <field name="interval_number" string="Interval (min)"/>
             <field name="event_name" string="Event"/>
@@ -22,7 +22,7 @@
             </sheet>
         </view>
 
-        <view id="view_sys.workflow.transition_tree" model="sys.workflow.transition" type="tree">
+        <view id="view_sys.workflow.transition_list" model="sys.workflow.transition" type="list">
             <field name="name" string="Name"/>
             <field name="model" string="Model"/>
             <field name="from_state" string="From"/>
@@ -43,7 +43,7 @@
             </sheet>
         </view>
 
-        <view id="view_sys.server.action_tree" model="sys.server.action" type="tree">
+        <view id="view_sys.server.action_list" model="sys.server.action" type="list">
             <field name="name" string="Name"/>
             <field name="model" string="Model"/>
             <field name="event_name" string="Event"/>
@@ -64,17 +64,17 @@
         <record id="action_sys.cron" model="sys.action.window">
             <field name="name">action_sys.cron</field>
             <field name="core_model">sys.cron</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
         <record id="action_sys.workflow.transition" model="sys.action.window">
             <field name="name">action_sys.workflow.transition</field>
             <field name="core_model">sys.workflow.transition</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
         <record id="action_sys.server.action" model="sys.action.window">
             <field name="name">action_sys.server.action</field>
             <field name="core_model">sys.server.action</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
     </data>
 </sumeru>

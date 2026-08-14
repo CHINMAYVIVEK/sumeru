@@ -17,7 +17,7 @@ type ViewSwitchTab struct {
 }
 
 // WorkspaceViewTabs builds URLs for each view mode that has a default sys.view for resModel.
-// selectedMode is the normalized mode in use (e.g. tree, kanban, form; "list" maps to tree).
+// selectedMode is the normalized mode in use (e.g. list, kanban, form).
 // recordID is optional; when set, the Form tab includes id= so the same record opens in form.
 func WorkspaceViewTabs(ctx context.Context, resModel string, actionID int, menuID, selectedMode, recordID string) []ViewSwitchTab {
 	order := []struct {
@@ -25,13 +25,10 @@ func WorkspaceViewTabs(ctx context.Context, resModel string, actionID int, menuI
 		label string
 	}{
 		{"kanban", "Kanban"},
-		{"tree", "List"},
+		{"list", "List"},
 		{"form", "Form"},
 	}
 	sel := strings.ToLower(strings.TrimSpace(selectedMode))
-	if sel == "list" {
-		sel = "tree"
-	}
 	menuID = strings.TrimSpace(menuID)
 	recID := strings.TrimSpace(recordID)
 

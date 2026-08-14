@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <sumeru>
     <data>
-        <view id="view_core.lang_tree" model="core.lang" type="tree">
+        <view id="view_core.lang_list" model="core.lang" type="list">
             <field name="code" string="Code"/>
             <field name="name" string="Name"/>
             <field name="iso_code" string="ISO"/>
@@ -18,7 +18,7 @@
             </sheet>
         </view>
 
-        <view id="view_sys.translation_tree" model="sys.translation" type="tree">
+        <view id="view_sys.translation_list" model="sys.translation" type="list">
             <field name="lang" string="Language"/>
             <field name="module" string="Module"/>
             <field name="src" string="Source"/>
@@ -35,7 +35,7 @@
             </sheet>
         </view>
 
-        <view id="view_sys.field.access_tree" model="sys.field.access" type="tree">
+        <view id="view_sys.field.access_list" model="sys.field.access" type="list">
             <field name="name" string="Name"/>
             <field name="model" string="Model"/>
             <field name="field_name" string="Field"/>
@@ -59,17 +59,17 @@
         <record id="action_core.lang" model="sys.action.window">
             <field name="name">action_core.lang</field>
             <field name="core_model">core.lang</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
         <record id="action_sys.translation" model="sys.action.window">
             <field name="name">action_sys.translation</field>
             <field name="core_model">sys.translation</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
         <record id="action_sys.field.access" model="sys.action.window">
             <field name="name">action_sys.field.access</field>
             <field name="core_model">sys.field.access</field>
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
         </record>
 
         <menuitem id="menu_i18n_section" name="Translations" parent="menu_settings_root" sequence="70" web_icon="settings"/>
