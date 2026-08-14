@@ -20,8 +20,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const invalidLoginMessage = "Invalid login or password."
-
 // loginPageData is the view model for templates/login.html.
 type loginPageData struct {
 	Next        string
@@ -35,6 +33,12 @@ type loginUser struct {
 	ID           int
 	PasswordHash string
 	Active       bool
+}
+
+type loginCredentials struct {
+	Login    string
+	Password string
+	Next     string
 }
 
 var (
@@ -71,7 +75,7 @@ func SecurityMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		requestID := requestIDFromHeader(r)
-		w.Header().Set("X-Request-ID", requestID)
+		w.Header().Set(requestIDHeader, requestID)
 
 		ctx := enrichRequestContext(r, requestID)
 		r = r.WithContext(ctx)
@@ -90,9 +94,9 @@ type statusRecorder struct {
 	status int
 }
 
-func (sr *statusRecorder) WriteHeader(code int) {
-	sr.status = code
-	sr.ResponseWriter.WriteHeader(code)
+func (recorder *statusRecorder) WriteHeader(statusCode int) {
+	recorder.status = statusCode
+	recorder.ResponseWriter.WriteHeader(statusCode)
 }
 
 // requireLogin redirects anonymous browser requests to the login page with a safe return URL.
@@ -101,7 +105,7 @@ func requireLogin(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	returnTo := SafePathNext(r.URL.RequestURI(), homeRoute)
-	http.Redirect(w, r, loginRoute+"?next="+url.QueryEscape(returnTo), http.StatusFound)
+	http.Redirect(w, r, loginURLWithReturn(returnTo), http.StatusFound)
 	return false
 }
 
@@ -111,12 +115,13 @@ func LoginGet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	next := strings.TrimSpace(r.URL.Query().Get(nextField))
 	if SessionUserID(r) > 0 {
-		next := SafePathNext(r.URL.Query().Get("next"), homeRoute)
-		http.Redirect(w, r, next, http.StatusFound)
+		http.Redirect(w, r, SafePathNext(next, homeRoute), http.StatusFound)
 		return
 	}
-	next := strings.TrimSpace(r.URL.Query().Get("next"))
+
 	writeLoginPage(w, r, http.StatusOK, next, "")
 }
 
@@ -130,20 +135,12 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	login := strings.TrimSpace(r.PostFormValue("login"))
-	password := r.PostFormValue("password")
-	next := SafePathNext(r.PostFormValue("next"), homeRoute)
-	ip := clientIP(r)
+	credentials := parseLoginCredentials(r)
+	clientIP := clientIP(r)
 
-	user, err := lookupLoginUser(r.Context(), login)
-	if err != nil || !userCanAuthenticate(user) {
-		recordFailedLogin(r.Context(), 0, ip, "login="+login)
-		writeLoginPage(w, r, http.StatusUnauthorized, next, invalidLoginMessage)
-		return
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		recordFailedLogin(r.Context(), user.ID, ip, "bad password")
-		writeLoginPage(w, r, http.StatusUnauthorized, next, invalidLoginMessage)
+	user, authenticated := verifyLoginCredentials(r.Context(), credentials, clientIP)
+	if !authenticated {
+		writeLoginPage(w, r, http.StatusUnauthorized, credentials.Next, invalidLoginMessage)
 		return
 	}
 	if err := CreateSession(w, user.ID); err != nil {
@@ -152,8 +149,8 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orm.AppendUserLog(r.Context(), user.ID, ip, "success")
-	http.Redirect(w, r, next, http.StatusSeeOther)
+	orm.AppendUserLog(r.Context(), user.ID, clientIP, "success")
+	http.Redirect(w, r, credentials.Next, http.StatusSeeOther)
 }
 
 // LogoutGet destroys the session cookie and returns the browser to the login page.
@@ -167,42 +164,67 @@ func ActionResetPassword(w http.ResponseWriter, r *http.Request) {
 	if !requireLoginAndPOST(w, r) {
 		return
 	}
-	userID := strings.TrimSpace(r.PostFormValue("id"))
-	login := strings.TrimSpace(r.PostFormValue("login"))
+
+	userID := strings.TrimSpace(r.PostFormValue(resetUserIDField))
+	loginName := strings.TrimSpace(r.PostFormValue(loginField))
 	WebLogf(r.Context(), resetPasswordRoute,
-		"requested for user id=%s login=%q (email not yet wired)", userID, login)
-	redirectWithWebMessage(w, r, r.PostFormValue("next"), "reset_requested")
+		"requested for user id=%s login=%q (email not yet wired)", userID, loginName)
+	redirectWithWebMessage(w, r, r.PostFormValue(nextField), resetPasswordMsg)
+}
+
+func loginURLWithReturn(returnTo string) string {
+	return loginRoute + "?next=" + url.QueryEscape(returnTo)
+}
+
+func parseLoginCredentials(r *http.Request) loginCredentials {
+	return loginCredentials{
+		Login:    strings.TrimSpace(r.PostFormValue(loginField)),
+		Password: r.PostFormValue(passwordField),
+		Next:     SafePathNext(r.PostFormValue(nextField), homeRoute),
+	}
+}
+
+func verifyLoginCredentials(ctx context.Context, credentials loginCredentials, clientIP string) (loginUser, bool) {
+	user, err := lookupLoginUser(ctx, credentials.Login)
+	if err != nil || !userCanAuthenticate(user) {
+		recordFailedLogin(ctx, 0, clientIP, "login="+credentials.Login)
+		return loginUser{}, false
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(credentials.Password)); err != nil {
+		recordFailedLogin(ctx, user.ID, clientIP, "bad password")
+		return loginUser{}, false
+	}
+	return user, true
 }
 
 func apiKeyFromRequest(r *http.Request) string {
-	if key := strings.TrimSpace(r.Header.Get("X-API-Key")); key != "" {
+	if key := strings.TrimSpace(r.Header.Get(apiKeyHeader)); key != "" {
 		return key
 	}
-	return bearerToken(r.Header.Get("Authorization"))
+	return bearerToken(r.Header.Get(authHeader))
 }
 
-func bearerToken(authHeader string) string {
-	auth := strings.TrimSpace(authHeader)
-	const prefix = "bearer "
-	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+func bearerToken(authHeaderValue string) string {
+	authValue := strings.TrimSpace(authHeaderValue)
+	if len(authValue) < len(authBearerPrefix) || !strings.EqualFold(authValue[:len(authBearerPrefix)], authBearerPrefix) {
 		return ""
 	}
-	return strings.TrimSpace(auth[len(prefix):])
+	return strings.TrimSpace(authValue[len(authBearerPrefix):])
 }
 
 func requestIDFromHeader(r *http.Request) string {
-	if rid := strings.TrimSpace(r.Header.Get("X-Request-ID")); rid != "" {
-		return rid
+	if requestID := strings.TrimSpace(r.Header.Get(requestIDHeader)); requestID != "" {
+		return requestID
 	}
 	return applog.NewRequestID()
 }
 
 func enrichRequestContext(r *http.Request, requestID string) context.Context {
 	ctx := applog.ContextWithRequestID(r.Context(), requestID)
-	uid := AuthenticatedUserID(r)
-	ctx = orm.ContextWithUID(ctx, uid)
-	if uid > 0 {
-		ctx = orm.ContextWithCompanyID(ctx, orm.ActiveCompanyIDForUser(ctx, uid))
+	userID := AuthenticatedUserID(r)
+	ctx = orm.ContextWithUID(ctx, userID)
+	if userID > 0 {
+		ctx = orm.ContextWithCompanyID(ctx, orm.ActiveCompanyIDForUser(ctx, userID))
 	}
 	return ctx
 }
@@ -220,70 +242,70 @@ func logHTTPRequestStart(ctx context.Context, r *http.Request) {
 	})
 }
 
-func logHTTPRequestEnd(ctx context.Context, r *http.Request, status int, duration time.Duration) {
-	ev := applog.Event{
+func logHTTPRequestEnd(ctx context.Context, r *http.Request, statusCode int, duration time.Duration) {
+	event := applog.Event{
 		Component: "web",
 		Operation: "request",
 		Duration:  duration,
 		Context: map[string]interface{}{
 			"route":       r.URL.Path,
 			"method":      r.Method,
-			"status_code": status,
+			"status_code": statusCode,
 		},
 	}
-	if status >= 500 {
-		ev.Message = "HTTP request failed"
-		ev.Status = "failure"
-		applog.Error(ctx, ev)
+	if statusCode >= 500 {
+		event.Message = "HTTP request failed"
+		event.Status = "failure"
+		applog.Error(ctx, event)
 		return
 	}
-	ev.Message = "HTTP request completed"
-	ev.Status = "success"
-	applog.Debug(ctx, ev)
+	event.Message = "HTTP request completed"
+	event.Status = "success"
+	applog.Debug(ctx, event)
 }
 
 func getLoginTemplate() (*template.Template, error) {
 	loginTemplateOnce.Do(func() {
-		path := filepath.Join(config.AppConfig.TemplatesPath, "login.html")
-		cachedLoginTmpl, loginTemplateErr = template.ParseFiles(path)
+		templatePath := filepath.Join(config.AppConfig.TemplatesPath, loginTemplateFile)
+		cachedLoginTmpl, loginTemplateErr = template.ParseFiles(templatePath)
 	})
 	return cachedLoginTmpl, loginTemplateErr
 }
 
-func newLoginPageData(next, errMsg string) loginPageData {
+func newLoginPageData(next, errorMessage string) loginPageData {
 	return loginPageData{
 		Next:        next,
-		Error:       errMsg,
+		Error:       errorMessage,
 		Stylesheets: assets.LoginStylesheetURLs(),
 		LogoURL:     render.ShellLogoURL(),
 	}
 }
 
-func writeLoginPage(w http.ResponseWriter, r *http.Request, status int, next, errMsg string) {
+func writeLoginPage(w http.ResponseWriter, r *http.Request, statusCode int, next, errorMessage string) {
 	tmpl, err := getLoginTemplate()
 	if err != nil {
-		if status == http.StatusOK {
+		if statusCode == http.StatusOK {
 			WebLogf(r.Context(), loginRoute, "%s: login template: %v", platformmsg.MsgHTTPTemplateError, err)
 			http.Error(w, "Login page unavailable", http.StatusInternalServerError)
 			return
 		}
-		http.Error(w, errMsg, http.StatusUnauthorized)
+		http.Error(w, errorMessage, http.StatusUnauthorized)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if status != http.StatusOK {
-		w.WriteHeader(status)
+	if statusCode != http.StatusOK {
+		w.WriteHeader(statusCode)
 	}
-	_ = tmpl.Execute(w, newLoginPageData(next, errMsg))
+	_ = tmpl.Execute(w, newLoginPageData(next, errorMessage))
 }
 
-func lookupLoginUser(ctx context.Context, login string) (loginUser, error) {
-	tbl := orm.MustQuotedTableName("core.user")
+func lookupLoginUser(ctx context.Context, loginName string) (loginUser, error) {
+	userTable := orm.MustQuotedTableName(coreUserModel)
 	var user loginUser
 	err := orm.DB.QueryRowContext(ctx,
-		`SELECT id, COALESCE(password, ''), active FROM `+tbl+` WHERE LOWER(TRIM(login)) = LOWER(TRIM($1)) LIMIT 1`,
-		login,
+		`SELECT id, COALESCE(password, ''), active FROM `+userTable+` WHERE LOWER(TRIM(login)) = LOWER(TRIM($1)) LIMIT 1`,
+		loginName,
 	).Scan(&user.ID, &user.PasswordHash, &user.Active)
 	return user, err
 }
@@ -292,7 +314,7 @@ func userCanAuthenticate(user loginUser) bool {
 	return user.Active && strings.TrimSpace(user.PasswordHash) != ""
 }
 
-func recordFailedLogin(ctx context.Context, userID int, ip, auditNote string) {
-	orm.AppendUserLog(ctx, userID, ip, "failure")
-	orm.AppendAudit(ctx, "login_fail", "core.user", int64(userID), nil, nil, auditNote)
+func recordFailedLogin(ctx context.Context, userID int, clientIP, auditNote string) {
+	orm.AppendUserLog(ctx, userID, clientIP, "failure")
+	orm.AppendAudit(ctx, "login_fail", coreUserModel, int64(userID), nil, nil, auditNote)
 }
