@@ -2,8 +2,11 @@ package render
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"sumeru/core/module"
 	"sumeru/core/orm"
 )
 
@@ -19,6 +22,69 @@ func RootMenuIDForModule(ctx context.Context, moduleName string) int {
 		return 0
 	}
 	return id
+}
+
+// RootMenuWebIconForModule returns the sanitized web_icon sprite key on a module root menu.
+func RootMenuWebIconForModule(ctx context.Context, moduleName string) string {
+	if orm.DB == nil || strings.TrimSpace(moduleName) == "" {
+		return ""
+	}
+	table := orm.MustQuotedTableName("sys.menu")
+	query := `SELECT COALESCE(NULLIF(TRIM(web_icon), ''), '') FROM ` + table +
+		` WHERE module = $1 AND parent_id IS NULL ORDER BY sequence ASC, id ASC LIMIT 1`
+	var icon string
+	if err := orm.DB.QueryRowContext(ctx, query, strings.TrimSpace(moduleName)).Scan(&icon); err != nil {
+		return ""
+	}
+	icon = strings.TrimSpace(icon)
+	if menuIconKey.MatchString(icon) {
+		return icon
+	}
+	return ""
+}
+
+// ModuleIconServePath returns the on-disk path for a module icon, or empty when unavailable.
+func ModuleIconServePath(moduleName, iconRel string) string {
+	moduleName = strings.TrimSpace(moduleName)
+	if moduleName == "" {
+		return ""
+	}
+	a := module.LoadedAddons[moduleName]
+	if a == nil || a.Path == "" {
+		return ""
+	}
+	candidates := []string{}
+	if iconRel = strings.TrimSpace(iconRel); iconRel != "" {
+		candidates = append(candidates, iconRel)
+	}
+	candidates = append(candidates, "static/icon.png")
+	for _, rel := range candidates {
+		rel = filepath.Clean(rel)
+		if rel == "." || strings.HasPrefix(rel, "..") {
+			continue
+		}
+		full := filepath.Join(a.Path, rel)
+		if fi, err := os.Stat(full); err == nil && !fi.IsDir() {
+			return full
+		}
+	}
+	return ""
+}
+
+// ModuleIconURL returns /static/module-icon/<module> when an icon file exists on disk.
+func ModuleIconURL(ctx context.Context, moduleName string) string {
+	if orm.DB == nil || strings.TrimSpace(moduleName) == "" {
+		return ""
+	}
+	row, err := orm.SearchOne(ctx, "sys.module", map[string]interface{}{"name": strings.TrimSpace(moduleName)})
+	if err != nil {
+		return ""
+	}
+	iconRel := strings.TrimSpace(orm.AsString(row["icon"]))
+	if ModuleIconServePath(moduleName, iconRel) == "" {
+		return ""
+	}
+	return "/static/module-icon/" + strings.TrimSpace(moduleName)
 }
 
 // IconLetterFromName returns the first letter of displayName for app launcher tiles.

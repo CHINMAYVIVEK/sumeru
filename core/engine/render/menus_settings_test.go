@@ -44,3 +44,39 @@ func TestBuildSidebarMenus_localizationSection(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildSidebarMenus_skipsEmptySections(t *testing.T) {
+	allMenus := []parser.MenuItem{
+		{ID: "200", Name: "Contacts", Sequence: 20},
+		{ID: "210", Name: "Contacts organization", ParentID: "200", Sequence: 100},
+		{ID: "211", Name: "All Contacts", ParentID: "210", Sequence: 10, Action: "/web?action=1&menu_id=211"},
+		{ID: "220", Name: "Empty section", ParentID: "200", Sequence: 200},
+	}
+	menuAllowed := func(parser.MenuItem) bool { return true }
+	sections := buildSidebarMenus(allMenus, "200", menuAllowed)
+	if len(sections) != 1 {
+		t.Fatalf("sections = %d; want 1 (empty section skipped)", len(sections))
+	}
+	if sections[0].Name != "Contacts organization" {
+		t.Fatalf("section name = %q; want Contacts organization", sections[0].Name)
+	}
+}
+
+func TestSidebarHasMenus(t *testing.T) {
+	if SidebarHasMenus(nil) {
+		t.Fatal("nil menus should be false")
+	}
+	if SidebarHasMenus([]SidebarMenu{{Name: "Empty", SubMenus: nil}}) {
+		t.Fatal("section without links should be false")
+	}
+	if !SidebarHasMenus([]SidebarMenu{{Name: "Links", SubMenus: []parser.MenuItem{{Name: "One"}}}}) {
+		t.Fatal("section with links should be true")
+	}
+}
+
+func TestResolveActiveModuleID_noDefaultWhenMenuMissing(t *testing.T) {
+	got := resolveActiveModuleID(nil, "")
+	if got != "" {
+		t.Fatalf("active module = %q; want empty when menu_id missing", got)
+	}
+}

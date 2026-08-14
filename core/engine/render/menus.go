@@ -44,7 +44,7 @@ func LoadShellMenus(ctx context.Context, activeMenuID string) (topMenus []parser
 	}
 
 	topMenus = buildTopBarMenus(allMenus, appMods, menuAllowed)
-	activeModuleID = resolveActiveModuleID(allMenus, activeMenuID, topMenus)
+	activeModuleID = resolveActiveModuleID(allMenus, activeMenuID)
 	shellModuleTitle = shellTitleForModule(allMenus, activeModuleID, shellModuleTitle)
 	sidebarMenus = buildSidebarMenus(allMenus, activeModuleID, menuAllowed)
 	return topMenus, sidebarMenus, activeModuleID, shellModuleTitle
@@ -107,7 +107,7 @@ func fetchShellMenus(ctx context.Context) ([]parser.MenuItem, string) {
 		if actionID.Valid && actionID.Int64 != 0 {
 			m.Action = fmt.Sprintf("/web?action=%d&menu_id=%d", actionID.Int64, id)
 		} else if !parentID.Valid && strings.EqualFold(strings.TrimSpace(name), "Home") {
-			m.Action = fmt.Sprintf("/web/home?menu_id=%d", id)
+			m.Action = "/web/home"
 		}
 		allMenus = append(allMenus, m)
 	}
@@ -144,9 +144,9 @@ func buildTopBarMenus(allMenus []parser.MenuItem, appMods map[string]struct{}, m
 	return sortTopBarRootMenus(topMenus)
 }
 
-func resolveActiveModuleID(allMenus []parser.MenuItem, activeMenuID string, topMenus []parser.MenuItem) string {
-	if activeMenuID == "" && len(topMenus) > 0 {
-		return topMenus[0].ID
+func resolveActiveModuleID(allMenus []parser.MenuItem, activeMenuID string) string {
+	if activeMenuID == "" {
+		return ""
 	}
 	for _, m := range allMenus {
 		if m.ID != activeMenuID {
@@ -209,6 +209,9 @@ func buildSidebarMenus(allMenus []parser.MenuItem, activeModuleID string, menuAl
 			}
 			return section.SubMenus[i].Name < section.SubMenus[j].Name
 		})
+		if len(section.SubMenus) == 0 {
+			continue
+		}
 		sections = append(sections, section)
 	}
 	sort.Slice(sections, func(i, j int) bool {
@@ -219,6 +222,16 @@ func buildSidebarMenus(allMenus []parser.MenuItem, activeModuleID string, menuAl
 	})
 	sidebarMenus = append(sidebarMenus, sections...)
 	return sidebarMenus
+}
+
+// SidebarHasMenus reports whether any sidebar section has at least one link.
+func SidebarHasMenus(menus []SidebarMenu) bool {
+	for _, sec := range menus {
+		if len(sec.SubMenus) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // sortTopBarRootMenus orders application root menus by each menuitem's `sequence` (then `name`),
@@ -272,6 +285,7 @@ func IsMenuUnderSettingsRoot(ctx context.Context, activeMenuID string) bool {
 }
 
 type appLauncherItem struct {
+	Kind        string `json:"kind,omitempty"` // "app" (default) or "menu"
 	Name        string `json:"name"`
 	DisplayName string `json:"displayName"`
 	Description string `json:"description"`
@@ -309,6 +323,7 @@ func BuildAppLauncherJSON(ctx context.Context) template.JS {
 			href = fmt.Sprintf("/web?menu_id=%d", menuID)
 		}
 		items = append(items, appLauncherItem{
+			Kind:        "app",
 			Name:        name,
 			DisplayName: strings.TrimSpace(displayName),
 			Description: strings.TrimSpace(desc),
@@ -317,6 +332,49 @@ func BuildAppLauncherJSON(ctx context.Context) template.JS {
 			IconLetter:  IconLetterFromName(displayName),
 		})
 	}
+
+	uid := orm.UIDFromContext(ctx)
+	allMenus, _ := fetchShellMenus(ctx)
+	menuAllowed := func(mi parser.MenuItem) bool {
+		return orm.UserMayAccessMenu(ctx, uid, mi.AccessGroups)
+	}
+	for _, m := range allMenus {
+		if !menuAllowed(m) {
+			continue
+		}
+		if !strings.Contains(m.Action, "action=") {
+			continue
+		}
+		modLabel := strings.TrimSpace(m.Module)
+		if modLabel == "" {
+			modLabel = "Menu"
+		}
+		items = append(items, appLauncherItem{
+			Kind:        "menu",
+			Name:        m.ID,
+			DisplayName: strings.TrimSpace(m.Name),
+			Description: modLabel,
+			Href:        m.Action,
+			MenuID:      m.ID,
+			IconLetter:  IconLetterFromName(m.Name),
+		})
+	}
+	sort.Slice(items, func(i, j int) bool {
+		ki, kj := items[i].Kind, items[j].Kind
+		if ki != kj {
+			if ki == "app" {
+				return true
+			}
+			if kj == "app" {
+				return false
+			}
+		}
+		di, dj := strings.ToLower(items[i].DisplayName), strings.ToLower(items[j].DisplayName)
+		if di != dj {
+			return di < dj
+		}
+		return items[i].Name < items[j].Name
+	})
 	b, err := json.Marshal(items)
 	if err != nil {
 		return template.JS("[]")
