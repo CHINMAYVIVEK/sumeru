@@ -4,52 +4,54 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"sumeru/core/orm"
 )
 
+// RecordDeleteHandler removes one row and redirects back to the workspace list view.
 func RecordDeleteHandler(w http.ResponseWriter, r *http.Request) {
-	if !requireLogin(w, r) {
-		return
-	}
-	if !RequirePOST(w, r) {
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Invalid form", http.StatusBadRequest)
-		return
-	}
-	if !validateSessionCSRF(w, r) {
+	if !requireLoginAndPOST(w, r) {
 		return
 	}
 
-	modelName := strings.TrimSpace(r.FormValue("model"))
-	if modelName == "" {
-		modelName = strings.TrimSpace(r.URL.Query().Get("model"))
-	}
-	idStr := strings.TrimSpace(r.FormValue("id"))
-	if idStr == "" {
-		idStr = strings.TrimSpace(r.URL.Query().Get("id"))
-	}
-	if modelName == "" || idStr == "" {
-		http.Error(w, "Missing model or id", http.StatusBadRequest)
+	request, ok := parseRecordDeleteRequest(w, r)
+	if !ok {
 		return
 	}
 
-	id, err := strconv.Atoi(idStr)
-	if err != nil || id <= 0 {
-		http.Error(w, "Invalid id", http.StatusBadRequest)
-		return
-	}
-
-	if err := orm.Unlink(r.Context(), modelName, id); err != nil {
+	if err := orm.Unlink(r.Context(), request.ModelName, request.RecordID); err != nil {
 		http.Error(w, fmt.Sprintf("Delete failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	actionID := r.URL.Query().Get("action")
-	menuID := r.URL.Query().Get("menu_id")
-	redirectURL := fmt.Sprintf("/web?action=%s&menu_id=%s", actionID, menuID)
-	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+	http.Redirect(w, r, workspaceListURL(request.ActionID, request.MenuID), http.StatusSeeOther)
+}
+
+type recordDeleteRequest struct {
+	ModelName string
+	RecordID  int
+	ActionID  string
+	MenuID    string
+}
+
+func parseRecordDeleteRequest(w http.ResponseWriter, r *http.Request) (recordDeleteRequest, bool) {
+	modelName := formOrQueryValue(r, recordModelField)
+	recordIDRaw := formOrQueryValue(r, workspaceRecordIDParam)
+	if modelName == "" || recordIDRaw == "" {
+		http.Error(w, "Missing model or id", http.StatusBadRequest)
+		return recordDeleteRequest{}, false
+	}
+
+	recordID, err := strconv.Atoi(recordIDRaw)
+	if err != nil || recordID <= 0 {
+		http.Error(w, "Invalid id", http.StatusBadRequest)
+		return recordDeleteRequest{}, false
+	}
+
+	return recordDeleteRequest{
+		ModelName: modelName,
+		RecordID:  recordID,
+		ActionID:  r.URL.Query().Get(workspaceActionParam),
+		MenuID:    r.URL.Query().Get(workspaceMenuIDParam),
+	}, true
 }
