@@ -1,3 +1,12 @@
+// Package web implements HTTP handlers for the signed-in UI (/web/*), setup, and JSON APIs.
+//
+// Handler files (by concern):
+//   - home_dashboard.go — app hub at /web/home
+//   - workspace.go, workspace_load.go, workspace_resolve.go — main /web workspace
+//   - apps_list.go, apps_detail.go, apps_state.go, apps_module_actions.go — Apps admin
+//   - settings_hub.go, settings_app_logs.go — Settings overview and logs
+//   - auth.go, auth_session.go, auth_helpers.go — login, session, access guards
+//   - module_tile_helpers.go, module_parse_helpers.go, view_layout_helpers.go — shared helpers
 package web
 
 import (
@@ -45,6 +54,7 @@ func RegisterAppRoutes(mux *http.ServeMux) {
 	router.Register(http.MethodPost, "/web/company/switch", router.AuthSession, SwitchCompanyPost)
 	router.Register(http.MethodGet, "/web/logout", router.AuthNone, LogoutGet)
 	router.Register(http.MethodGet, "/web/home", router.AuthSession, HomeDashboardHandler)
+	router.Register(http.MethodPost, "/web/user/pinned-apps", router.AuthSession, PinnedAppsSaveHandler)
 	router.Register(http.MethodGet, "/web", router.AuthSession, WebHandler)
 	router.Register(http.MethodGet, "/web/apps", router.AuthSession, AppsHandler)
 	router.Register(http.MethodPost, "/web/module/action", router.AuthSession, ModuleActionHandler)

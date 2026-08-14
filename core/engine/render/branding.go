@@ -54,6 +54,9 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 	if len(d.AppLauncherJSON) == 0 {
 		d.AppLauncherJSON = BuildAppLauncherJSON(ctx)
 	}
+	if len(d.PinnedAppsJSON) == 0 {
+		d.PinnedAppsJSON = BuildPinnedAppsJSON(ctx)
+	}
 	if strings.TrimSpace(d.UserProfileHref) == "" {
 		d.UserProfileHref = "/web/settings"
 	}

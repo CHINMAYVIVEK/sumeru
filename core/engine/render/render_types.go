@@ -63,6 +63,8 @@ type PageData struct {
 	HomeNavActive bool
 	// AppLauncherJSON is installed-app metadata for the global Ctrl+K launcher (JSON array).
 	AppLauncherJSON template.JS
+	// PinnedAppsJSON is the signed-in user's pinned module list for the shell.
+	PinnedAppsJSON template.JS
 	ShellCompany      string
 	ShellUser         string
 	ShellUserImage    template.URL    // profile photo for top bar (template.URL so data: URLs are not scrubbed); empty → initials
@@ -84,6 +86,8 @@ type PageData struct {
 
 	// SuppressActivityDock forces the right activity dock off (e.g. Home dashboard) regardless of mail settings.
 	SuppressActivityDock bool
+	// SuppressSidebar omits the left sidebar entirely (e.g. Home app hub).
+	SuppressSidebar bool
 
 	// ExtraBodyClasses is appended to the shell body class list (leading space recommended, e.g. " sum-body--settings-hub").
 	ExtraBodyClasses string
