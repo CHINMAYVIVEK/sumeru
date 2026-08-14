@@ -10,11 +10,7 @@ body.sum-body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-input[type="number"],
-.sum-number,
-.sum-list-number,
-.sum-price,
-.sum-badge-count {
+input[type="number"] {
   font-family: var(--sum-font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;

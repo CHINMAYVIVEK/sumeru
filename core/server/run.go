@@ -74,6 +74,15 @@ func Run() {
 		config.AppConfig.DbPass, config.AppConfig.DbName, config.AppConfig.DbSslMode)
 	InitDB(databaseSource)
 
+	if orm.IsInitialized() {
+		if err := SyncModels(); err != nil {
+			applog.Fatal(ctx, "Error syncing models", "err", err)
+		}
+		if err := orm.SyncRegistrySchema(); err != nil {
+			applog.Fatal(ctx, "Schema sync failed", "err", err)
+		}
+	}
+
 	if err := LoadAddonPaths(config.AppConfig.AddonPaths); err != nil {
 		applog.Fatal(ctx, "Addon load failed", "err", err)
 	}
@@ -97,14 +106,6 @@ func Run() {
 			applog.Fatal(ctx, "Server failed in setup mode", "err", err)
 		}
 		return
-	}
-
-	if err := SyncModels(); err != nil {
-		applog.Fatal(ctx, "Error syncing models", "err", err)
-	}
-
-	if err := orm.SyncRegistrySchema(); err != nil {
-		applog.Fatal(ctx, "Schema sync failed", "err", err)
 	}
 
 	if err := orm.RunMenuDataFixes(); err != nil {

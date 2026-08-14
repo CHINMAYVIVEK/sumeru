@@ -1,7 +1,8 @@
 package assets
 
-// DefaultStylesheetURLs is the ordered list of core CSS files for the web UI.
-// sumeru-ai.css is omitted; append via AIStylesheetURL when the sumeru_ai module is installed.
+// DefaultStylesheetURLs is the ordered core CSS stack for authenticated shell pages.
+// sumeru-ai.css is inserted after layout slices when sumeru_ai is installed (see static.go).
+// Login and app-logs sheets are page-specific — use LoginStylesheetURLs / AppLogsStylesheetURLs.
 func DefaultStylesheetURLs() []string {
 	return []string{
 		"/static/css/sumeru-theme.css",
@@ -10,9 +11,19 @@ func DefaultStylesheetURLs() []string {
 		"/static/css/sumeru-messages.css",
 		"/static/css/sumeru-views.css",
 		"/static/css/sumeru-compat.css",
-		"/static/css/sumeru-login.css",
-		"/static/css/sumeru-pages.css",
 	}
+}
+
+// LoginStylesheetURLs extends the core stack for login and setup wizard pages.
+func LoginStylesheetURLs() []string {
+	urls := DefaultStylesheetURLs()
+	return append(urls, "/static/css/sumeru-login.css")
+}
+
+// AppLogsStylesheetURLs extends the core stack for the settings app logs page.
+func AppLogsStylesheetURLs() []string {
+	urls := DefaultStylesheetURLs()
+	return append(urls, "/static/css/sumeru-pages.css")
 }
 
 // AIStylesheetURL is the optional AI assistant stylesheet path.

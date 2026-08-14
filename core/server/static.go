@@ -16,115 +16,224 @@ import (
 	"sumeru/core/server/config"
 )
 
-// registerBrandingAndStatic wires core CSS (theme + layout slices), optional addon theme overrides,
-// optional brand CSS, logo, and the /static/ asset tree.
+// Public URL paths for assets served outside the core /static/ file tree.
+const (
+	staticURLPrefix       = "/static/"
+	moduleIconURLPrefix   = "/static/module-icon/"
+	brandStylesheetURL    = "/static/brand.css"
+	appLogoURL            = "/static/app-logo"
+	addonThemeOverrideRel = "static/css/theme-overrides.css"
+)
+
+// layoutStylesheetCount is how many DefaultStylesheetURLs entries precede view CSS;
+// sumeru_ai.css is inserted immediately after those layout slices when present.
+const layoutStylesheetCount = 6
+
+// registerBrandingAndStatic registers HTTP handlers and render hints for shell chrome:
+//   - bundled core CSS (optionally with sumeru_ai)
+//   - installed-addon theme override CSS
+//   - optional brand CSS and app logo from config
+//   - per-module icons from addon manifests
+//   - the core asset directory at /static/ (registered last as a catch-all)
 func registerBrandingAndStatic() {
 	ctx := context.Background()
-	extraCSS := append([]string(nil), assets.DefaultStylesheetURLs()...)
-	if addonModuleInstalled("sumeru_ai") {
-		withAI := make([]string, 0, len(extraCSS)+1)
-		withAI = append(withAI, extraCSS[:6]...)
-		withAI = append(withAI, assets.AIStylesheetURL())
-		withAI = append(withAI, extraCSS[6:]...)
-		extraCSS = withAI
-	}
 
-	addonNames := make([]string, 0, len(module.LoadedAddons))
-	for name := range module.LoadedAddons {
-		addonNames = append(addonNames, name)
-	}
-	sort.Strings(addonNames)
-	for _, name := range addonNames {
-		a := module.LoadedAddons[name]
-		if a == nil {
-			continue
-		}
-		if !addonModuleInstalled(name) {
-			continue
-		}
-		overridePath := filepath.Join(a.Path, "static/css/theme-overrides.css")
-		if fi, err := os.Stat(overridePath); err != nil || fi.IsDir() {
-			continue
-		}
-		urlPath := "/static/addon-css/" + name + ".css"
-		p := overridePath
-		modName := name
-		http.HandleFunc(urlPath, func(w http.ResponseWriter, r *http.Request) {
-			if !addonModuleInstalled(modName) {
-				http.NotFound(w, r)
-				return
-			}
-			w.Header().Set("Content-Type", "text/css; charset=utf-8")
-			http.ServeFile(w, r, p)
-		})
-		extraCSS = append(extraCSS, urlPath)
-		applog.InfoMsg(ctx, "web", "static", "Registered addon theme overrides",
-			map[string]interface{}{"path": overridePath, "url": urlPath})
-	}
+	stylesheetURLs := buildShellStylesheetURLs()
+	registerInstalledAddonThemeOverrides(ctx, &stylesheetURLs)
+	registerBrandStylesheet(ctx, &stylesheetURLs)
+	render.SetExtraStylesheetURLs(stylesheetURLs)
 
-	if config.AppConfig.BrandCSS != "" {
-		if fileInfo, err := os.Stat(config.AppConfig.BrandCSS); err == nil && !fileInfo.IsDir() {
-			extraCSS = append(extraCSS, "/static/brand.css")
-			http.HandleFunc("/static/brand.css", func(responseWriter http.ResponseWriter, request *http.Request) {
-				http.ServeFile(responseWriter, request, config.AppConfig.BrandCSS)
-			})
-			applog.InfoMsg(ctx, "web", "static", "Registered brand stylesheet",
-				map[string]interface{}{"path": config.AppConfig.BrandCSS})
-		} else {
-			applog.WarnMsg(ctx, "web", "static", "brand_css path not found or not a file", nil,
-				map[string]interface{}{"path": config.AppConfig.BrandCSS})
-		}
-	}
-
-	render.SetExtraStylesheetURLs(extraCSS)
-
-	logoURL := ""
-	if config.AppConfig.LogoPath != "" {
-		if fileInfo, err := os.Stat(config.AppConfig.LogoPath); err == nil && !fileInfo.IsDir() {
-			logoPath := config.AppConfig.LogoPath
-			logoURL = "/static/app-logo"
-			http.HandleFunc("/static/app-logo", func(responseWriter http.ResponseWriter, request *http.Request) {
-				extension := strings.ToLower(filepath.Ext(logoPath))
-				switch extension {
-				case ".svg":
-					responseWriter.Header().Set("Content-Type", "image/svg+xml")
-				case ".png":
-					responseWriter.Header().Set("Content-Type", "image/png")
-				case ".jpg", ".jpeg":
-					responseWriter.Header().Set("Content-Type", "image/jpeg")
-				case ".webp":
-					responseWriter.Header().Set("Content-Type", "image/webp")
-				default:
-					responseWriter.Header().Set("Content-Type", "application/octet-stream")
-				}
-				http.ServeFile(responseWriter, request, logoPath)
-			})
-			applog.InfoMsg(ctx, "web", "static", "Registered application logo",
-				map[string]interface{}{"path": logoPath})
-		} else {
-			applog.WarnMsg(ctx, "web", "static", "logo_path not found or not a file", nil,
-				map[string]interface{}{"path": config.AppConfig.LogoPath})
-		}
-	}
-
+	logoURL := registerAppLogo(ctx)
 	render.SetShellBranding(render.ShellBranding{
 		LogoURL: logoURL,
 		Company: strings.TrimSpace(config.AppConfig.CompanyDisplayName),
 		User:    strings.TrimSpace(config.AppConfig.UserDisplayName),
 	})
 
-	fileServer := http.FileServer(http.Dir(config.AppConfig.AssetsPath))
-	http.Handle("/static/", http.StripPrefix("/static/", fileServer))
-	applog.InfoMsg(ctx, "web", "static", "Serving static files",
-		map[string]interface{}{"path": filepath.Clean(config.AppConfig.AssetsPath)})
+	http.HandleFunc(moduleIconURLPrefix, serveModuleIcon)
+	registerCoreAssetFileServer(ctx)
 }
 
-func addonModuleInstalled(technicalName string) bool {
+// buildShellStylesheetURLs returns the default shell CSS list, inserting the AI addon
+// sheet after the layout slices when sumeru_ai is installed.
+func buildShellStylesheetURLs() []string {
+	urls := append([]string(nil), assets.DefaultStylesheetURLs()...)
+	if !addonModuleInstalled("sumeru_ai") {
+		return urls
+	}
+	withAI := make([]string, 0, len(urls)+1)
+	withAI = append(withAI, urls[:layoutStylesheetCount]...)
+	withAI = append(withAI, assets.AIStylesheetURL())
+	withAI = append(withAI, urls[layoutStylesheetCount:]...)
+	return withAI
+}
+
+// registerInstalledAddonThemeOverrides exposes optional static/css/theme-overrides.css
+// from each installed addon at /static/addon-css/<module>.css.
+func registerInstalledAddonThemeOverrides(ctx context.Context, stylesheetURLs *[]string) {
+	for _, moduleName := range sortedLoadedAddonNames() {
+		addon := module.LoadedAddons[moduleName]
+		if addon == nil || !addonModuleInstalled(moduleName) {
+			continue
+		}
+		overridePath := filepath.Join(addon.Path, addonThemeOverrideRel)
+		if !isRegularFile(overridePath) {
+			continue
+		}
+		publicURL := "/static/addon-css/" + moduleName + ".css"
+		registerInstalledModuleFileHandler(publicURL, overridePath, moduleName, "text/css; charset=utf-8")
+		*stylesheetURLs = append(*stylesheetURLs, publicURL)
+		applog.InfoMsg(ctx, "web", "static", "Registered addon theme overrides",
+			map[string]interface{}{"module": moduleName, "path": overridePath, "url": publicURL})
+	}
+}
+
+func registerBrandStylesheet(ctx context.Context, stylesheetURLs *[]string) {
+	brandPath := strings.TrimSpace(config.AppConfig.BrandCSS)
+	if brandPath == "" {
+		return
+	}
+	if !isRegularFile(brandPath) {
+		applog.WarnMsg(ctx, "web", "static", "brand_css path not found or not a file", nil,
+			map[string]interface{}{"path": brandPath})
+		return
+	}
+	registerStaticFileHandler(brandStylesheetURL, brandPath, "text/css; charset=utf-8")
+	*stylesheetURLs = append(*stylesheetURLs, brandStylesheetURL)
+	applog.InfoMsg(ctx, "web", "static", "Registered brand stylesheet",
+		map[string]interface{}{"path": brandPath})
+}
+
+// registerAppLogo serves config.AppConfig.LogoPath at /static/app-logo when the file exists.
+func registerAppLogo(ctx context.Context) string {
+	logoPath := strings.TrimSpace(config.AppConfig.LogoPath)
+	if logoPath == "" {
+		return ""
+	}
+	if !isRegularFile(logoPath) {
+		applog.WarnMsg(ctx, "web", "static", "logo_path not found or not a file", nil,
+			map[string]interface{}{"path": logoPath})
+		return ""
+	}
+	http.HandleFunc(appLogoURL, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", contentTypeForImageExt(filepath.Ext(logoPath)))
+		http.ServeFile(w, r, logoPath)
+	})
+	applog.InfoMsg(ctx, "web", "static", "Registered application logo",
+		map[string]interface{}{"path": logoPath})
+	return appLogoURL
+}
+
+// registerCoreAssetFileServer serves bundled JS/CSS/images from config.AppConfig.AssetsPath.
+// Must run after specific /static/* handlers so those routes are not shadowed.
+func registerCoreAssetFileServer(ctx context.Context) {
+	assetsRoot := filepath.Clean(config.AppConfig.AssetsPath)
+	fileServer := http.FileServer(http.Dir(assetsRoot))
+	http.Handle(staticURLPrefix, http.StripPrefix(staticURLPrefix, fileServer))
+	applog.InfoMsg(ctx, "web", "static", "Serving static files",
+		map[string]interface{}{"path": assetsRoot})
+}
+
+// registerStaticFileHandler serves a fixed file at urlPath with a constant Content-Type.
+func registerStaticFileHandler(urlPath, filePath, contentType string) {
+	servePath := filePath
+	http.HandleFunc(urlPath, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", contentType)
+		http.ServeFile(w, r, servePath)
+	})
+}
+
+// registerInstalledModuleFileHandler serves a file only while the owning module stays installed.
+func registerInstalledModuleFileHandler(urlPath, filePath, moduleName, contentType string) {
+	servePath := filePath
+	moduleName = strings.TrimSpace(moduleName)
+	http.HandleFunc(urlPath, func(w http.ResponseWriter, r *http.Request) {
+		if !addonModuleInstalled(moduleName) {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", contentType)
+		http.ServeFile(w, r, servePath)
+	})
+}
+
+func sortedLoadedAddonNames() []string {
+	names := make([]string, 0, len(module.LoadedAddons))
+	for name := range module.LoadedAddons {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func isRegularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+func contentTypeForImageExt(ext string) string {
+	switch strings.ToLower(ext) {
+	case ".svg":
+		return "image/svg+xml"
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".webp":
+		return "image/webp"
+	case ".gif":
+		return "image/gif"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+// addonModuleInstalled reports whether moduleName is active and in the installed state.
+func addonModuleInstalled(moduleName string) bool {
 	if orm.DB == nil {
 		return false
 	}
-	tbl := orm.MustQuotedTableName("sys.module")
+	moduleName = strings.TrimSpace(moduleName)
+	if moduleName == "" {
+		return false
+	}
+	table := orm.MustQuotedTableName("sys.module")
 	var state string
-	err := orm.DB.QueryRow(`SELECT state FROM `+tbl+` WHERE name = $1 AND active = true`, strings.TrimSpace(technicalName)).Scan(&state)
+	err := orm.DB.QueryRow(
+		`SELECT state FROM `+table+` WHERE name = $1 AND active = true`,
+		moduleName,
+	).Scan(&state)
 	return err == nil && strings.TrimSpace(state) == "installed"
+}
+
+// serveModuleIcon serves GET /static/module-icon/<module> from the addon tree.
+func serveModuleIcon(w http.ResponseWriter, r *http.Request) {
+	moduleName := strings.Trim(strings.TrimPrefix(r.URL.Path, moduleIconURLPrefix), "/")
+	if moduleName == "" || strings.Contains(moduleName, "/") {
+		http.NotFound(w, r)
+		return
+	}
+	if !addonModuleInstalled(moduleName) {
+		http.NotFound(w, r)
+		return
+	}
+	iconRelPath := moduleIconRelPathFromDB(r, moduleName)
+	iconFile := render.ModuleIconServePath(moduleName, iconRelPath)
+	if iconFile == "" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", contentTypeForImageExt(filepath.Ext(iconFile)))
+	http.ServeFile(w, r, iconFile)
+}
+
+func moduleIconRelPathFromDB(r *http.Request, moduleName string) string {
+	if orm.DB == nil {
+		return ""
+	}
+	row, err := orm.SearchOne(r.Context(), "sys.module", map[string]interface{}{"name": moduleName})
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(orm.AsString(row["icon"]))
 }
