@@ -10,6 +10,7 @@ import (
 
 	"sumeru/core/engine/parser"
 	"sumeru/core/orm"
+	"sumeru/core/report"
 )
 
 func kanbanImageOK(src string) bool { return SafeImageSrc(src) }
@@ -83,11 +84,12 @@ func RenderKanban(ctx context.Context, view *parser.View, recData *ViewRecordDat
 	if cols, groupField, draggable := BuildKanbanColumns(ctx, view, rows); groupField != "" && len(cols) > 0 {
 		return renderGroupedKanban(ctx, view, cols, groupField, draggable, recData, actionID, menuID)
 	}
-	return renderFlatKanban(ctx, view, rows, actionID, menuID)
+	return renderFlatKanban(ctx, view, rows, actionID, menuID, recData)
 }
 
 func renderGroupedKanban(ctx context.Context, view *parser.View, cols []KanbanColumn, groupField string, draggable bool, recData *ViewRecordData, actionID int, menuID string) string {
 	var sb strings.Builder
+	renderKanbanReportBar(&sb, view, recData, actionID, menuID)
 	model := view.Model
 	dragAttr := ""
 	if draggable {
@@ -120,8 +122,9 @@ func renderGroupedKanban(ctx context.Context, view *parser.View, cols []KanbanCo
 	return sb.String()
 }
 
-func renderFlatKanban(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string) string {
+func renderFlatKanban(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string, recData *ViewRecordData) string {
 	var sb strings.Builder
+	renderKanbanReportBar(&sb, view, recData, actionID, menuID)
 	sb.WriteString(`<div class="sum-kanban-board">`)
 	sb.WriteString(`<div class="sum-kanban-columns">`)
 	if len(rows) == 0 {
@@ -275,4 +278,19 @@ func kanbanCardRotting(ctx context.Context, row map[string]interface{}) bool {
 		}
 	}
 	return time.Since(t) > time.Duration(threshold)*24*time.Hour
+}
+
+func renderKanbanReportBar(sb *strings.Builder, view *parser.View, recData *ViewRecordData, actionID int, menuID string) {
+	caps := report.CapabilitiesFromView(view)
+	if !caps.HasDownload() && !caps.BulkUpload {
+		return
+	}
+	csrf := ""
+	if recData != nil {
+		csrf = recData.CSRFToken
+	}
+	sb.WriteString(`<div class="sum-list-control sum-kanban-report-bar">`)
+	sb.WriteString(`<div class="sum-list-control-left">`)
+	sb.WriteString(RenderReportToolbar(caps, view.Model, actionID, menuID, 0, view.Field, csrf))
+	sb.WriteString(`</div></div>`)
 }

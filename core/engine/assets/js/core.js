@@ -16,6 +16,8 @@ import { initAvatarUpload } from "./ui/avatar-upload.js";
 import { initKanbanBoard } from "./ui/kanban-board.js";
 import { initStatusbar } from "./ui/statusbar.js";
 import { initPriorityField } from "./ui/priority-field.js";
+import { initReportExchange } from "./ui/report-exchange.js";
+import { initBulkImportForm } from "./ui/bulk-import.js";
 
 export {
   getPinnedApps,
@@ -41,6 +43,8 @@ export {
   initKanbanBoard();
   initStatusbar();
   initPriorityField();
+  initReportExchange();
+  initBulkImportForm();
   initRecentTracking();
   initPinnedApps();
   applyTopNavFilter();

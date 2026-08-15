@@ -173,6 +173,7 @@ func buildViewRecordData(ctx context.Context, w http.ResponseWriter, r *http.Req
 		ViewTabs:      render.WorkspaceViewTabs(ctx, resolved.targetModel, req.actionID, req.menuID, resolved.selectedMode, req.recordID),
 	}
 	appendPageFlashesToViewRecord(r, w, viewRecord)
+	appendQueryFlashesToViewRecord(r, viewRecord)
 
 	if recordID, ok := parsePositiveRecordID(req.recordID); ok {
 		viewRecord.RecordID = recordID

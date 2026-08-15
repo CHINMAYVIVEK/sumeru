@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"sumeru/core/server/router"
+
+	_ "sumeru/core/report" // register bulk import object actions
 )
 
 func init() {
@@ -61,6 +63,12 @@ func registerAppsRoutes() {
 func registerRecordRoutes() {
 	registerSession(http.MethodPost, recordSaveRoute, RecordSaveHandler)
 	registerSession(http.MethodPost, recordDeleteRoute, RecordDeleteHandler)
+	registerSession(http.MethodGet, exportCSVRoute, ExportCSVHandler)
+	registerSession(http.MethodGet, exportPDFRoute, ExportPDFHandler)
+	registerSession(http.MethodGet, bulkTemplateRoute, BulkTemplateHandler)
+	registerSession(http.MethodPost, bulkUploadRoute, BulkUploadHandler)
+	registerSession(http.MethodPost, bulkConfirmRoute, BulkConfirmHandler)
+	registerSession(http.MethodPost, bulkCancelRoute, BulkCancelHandler)
 }
 
 func registerActionRoutes() {

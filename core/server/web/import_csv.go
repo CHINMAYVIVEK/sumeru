@@ -12,25 +12,9 @@ import (
 	"sumeru/core/orm"
 )
 
-// ImportCSVHandler imports CSV rows into a model: POST multipart model=… & file=…
+// ImportCSVHandler imports CSV rows — redirects to bulk upload staging flow.
 func ImportCSVHandler(w http.ResponseWriter, r *http.Request) {
-	if !requireLoginMultipartPost(w, r, maxImportBodyBytes) {
-		return
-	}
-
-	request, ok := openImportCSVRequest(w, r)
-	if !ok {
-		return
-	}
-	defer request.file.Close()
-
-	createdCount, err := importCSVRows(r.Context(), request.modelInst, request.file)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	redirectWithWebMessage(w, r, request.next, importCSVFlashMessage(createdCount))
+	BulkUploadHandler(w, r)
 }
 
 type importCSVRequest struct {

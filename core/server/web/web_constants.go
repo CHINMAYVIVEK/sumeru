@@ -237,9 +237,19 @@ const (
 // CSV import route, limits, and multipart form fields.
 const (
 	importCSVRoute     = "/web/import/csv"
+	exportCSVRoute     = "/web/export/csv"
+	exportPDFRoute     = "/web/export/pdf"
+	bulkTemplateRoute  = "/web/bulk/template"
+	bulkUploadRoute    = "/web/bulk/upload"
+	bulkConfirmRoute   = "/web/bulk/confirm"
+	bulkCancelRoute    = "/web/bulk/cancel"
 	maxImportBodyBytes = 8 << 20
 	importModelField   = "model"
 	importFileField    = "file"
+	reportFieldsParam  = "fields"
+	reportPageSizeParam = "page_size"
+	importModeField    = "import_mode"
+	actionIDField      = "action"
 )
 
 // Chatter POST route, form fields, and limits.
