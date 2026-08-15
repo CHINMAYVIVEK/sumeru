@@ -107,7 +107,7 @@
                     <summary class="sum-dropdown-trigger sum-dropdown-trigger--user">
                         {{if .ShellUserImage}}
                         <span class="sum-topbar-avatar sum-topbar-avatar--photo" aria-hidden="true">
-                            <img class="sum-topbar-avatar-img" src="{{.ShellUserImage}}" alt="" />
+                            <img class="sum-topbar-avatar-img" src="{{.ShellUserImage}}" alt=""{{.ShellUserImageCrop}} />
                         </span>
                         {{else}}
                         <span class="sum-topbar-avatar" aria-hidden="true">{{.ShellUserInitials}}</span>

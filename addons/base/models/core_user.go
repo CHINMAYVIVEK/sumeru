@@ -7,7 +7,8 @@ type CoreUser struct {
 	Login     string `db:"login"`
 	Password  string `db:"password"` // bcrypt hash; never list in UI
 	Name      string `db:"name"`
-	Image     string `db:"image"` // URL or data-URL avatar
+	Image     string `db:"image"`      // URL or data-URL avatar (full photo)
+	ImageCrop string `db:"image_crop"` // JSON pan/zoom for circular form/shell framing
 	Active    bool   `db:"active"`
 	Email     string `db:"email"`
 	Phone     string `db:"phone"`
@@ -32,6 +33,7 @@ func (CoreUser) Fields() []sdk.FieldDefinition {
 		{Name: "password", Type: sdk.Char, String: "Password"},
 		{Name: "name", Type: sdk.Char, String: "Name"},
 		{Name: "image", Type: sdk.Text, String: "Image"},
+		{Name: "image_crop", Type: sdk.Text, String: "Image Crop"},
 		{Name: "active", Type: sdk.Boolean, String: "Active", DefaultVal: true},
 		{Name: "email", Type: sdk.Char, String: "Email"},
 		{Name: "phone", Type: sdk.Char, String: "Work Phone"},

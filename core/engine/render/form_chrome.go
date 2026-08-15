@@ -140,16 +140,29 @@ func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, r
 	_ = ctx
 	_ = d
 	img := strings.TrimSpace(recStr(record, "image"))
+	cropRaw := strings.TrimSpace(recStr(record, "image_crop"))
+	crop, hasCrop := ParseImageCrop(cropRaw)
+	cropStyle := AvatarCropStyle(crop, hasCrop && SafeImageSrc(img))
 	name := strings.TrimSpace(recStr(record, "name"))
 	initials := UserInitialsFromName(name)
 	canUpload := fieldDef(resModel, "image") != nil
+	hasCropField := fieldDef(resModel, "image_crop") != nil
 
-	hasImg := img != "" && (strings.HasPrefix(img, "http://") || strings.HasPrefix(img, "https://") || strings.HasPrefix(img, "data:"))
+	hasImg := SafeImageSrc(img)
+
+	imgClass := "sum-form-avatar-img"
+	if hasImg {
+		imgClass += " sum-form-avatar-img--visible"
+		if hasCrop {
+			imgClass += " sum-form-avatar-img--cropped"
+		}
+	}
 
 	sb.WriteString(`<div class="sum-form-avatar sum-form-avatar--compact" data-sum-avatar>`)
 	sb.WriteString(`<div class="sum-form-avatar-box sum-form-avatar-box--circle">`)
 	if hasImg {
-		sb.WriteString(fmt.Sprintf(`<img class="sum-form-avatar-img sum-form-avatar-img--visible" data-sum-avatar-preview src="%s" alt="" />`, template.HTMLEscapeString(img)))
+		sb.WriteString(fmt.Sprintf(`<img class="%s" data-sum-avatar-preview src="%s" alt=""%s />`,
+			imgClass, template.HTMLEscapeString(img), cropStyle))
 		sb.WriteString(`<span class="sum-form-avatar-initials" data-sum-avatar-initials hidden>` + template.HTMLEscapeString(initials) + `</span>`)
 	} else {
 		sb.WriteString(`<span class="sum-form-avatar-initials" data-sum-avatar-initials>` + template.HTMLEscapeString(initials) + `</span>`)
@@ -158,10 +171,18 @@ func renderTitleAvatar(ctx context.Context, sb *strings.Builder, d parser.Div, r
 	sb.WriteString(`</div>`)
 	if !ro && canUpload {
 		sb.WriteString(fmt.Sprintf(`<input type="hidden" name="image" value="%s" data-sum-avatar-value />`, template.HTMLEscapeString(img)))
+		if hasCropField {
+			sb.WriteString(fmt.Sprintf(`<input type="hidden" name="image_crop" value="%s" data-sum-avatar-crop />`, template.HTMLEscapeString(cropRaw)))
+		}
+		sb.WriteString(`<div class="sum-form-avatar-actions">`)
 		sb.WriteString(`<label class="sum-form-avatar-upload">`)
 		sb.WriteString(`<input type="file" accept="image/*" data-sum-avatar-file />`)
 		sb.WriteString(`<span>Change</span>`)
 		sb.WriteString(`</label>`)
+		if hasImg {
+			sb.WriteString(`<button type="button" class="sum-form-avatar-adjust" data-sum-avatar-adjust>Adjust</button>`)
+		}
+		sb.WriteString(`</div>`)
 	}
 	sb.WriteString(`</div>`)
 }
