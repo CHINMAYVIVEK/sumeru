@@ -108,22 +108,6 @@ func Run() {
 		return
 	}
 
-	if err := orm.RunMenuDataFixes(); err != nil {
-		applog.WarnMsg(ctx, "server", "startup", "Menu data fixes reported issues", err, nil)
-	}
-	if err := orm.EnsureSysViewArchText(); err != nil {
-		applog.WarnMsg(ctx, "server", "startup", "sys.view.arch column migration note", err, nil)
-	}
-	if err := orm.MigrateSysViewTreeToList(); err != nil {
-		applog.WarnMsg(ctx, "server", "startup", "sys.view tree→list migration note", err, nil)
-	}
-	if err := orm.EnsureCoreUserImageText(); err != nil {
-		applog.WarnMsg(ctx, "server", "startup", "core.user.image column migration note", err, nil)
-	}
-	if err := orm.EnsureMailMessageModelResIndex(); err != nil {
-		applog.Fatal(ctx, "Schema migrate mail.message index failed", "err", err)
-	}
-
 	if err := orm.EnsureDefaultGroupsAndImplied(); err != nil {
 		applog.Fatal(ctx, "Default security groups failed", "err", err)
 	}

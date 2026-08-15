@@ -1,6 +1,6 @@
 # Sumeru core code style
 
-Conventions for `sumeru/core`. Reference implementation: [`orm/schema_migrate.go`](orm/schema_migrate.go).
+Conventions for `sumeru/core`. Reference implementation: [`orm/schema_sync.go`](orm/schema_sync.go).
 
 ## File layout
 
