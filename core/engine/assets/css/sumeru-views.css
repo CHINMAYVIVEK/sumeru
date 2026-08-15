@@ -952,6 +952,20 @@
   box-shadow: var(--sum-focus-ring);
 }
 
+.sum-field-widget--error .sum-field-input,
+.sum-field-widget--error .sum-field-textarea,
+.sum-field-widget--error .sum-field-select {
+  border-color: rgba(239, 68, 68, 0.75);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12);
+}
+
+.sum-field-error {
+  margin: 0;
+  font-size: var(--sum-font-size-sm);
+  color: rgb(185, 28, 28);
+  line-height: 1.35;
+}
+
 /* Read mode: same field chrome as edit; not interactive. */
 .sum-form-view--readonly .sum-field-input,
 .sum-form-view--readonly .sum-form-hero-input,

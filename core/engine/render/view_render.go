@@ -2,6 +2,7 @@ package render
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"strings"
@@ -57,7 +58,14 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 		SettingsNavActive:       IsMenuUnderSettingsRoot(ctx, activeMenuID),
 		BreadcrumbItems:         BuildWorkspaceBreadcrumbs(ctx, activeMenuID, view.Type, viewBC, recData.FormBaseQuery, recData.Record, recData.RecordID),
 		CSRFToken:               recData.CSRFToken,
-		FlashMessages:           recData.FlashMessages,
+	}
+	inlineFlashes, toastFlashes := splitFlashMessages(recData.FlashMessages)
+	pageData.FlashMessages = inlineFlashes
+	pageData.ToastMessages = toastFlashes
+	if len(toastFlashes) > 0 {
+		if b, err := json.Marshal(toastFlashes); err == nil {
+			pageData.ToastMessagesJSON = template.JS(b)
+		}
 	}
 	if !SidebarHasMenus(sidebarMenus) {
 		pageData.SuppressSidebar = true

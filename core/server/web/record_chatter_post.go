@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,7 +18,7 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !mail.CompanyChatterEnabled(r.Context()) {
-		http.Error(w, "Chatter disabled", http.StatusForbidden)
+		redirectRecordError(w, r, SafeWebNext(r.PostFormValue(nextField), homeRoute), "record_chatter", "", fmt.Errorf("chatter disabled"))
 		return
 	}
 
@@ -27,14 +28,14 @@ func ChatterPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recordID, ok := validateChatterPost(w, r, form)
-	if !ok {
+	recordID, err := validateChatterPost(r, form)
+	if err != nil {
+		redirectRecordError(w, r, form.Next, "record_chatter", form.ModelName, err)
 		return
 	}
 
 	if err := postChatterComment(r.Context(), form.ModelName, recordID, form.Body); err != nil {
-		WebLogf(r.Context(), chatterPostRoute, "chatter post %s id=%d: %v", form.ModelName, recordID, err)
-		http.Error(w, "Post failed", http.StatusInternalServerError)
+		redirectRecordError(w, r, form.Next, "record_chatter", form.ModelName, err)
 		return
 	}
 
@@ -57,45 +58,40 @@ func parseChatterPostForm(r *http.Request) chatterPostForm {
 	}
 }
 
-func validateChatterPost(w http.ResponseWriter, r *http.Request, form chatterPostForm) (recordID int64, ok bool) {
+func validateChatterPost(r *http.Request, form chatterPostForm) (recordID int64, err error) {
 	if form.ModelName == "" {
-		http.Error(w, "Missing model", http.StatusBadRequest)
-		return 0, false
+		return 0, fmt.Errorf("missing model")
 	}
 	if chatterBodyTooLong(form.Body) {
-		http.Error(w, "Message too long", http.StatusBadRequest)
-		return 0, false
+		return 0, fmt.Errorf("message too long")
 	}
-	if _, registered := requireRegisteredModel(w, form.ModelName); !registered {
-		return 0, false
+	if _, ok := orm.Registry[form.ModelName]; !ok {
+		return 0, fmt.Errorf("unknown model")
 	}
 	if form.ModelName == mailMessageModel {
-		http.Error(w, "Invalid model", http.StatusBadRequest)
-		return 0, false
+		return 0, fmt.Errorf("invalid model")
 	}
 
-	recordID, parseOK := parseChatterRecordID(w, form.RecordIDRaw)
-	if !parseOK {
-		return 0, false
+	recordID, err = parseChatterRecordID(form.RecordIDRaw)
+	if err != nil {
+		return 0, err
 	}
 	if !chatterTargetRecordExists(r, form.ModelName, recordID) {
-		http.Error(w, "Record not found", http.StatusNotFound)
-		return 0, false
+		return 0, fmt.Errorf("record not found")
 	}
-	if !requireModelAccess(w, r, form.ModelName, "write") {
-		return 0, false
+	if err := orm.CheckModelAccess(r.Context(), orm.SecurityUID(r.Context()), form.ModelName, "write"); err != nil {
+		return 0, fmt.Errorf("access denied")
 	}
 
-	return recordID, true
+	return recordID, nil
 }
 
-func parseChatterRecordID(w http.ResponseWriter, rawRecordID string) (int64, bool) {
+func parseChatterRecordID(rawRecordID string) (int64, error) {
 	recordID, err := strconv.ParseInt(rawRecordID, 10, 64)
 	if err != nil || recordID <= 0 {
-		http.Error(w, "Invalid res_id", http.StatusBadRequest)
-		return 0, false
+		return 0, fmt.Errorf("invalid res_id")
 	}
-	return recordID, true
+	return recordID, nil
 }
 
 func chatterTargetRecordExists(r *http.Request, modelName string, recordID int64) bool {

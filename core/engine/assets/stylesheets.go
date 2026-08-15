@@ -11,6 +11,7 @@ func DefaultStylesheetURLs() []string {
 		"/static/css/sumeru-messages.css",
 		"/static/css/sumeru-views.css",
 		"/static/css/sumeru-compat.css",
+		"/static/css/sumeru-apps.css",
 	}
 }
 

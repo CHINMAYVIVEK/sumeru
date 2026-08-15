@@ -88,7 +88,7 @@ func widenColumnToText(modelName, column string) error {
 
 // --- View type: tree → list ---
 
-// Replacements applied when upgrading stored view arch from the old Odoo "tree"
+// Replacements applied when upgrading stored view arch from the old "tree"
 // convention to "list". MigrateSysViewTreeToList uses the same rules in SQL.
 var legacyTreeToListArchReplacements = [][2]string{
 	{"<tree", "<list"},

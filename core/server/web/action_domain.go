@@ -16,5 +16,6 @@ func actionListDomain(ctx context.Context, actionData map[string]interface{}) []
 	if err != nil || len(dom) == 0 {
 		return nil
 	}
-	return orm.ResolveDomainXMLRefs(ctx, dom)
+	dom = orm.ResolveDomainXMLRefs(ctx, dom)
+	return orm.SubstituteDomainUID(dom, orm.SecurityUID(ctx))
 }

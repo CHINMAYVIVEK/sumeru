@@ -57,6 +57,9 @@ func PrepareValues(model Model, values map[string]interface{}, op WriteOp, opts 
 		}
 		cv, err := coerceFieldValue(fd, v)
 		if err != nil {
+			if fve, ok := err.(*FieldValidationError); ok {
+				return nil, fve
+			}
 			return nil, fmt.Errorf("field %s: %w", k, err)
 		}
 		out[k] = cv
@@ -81,7 +84,7 @@ func PrepareValues(model Model, values map[string]interface{}, op WriteOp, opts 
 				out[name] = cv
 				continue
 			}
-			return nil, fmt.Errorf("required field %q missing on model %s", name, model.ModelName())
+			return nil, newFieldValidationError(fd, fmt.Sprintf("required field %q missing on model %s", name, model.ModelName()))
 		}
 	}
 	return out, nil
@@ -90,7 +93,7 @@ func PrepareValues(model Model, values map[string]interface{}, op WriteOp, opts 
 func coerceFieldValue(fd FieldDefinition, v interface{}) (interface{}, error) {
 	if v == nil {
 		if fd.Required {
-			return nil, fmt.Errorf("required value is null")
+			return nil, newFieldValidationError(fd, "")
 		}
 		return nil, nil
 	}
@@ -120,7 +123,7 @@ func coerceFieldValue(fd FieldDefinition, v interface{}) (interface{}, error) {
 			s := strings.TrimSpace(AsString(v))
 			if s == "" {
 				if fd.Required {
-					return nil, fmt.Errorf("required integer empty")
+					return nil, newFieldValidationError(fd, "")
 				}
 				return nil, nil
 			}
@@ -158,7 +161,7 @@ func coerceFieldValue(fd FieldDefinition, v interface{}) (interface{}, error) {
 		s := strings.TrimSpace(AsString(v))
 		if s == "" {
 			if fd.Required {
-				return nil, fmt.Errorf("required selection empty")
+				return nil, newFieldValidationError(fd, "")
 			}
 			return "", nil
 		}
@@ -171,8 +174,21 @@ func coerceFieldValue(fd FieldDefinition, v interface{}) (interface{}, error) {
 			}
 		}
 		return nil, fmt.Errorf("invalid selection %q", s)
-	case Char, Text, Date, DateTime, Json:
+	case Char, Text, Json:
+		s := strings.TrimSpace(AsString(v))
+		if s == "" && fd.Required {
+			return nil, newFieldValidationError(fd, "")
+		}
 		return AsString(v), nil
+	case Date, DateTime:
+		s := strings.TrimSpace(AsString(v))
+		if s == "" {
+			if fd.Required {
+				return nil, newFieldValidationError(fd, "")
+			}
+			return nil, nil
+		}
+		return s, nil
 	default:
 		return v, nil
 	}

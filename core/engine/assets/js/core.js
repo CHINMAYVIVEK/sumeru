@@ -18,6 +18,9 @@ import { initStatusbar } from "./ui/statusbar.js";
 import { initPriorityField } from "./ui/priority-field.js";
 import { initReportExchange } from "./ui/report-exchange.js";
 import { initBulkImportForm } from "./ui/bulk-import.js";
+import { initFlashDismiss } from "./ui/flash-dismiss.js";
+import { initFormValidation } from "./ui/form-validation.js";
+import { initWorkspaceToastsFromDOM } from "./lib/toast.js";
 
 export {
   getPinnedApps,
@@ -45,6 +48,9 @@ export {
   initPriorityField();
   initReportExchange();
   initBulkImportForm();
+  initFlashDismiss();
+  initFormValidation();
+  initWorkspaceToastsFromDOM();
   initRecentTracking();
   initPinnedApps();
   applyTopNavFilter();

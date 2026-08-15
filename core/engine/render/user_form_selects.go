@@ -58,7 +58,7 @@ func renderCoreUserSelectField(ctx context.Context, sb *strings.Builder, f parse
 	case "tz":
 		renderTimezoneSelect(sb, f, label, record, ro)
 	default:
-		renderTypedInput(sb, f, label, record, ro, "text")
+		renderTypedInput(sb, f, label, record, ro, "text", fieldRequired("core.user", f.Name))
 	}
 }
 

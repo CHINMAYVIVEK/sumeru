@@ -239,8 +239,28 @@ func CoerceSaveFieldValue(fieldName string, fieldType orm.FieldType, raw string)
 	return coerceSaveFieldValue(fieldName, fieldType, raw)
 }
 
-func ParseRecordDeleteRequest(w http.ResponseWriter, r *http.Request) (recordDeleteRequest, bool) {
-	return parseRecordDeleteRequest(w, r)
+func ParseRecordDeleteRequest(r *http.Request) (recordDeleteRequest, error) {
+	return parseRecordDeleteRequest(r)
+}
+
+func UserFacingRecordError(operation, model string, err error) (title, body, details string, fieldErrors []string) {
+	return userFacingRecordError(operation, model, err)
+}
+
+func SetRecordErrorFlashForTest(w http.ResponseWriter, flash PageFlash) {
+	SetRecordErrorFlash(w, flash)
+}
+
+func ConsumeRecordErrorFlashForTest(r *http.Request, w http.ResponseWriter) (PageFlash, bool) {
+	return ConsumeRecordErrorFlash(r, w)
+}
+
+func ActionDefaultFieldValues(actionData map[string]interface{}) map[string]interface{} {
+	return actionDefaultFieldValues(actionData)
+}
+
+func EnsureFormEditRedirectURL(rawNext string, clearRecordID bool) string {
+	return ensureFormEditRedirectURL(rawNext, clearRecordID)
 }
 
 func SplitCommaSeparatedValues(raw string) []string { return splitCommaSeparatedValues(raw) }
@@ -261,8 +281,8 @@ func ParseChatterPostForm(r *http.Request) chatterPostForm { return parseChatter
 
 func ChatterBodyTooLong(body string) bool { return chatterBodyTooLong(body) }
 
-func ParseChatterRecordID(w http.ResponseWriter, recordIDRaw string) (int64, bool) {
-	return parseChatterRecordID(w, recordIDRaw)
+func ParseChatterRecordID(recordIDRaw string) (int64, error) {
+	return parseChatterRecordID(recordIDRaw)
 }
 
 func CoerceCSVValue(raw string) interface{} { return coerceCSVValue(raw) }

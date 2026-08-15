@@ -141,33 +141,35 @@ func renderImageField(sb *strings.Builder, f parser.Field, label string, record 
 	sb.WriteString(`</div>`)
 }
 
-func renderTypedInput(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool, inputType string) {
+func renderTypedInput(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool, inputType string, required bool) {
 	placeholder := f.Placeholder
 	val := recStr(record, f.Name)
 	roAttr := ""
 	if ro {
 		roAttr = ` readonly`
 	}
+	attrs := fieldInputAttrs(label, required)
 	sb.WriteString(`<div class="sum-field-widget">`)
 	sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
-	sb.WriteString(fmt.Sprintf(`<input class="sum-field-input" id="%s" name="%s" type="%s" placeholder="%s" value="%s"%s />`,
+	sb.WriteString(fmt.Sprintf(`<input class="sum-field-input" id="%s" name="%s" type="%s" placeholder="%s" value="%s"%s%s />`,
 		template.HTMLEscapeString(f.Name), template.HTMLEscapeString(f.Name),
 		template.HTMLEscapeString(inputType),
-		template.HTMLEscapeString(placeholder), template.HTMLEscapeString(val), roAttr))
+		template.HTMLEscapeString(placeholder), template.HTMLEscapeString(val), roAttr, attrs))
 	sb.WriteString(`</div>`)
 }
 
-func renderTextareaField(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool) {
+func renderTextareaField(sb *strings.Builder, f parser.Field, label string, record map[string]interface{}, ro bool, required bool) {
 	val := recStr(record, f.Name)
 	placeholder := f.Placeholder
 	roAttr := ""
 	if ro {
 		roAttr = ` readonly`
 	}
+	attrs := fieldInputAttrs(label, required)
 	sb.WriteString(`<div class="sum-field-widget sum-field-widget--full">`)
 	sb.WriteString(`<label class="sum-field-label" for="` + template.HTMLEscapeString(f.Name) + `">` + template.HTMLEscapeString(label) + `</label>`)
-	sb.WriteString(fmt.Sprintf(`<textarea class="sum-field-input sum-field-textarea" id="%s" name="%s" rows="4" placeholder="%s"%s>%s</textarea>`,
+	sb.WriteString(fmt.Sprintf(`<textarea class="sum-field-input sum-field-textarea" id="%s" name="%s" rows="4" placeholder="%s"%s%s>%s</textarea>`,
 		template.HTMLEscapeString(f.Name), template.HTMLEscapeString(f.Name),
-		template.HTMLEscapeString(placeholder), roAttr, template.HTMLEscapeString(val)))
+		template.HTMLEscapeString(placeholder), roAttr, attrs, template.HTMLEscapeString(val)))
 	sb.WriteString(`</div>`)
 }

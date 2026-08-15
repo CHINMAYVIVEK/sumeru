@@ -1,11 +1,11 @@
 package web_test
 
 import (
-	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sumeru/core/server/web"
 	"testing"
+
+	"sumeru/core/server/web"
 )
 
 func TestParseChatterPostForm(t *testing.T) {
@@ -33,15 +33,13 @@ func TestChatterBodyTooLong(t *testing.T) {
 }
 
 func TestParseChatterRecordID(t *testing.T) {
-	recorder := httptest.NewRecorder()
-	recordID, ok := web.ParseChatterRecordID(recorder, "15")
-	if !ok || recordID != 15 {
-		t.Fatalf("got id=%d ok=%v", recordID, ok)
+	recordID, err := web.ParseChatterRecordID("15")
+	if err != nil || recordID != 15 {
+		t.Fatalf("got id=%d err=%v", recordID, err)
 	}
 
-	recorder = httptest.NewRecorder()
-	_, ok = web.ParseChatterRecordID(recorder, "0")
-	if ok || recorder.Code != http.StatusBadRequest {
-		t.Fatalf("expected bad request for invalid id, got ok=%v status=%d", ok, recorder.Code)
+	_, err = web.ParseChatterRecordID("0")
+	if err == nil {
+		t.Fatal("expected error for invalid id")
 	}
 }

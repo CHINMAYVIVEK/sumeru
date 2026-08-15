@@ -32,7 +32,7 @@ ACL CSV (sys.access)
 --------------------
   Model access rules load from security/sys.access.csv (or sys.access.csv at the addon root)
   automatically during module sync. Listing the CSV in manifest data is optional and is not
-  parsed as XML (Odoo-style manifests may still include it for documentation only).
+  parsed as XML (manifests may still include it for documentation only).
 
 Multiple addon roots (sumeru.conf)
 ----------------------------------

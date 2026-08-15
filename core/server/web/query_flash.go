@@ -47,7 +47,21 @@ func flashFromQueryMessage(msg string) (render.FlashMessage, bool) {
 		return render.FlashMessage{Kind: "success", Title: "API key created", Body: "Copy the key from the banner above if shown."}, true
 	case moduleMsgSaved:
 		return render.FlashMessage{Kind: "success", Title: "Saved", Body: "Changes were saved."}, true
+	case saveOKCreatedMsg:
+		return render.FlashMessage{Kind: "success", Title: "Saved", Body: "Record created."}, true
+	case saveOKUpdatedMsg:
+		return render.FlashMessage{Kind: "success", Title: "Saved", Body: "Changes saved."}, true
+	case stageUpdatedMsg:
+		return render.FlashMessage{Kind: "success", Title: "Updated", Body: "Stage updated.", ToastOnly: true}, true
 	default:
+		if strings.HasPrefix(msg, "error:") {
+			body := strings.TrimPrefix(msg, "error:")
+			return render.FlashMessage{Kind: "error", Title: "Error", Body: body}, true
+		}
+		if strings.HasPrefix(msg, "save_error:") {
+			body := strings.TrimPrefix(msg, "save_error:")
+			return render.FlashMessage{Kind: "error", Title: "Save failed", Body: body}, true
+		}
 		if strings.HasPrefix(msg, "installed_") || strings.HasPrefix(msg, "uninstalled_") || strings.HasPrefix(msg, "upgraded_") {
 			return render.FlashMessage{Kind: "success", Title: "Apps", Body: strings.ReplaceAll(msg, "_", " ")}, true
 		}

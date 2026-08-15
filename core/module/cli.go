@@ -34,6 +34,9 @@ func UpdateModuleData(ctx context.Context, name string) error {
 		// e.g. -u all while a leaf is marked installed without its deps — skip reload (no DB churn).
 		return nil
 	}
+	if err := reloadInstalledDependencies(ctx, name); err != nil {
+		return err
+	}
 	return reloadModuleData(ctx, name, moduleReloadUpdate)
 }
 

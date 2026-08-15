@@ -5,6 +5,7 @@
 [![Pre-Alpha](https://img.shields.io/badge/Status-Pre--Alpha-critical?style=for-the-badge)](https://github.com/ProjectMeru/sumeru)
 
 > [!CAUTION]
+>
 > ### 🚧 Pre-Alpha Software
 >
 > Sumeru is **pre-alpha software**. It is under active development and is **not ready for production or commercial use**.
@@ -24,7 +25,7 @@ This repository is the **core engine** (`module sumeru`). Most teams keep it pul
 - Modular **addons** with manifests, XML views/menus, and Go model registration
 - PostgreSQL ORM with model sync on startup
 - Web shell: apps catalog, home, settings, tree/form/kanban workspaces
-- Odoo-style JSON-RPC at **`POST /api/rpc`** (plus **`GET /api/health`**)
+- JSON-RPC at **`POST /api/rpc`** (plus **`GET /api/health`**)
 - Stable addon API via **`sumeru/core/sdk`** (prefer over importing **`sumeru/core/orm`** directly)
 
 ## Architecture
@@ -41,11 +42,11 @@ sumeru_custom_addons  ──replace + make generate──►  sumeru (core)
                 └── also loads  sumeru_addons (standard business apps)
 ```
 
-| Repository                 | Role                                                                                    | Remote                                                |
-| -------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| **`sumeru`**               | Core engine + kernel addons (`base`, `mail`, …). Pull-only for most teams. | `git@github.com:ProjectMeru/sumeru.git`               |
-| **`sumeru_addons`**        | Standard business apps (CRM, Sales, Inventory, …). Pull-only.                           | `git@github.com:ProjectMeru/sumeru_addons.git`        |
-| **`sumeru_custom_addons`** | Your workspace: custom addons, local INI, generated imports, and the process you run.   | `git@github.com:ProjectMeru/sumeru_custom_addons.git` |
+| Repository                 | Role                                                                                  | Remote                                                |
+| -------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **`sumeru`**               | Core engine + kernel addons (`base`, `mail`, …). Pull-only for most teams.            | `git@github.com:ProjectMeru/sumeru.git`               |
+| **`sumeru_addons`**        | Standard business apps (CRM, Sales, Inventory, …). Pull-only.                         | `git@github.com:ProjectMeru/sumeru_addons.git`        |
+| **`sumeru_custom_addons`** | Your workspace: custom addons, local INI, generated imports, and the process you run. | `git@github.com:ProjectMeru/sumeru_custom_addons.git` |
 
 **Entry binary (this repo):** `cmd/sumeru/main.go` → `sumeru/core/server` (`server.Run`). Library code under `core/` has no `main`.
 
@@ -134,10 +135,10 @@ Copy **`sumeru.conf.example`** → **`sumeru.conf`**.
 
 ### HTTP API
 
-| Endpoint              | Use case                                                                                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **`GET /api/health`** | Liveness; `{"ok":true}` (no auth)                                                                                                                                                    |
-| **`POST /api/rpc`**   | Model RPC with session cookie or API key (see below)                                                                                                                                 |
+| Endpoint              | Use case                                             |
+| --------------------- | ---------------------------------------------------- |
+| **`GET /api/health`** | Liveness; `{"ok":true}` (no auth)                    |
+| **`POST /api/rpc`**   | Model RPC with session cookie or API key (see below) |
 
 #### `POST /api/rpc`
 
@@ -156,7 +157,7 @@ Sumeru flat shape:
 }
 ```
 
-Odoo-style wrapper (also supported):
+wrapper (also supported):
 
 ```json
 {
@@ -191,17 +192,17 @@ Legacy clients may ignore `ok` and continue checking `error == null`.
 
 **Public methods**
 
-| Method        | `args`             | `kwargs`          | `result`                         |
-| ------------- | ------------------ | ----------------- | -------------------------------- |
-| `search`      | `[domain?]`        | `limit`, `offset` | `[{record}, …]`                  |
-| `search_read` | `[domain, fields]` | `limit`, `offset` | `[{record}, …]` (field projection) |
+| Method        | `args`             | `kwargs`          | `result`                                                              |
+| ------------- | ------------------ | ----------------- | --------------------------------------------------------------------- |
+| `search`      | `[domain?]`        | `limit`, `offset` | `[{record}, …]`                                                       |
+| `search_read` | `[domain, fields]` | `limit`, `offset` | `[{record}, …]` (field projection)                                    |
 | `read`        | `[ids, fields?]`   | —                 | `[{record}, …]`; missing ids → `NOT_FOUND` with `details.missing_ids` |
-| `create`      | `[values]`         | —                 | `int` (new id)                   |
-| `write`       | `[ids, values]`    | —                 | `true`                           |
-| `unlink`      | `[ids]`            | —                 | `true`                           |
-| `create_many` | `[[values], …]`    | —                 | `[id, …]`                        |
-| `write_many`  | `[ids, values]`    | —                 | `true`                           |
-| `unlink_many` | `[ids]`            | —                 | `true`                           |
+| `create`      | `[values]`         | —                 | `int` (new id)                                                        |
+| `write`       | `[ids, values]`    | —                 | `true`                                                                |
+| `unlink`      | `[ids]`            | —                 | `true`                                                                |
+| `create_many` | `[[values], …]`    | —                 | `[id, …]`                                                             |
+| `write_many`  | `[ids, values]`    | —                 | `true`                                                                |
+| `unlink_many` | `[ids]`            | —                 | `true`                                                                |
 
 Default `kwargs.limit` is **500** (hard cap). `offset` is applied in SQL via ORM `SearchPage` (`LIMIT`/`OFFSET`), not an in-memory slice. Deep offsets are clamped (max 1_000_000).
 
@@ -211,20 +212,20 @@ Architecture boundaries (ORM vs ERP modules): see [docs/architecture/orm-boundar
 
 **Error codes** (representative HTTP status)
 
-| `error.code`             | HTTP | Typical cause                          |
-| ------------------------ | ---- | -------------------------------------- |
-| `INVALID_JSON`           | 400  | Malformed JSON, empty body             |
-| `INVALID_ARGS`           | 400  | Bad `args`/`kwargs` shape or arity     |
-| `VALIDATION_ERROR`       | 400  | Missing `model` or `method`            |
-| `INVALID_BODY`           | 400  | Request body could not be read         |
-| `UNSUPPORTED_MEDIA_TYPE` | 415  | `Content-Type` is not JSON             |
-| `PAYLOAD_TOO_LARGE`      | 413  | Body exceeds 4 MiB                     |
-| `UNAUTHORIZED`           | 401  | No session or API key                  |
+| `error.code`             | HTTP    | Typical cause                        |
+| ------------------------ | ------- | ------------------------------------ |
+| `INVALID_JSON`           | 400     | Malformed JSON, empty body           |
+| `INVALID_ARGS`           | 400     | Bad `args`/`kwargs` shape or arity   |
+| `VALIDATION_ERROR`       | 400     | Missing `model` or `method`          |
+| `INVALID_BODY`           | 400     | Request body could not be read       |
+| `UNSUPPORTED_MEDIA_TYPE` | 415     | `Content-Type` is not JSON           |
+| `PAYLOAD_TOO_LARGE`      | 413     | Body exceeds 4 MiB                   |
+| `UNAUTHORIZED`           | 401     | No session or API key                |
 | `METHOD_NOT_ALLOWED`     | 403/405 | Unknown RPC method / wrong HTTP verb |
-| `MODEL_NOT_FOUND`        | 404  | Model not in registry                  |
-| `NOT_FOUND`              | 404  | Record id(s) not found on `read`       |
-| `ACCESS_DENIED`          | 403  | ORM security rule                      |
-| `INTERNAL_ERROR`         | 500  | Unexpected server failure              |
+| `MODEL_NOT_FOUND`        | 404     | Model not in registry                |
+| `NOT_FOUND`              | 404     | Record id(s) not found on `read`     |
+| `ACCESS_DENIED`          | 403     | ORM security rule                    |
+| `INTERNAL_ERROR`         | 500     | Unexpected server failure            |
 
 ---
 
@@ -268,15 +269,15 @@ Without steps 1–2, installing via Apps alone loads XML/data but does not regis
 
 ## Makefile (this repo)
 
-| Target                   | Use case                                                                                 |
-| ------------------------ | ---------------------------------------------------------------------------------------- |
+| Target                   | Use case                                                                                |
+| ------------------------ | --------------------------------------------------------------------------------------- |
 | `make generate`          | `go generate ./cmd/sumeru`: refresh `cmd/sumeru/zimports.go` from `sumeru.conf.example` |
-| `make run`               | Generate, then `go run ./cmd/sumeru -- -c sumeru.conf` (optional `EXTRA_RUN_FLAGS`)      |
-| `make build`             | Generate, then `go build -o sumeru ./cmd/sumeru`                                         |
-| `make bp NAME=my_module` | Scaffold a core-tree addon (`WITH_MODELS=1` optional)                                    |
-| `make css`               | Reminder: plain CSS under `core/engine/assets/css/` (no Sass build)                      |
-| `make check-logs`        | Forbid stdlib `log` and operational `fmt.Printf` in server paths                         |
-| `make help`              | List targets                                                                             |
+| `make run`               | Generate, then `go run ./cmd/sumeru -- -c sumeru.conf` (optional `EXTRA_RUN_FLAGS`)     |
+| `make build`             | Generate, then `go build -o sumeru ./cmd/sumeru`                                        |
+| `make bp NAME=my_module` | Scaffold a core-tree addon (`WITH_MODELS=1` optional)                                   |
+| `make css`               | Reminder: plain CSS under `core/engine/assets/css/` (no Sass build)                     |
+| `make check-logs`        | Forbid stdlib `log` and operational `fmt.Printf` in server paths                        |
+| `make help`              | List targets                                                                            |
 
 In **`sumeru_custom_addons`**, use that repo’s Makefile (`make generate`, `make run`, `make replace-sumeru`, …) so imports are written under `addonimports/`, not into this tree.
 
@@ -341,11 +342,11 @@ Per-addon optional `static/css/theme-overrides.css` is served as `/static/addon-
 
 ## Documentation
 
-| Resource                                                                                                    | Contents                                                                                                                       |
-| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| This README                                                                                                 | Setup, config, CLI, Makefile, CSS                                                                                              |
-| [`sumeru_addons/README.md`](https://github.com/ProjectMeru/sumeru_addons/blob/main/README.md)               | Standard business addon module                                                                                                 |
-| [`sumeru_custom_addons/README.md`](https://github.com/ProjectMeru/sumeru_custom_addons/blob/main/README.md) | Workspace runner, `make generate`, custom addons                                                                               |
+| Resource                                                                                                    | Contents                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| This README                                                                                                 | Setup, config, CLI, Makefile, CSS                                                                                             |
+| [`sumeru_addons/README.md`](https://github.com/ProjectMeru/sumeru_addons/blob/main/README.md)               | Standard business addon module                                                                                                |
+| [`sumeru_custom_addons/README.md`](https://github.com/ProjectMeru/sumeru_custom_addons/blob/main/README.md) | Workspace runner, `make generate`, custom addons                                                                              |
 | Sibling `docs/` (local workspace)                                                                           | Developer guides and how-tos when checked out next to this repo (e.g. `../docs/developer/`). Not shipped inside this git tree |
 
 ---

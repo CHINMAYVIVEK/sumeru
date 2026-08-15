@@ -15,7 +15,7 @@ func ActionObjectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
+		redirectRecordError(w, r, homeRoute, "object_action", "", err)
 		return
 	}
 	if !validateSessionCSRF(w, r) {
@@ -27,10 +27,10 @@ func ActionObjectHandler(w http.ResponseWriter, r *http.Request) {
 	model := strings.TrimSpace(r.FormValue("model"))
 	method := strings.TrimSpace(r.FormValue("method"))
 	idStr := strings.TrimSpace(r.FormValue("id"))
-	next := strings.TrimSpace(r.FormValue("next"))
+	next := SafeWebNext(strings.TrimSpace(r.FormValue("next")), homeRoute)
 	id, _ := strconv.Atoi(idStr)
 	if model == "" || method == "" || id <= 0 {
-		http.Error(w, "model, id, and method are required", http.StatusBadRequest)
+		redirectRecordError(w, r, next, "object_action", model, errRequiredObjectActionFields())
 		return
 	}
 	vals := map[string]string{}
@@ -42,7 +42,7 @@ func ActionObjectHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	redirect, err := orm.RunObjectAction(ctx, model, id, method, vals)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		redirectRecordError(w, r, next, "object_action", model, err)
 		return
 	}
 	if redirect == "" {
@@ -53,3 +53,13 @@ func ActionObjectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, SafeWebNext(redirect, "/web/home"), http.StatusSeeOther)
 }
+
+func errRequiredObjectActionFields() error {
+	return errObjectActionRequired
+}
+
+var errObjectActionRequired = objectActionRequiredError("model, id, and method are required")
+
+type objectActionRequiredError string
+
+func (e objectActionRequiredError) Error() string { return string(e) }

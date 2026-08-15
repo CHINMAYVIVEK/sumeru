@@ -22,3 +22,24 @@ func TestFlashFromQueryLegacyImport(t *testing.T) {
 		t.Fatalf("flash = %+v ok=%v", flash, ok)
 	}
 }
+
+func TestFlashFromQuerySaveError(t *testing.T) {
+	flash, ok := web.FlashFromQueryMessage("save_error:invalid name")
+	if !ok || flash.Kind != "error" || flash.Title != "Save failed" {
+		t.Fatalf("flash = %+v ok=%v", flash, ok)
+	}
+}
+
+func TestFlashFromQuerySaveOKCreated(t *testing.T) {
+	flash, ok := web.FlashFromQueryMessage("save_ok_created")
+	if !ok || flash.Kind != "success" || flash.ToastOnly {
+		t.Fatalf("flash = %+v ok=%v", flash, ok)
+	}
+}
+
+func TestFlashFromQuerySaveOKUpdated(t *testing.T) {
+	flash, ok := web.FlashFromQueryMessage("save_ok_updated")
+	if !ok || flash.Kind != "success" || flash.ToastOnly {
+		t.Fatalf("flash = %+v ok=%v", flash, ok)
+	}
+}

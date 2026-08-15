@@ -11,7 +11,7 @@ func TestAllowMenuParseFallback(t *testing.T) {
 	if !module.AllowMenuParseFallback(nil) {
 		t.Fatal("nil error should allow menu fallback")
 	}
-	rootErr := fmt.Errorf("views/x.xml: module XML root must be <sumeru>, got <odoo>")
+	rootErr := fmt.Errorf("views/x.xml: module XML root must be <sumeru>, got <data>")
 	if module.AllowMenuParseFallback(rootErr) {
 		t.Fatal("invalid module root should not allow menu fallback")
 	}

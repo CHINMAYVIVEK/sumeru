@@ -2,6 +2,7 @@
  * Clickable form statusbar (e.g. CRM stage_id) — persists via POST /web/kanban/move.
  */
 import { moveKanbanRecord } from "../lib/kanban-move.js";
+import { showWorkspaceToast } from "../lib/toast.js";
 
 export function initStatusbar() {
   document.querySelectorAll("[data-sum-statusbar]").forEach((bar) => {
@@ -26,6 +27,7 @@ export function initStatusbar() {
             value: stageId,
             csrfEl: bar,
           });
+          showWorkspaceToast({ kind: "success", title: "Updated", body: "Stage updated." });
         } catch (_) {
           window.location.reload();
         }

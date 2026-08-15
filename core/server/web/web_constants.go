@@ -93,6 +93,11 @@ const (
 
 // Flash query parameter appended to redirects after form actions.
 const flashMessageParam = "msg"
+const fieldErrorsParam = "field_errors"
+
+const saveOKCreatedMsg = "save_ok_created"
+const saveOKUpdatedMsg = "save_ok_updated"
+const stageUpdatedMsg = "stage_updated"
 
 // Structured web log fields shared by WebLogEvent helpers.
 const (
