@@ -3,6 +3,7 @@
     <data>
         <!-- sys.view : core.user (form) -->
         <view id="view_core.user_form" model="core.user" type="form">
+            <report download="csv,pdf" upload="bulk"/>
             <header>
                 <button name="action_archive" string="Archive" type="object" class=""/>
                 <button name="action_reset_password" string="Send reset instructions" type="object" class="sum_highlight"/>

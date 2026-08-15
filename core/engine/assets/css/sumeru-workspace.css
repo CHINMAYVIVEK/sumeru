@@ -578,6 +578,11 @@
   background: var(--sum-surface-muted);
 }
 
+.sum-report-modal[hidden],
+.sum-report-menu[hidden] {
+  display: none !important;
+}
+
 .sum-report-modal {
   position: fixed;
   inset: 0;

@@ -3,7 +3,6 @@
     <data>
         <!-- sys.view : core.user (list) -->
         <view id="view_core.user_list" model="core.user" type="list">
-            <report download="csv,pdf" upload="bulk"/>
             <field name="name" string="Name"/>
             <field name="login" string="Login"/>
             <field name="email" string="Email"/>
