@@ -93,6 +93,11 @@ const (
 
 // Flash query parameter appended to redirects after form actions.
 const flashMessageParam = "msg"
+const fieldErrorsParam = "field_errors"
+
+const saveOKCreatedMsg = "save_ok_created"
+const saveOKUpdatedMsg = "save_ok_updated"
+const stageUpdatedMsg = "stage_updated"
 
 // Structured web log fields shared by WebLogEvent helpers.
 const (
@@ -237,9 +242,19 @@ const (
 // CSV import route, limits, and multipart form fields.
 const (
 	importCSVRoute     = "/web/import/csv"
+	exportCSVRoute     = "/web/export/csv"
+	exportPDFRoute     = "/web/export/pdf"
+	bulkTemplateRoute  = "/web/bulk/template"
+	bulkUploadRoute    = "/web/bulk/upload"
+	bulkConfirmRoute   = "/web/bulk/confirm"
+	bulkCancelRoute    = "/web/bulk/cancel"
 	maxImportBodyBytes = 8 << 20
 	importModelField   = "model"
 	importFileField    = "file"
+	reportFieldsParam  = "fields"
+	reportPageSizeParam = "page_size"
+	importModeField    = "import_mode"
+	actionIDField      = "action"
 )
 
 // Chatter POST route, form fields, and limits.

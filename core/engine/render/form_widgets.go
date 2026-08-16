@@ -44,7 +44,7 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 				renderImageField(sb, f, label, record, ro)
 				return
 			}
-			renderTextareaField(sb, f, label, record, ro)
+			renderTextareaField(sb, f, label, record, ro, fd.Required)
 			return
 		case orm.Boolean:
 			renderBooleanField(sb, f, label, record, ro)
@@ -54,6 +54,10 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 				renderModelSelectionSelect(sb, f, label, record, ro, fd.Selection)
 				return
 			}
+		case orm.Date, orm.DateTime:
+			inputType := resolveDateInputType(f, fd)
+			renderDateTimeField(sb, f, label, record, ro, inputType, fd.Required)
+			return
 		}
 	}
 
@@ -83,6 +87,14 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 		return
 	}
 
+	if f.Widget == "date" || f.Widget == "datetime" || f.Widget == "time" {
+		fd := fieldDef(resModel, f.Name)
+		inputType := resolveDateInputType(f, fd)
+		required := fd != nil && fd.Required
+		renderDateTimeField(sb, f, label, record, ro, inputType, required)
+		return
+	}
+
 	if f.Widget == "email" || f.Widget == "phone" || f.Widget == "tel" ||
 		strings.Contains(strings.ToLower(f.Name), "email") || strings.Contains(strings.ToLower(f.Name), "phone") {
 		inputType := "text"
@@ -92,16 +104,21 @@ func renderField(ctx context.Context, sb *strings.Builder, f parser.Field, recor
 		case f.Widget == "phone" || f.Widget == "tel" || strings.Contains(strings.ToLower(f.Name), "phone"):
 			inputType = "tel"
 		}
-		renderTypedInput(sb, f, label, record, ro, inputType)
+		renderTypedInput(sb, f, label, record, ro, inputType, fieldRequired(resModel, f.Name))
 		return
 	}
 
 	if f.Widget == "text" || strings.Contains(strings.ToLower(f.Name), "note") || strings.Contains(strings.ToLower(f.Name), "comment") {
-		renderTextareaField(sb, f, label, record, ro)
+		renderTextareaField(sb, f, label, record, ro, fieldRequired(resModel, f.Name))
 		return
 	}
 
-	renderTypedInput(sb, f, label, record, ro, "text")
+	renderTypedInput(sb, f, label, record, ro, "text", fieldRequired(resModel, f.Name))
+}
+
+func fieldRequired(modelName, fieldName string) bool {
+	fd := fieldDef(modelName, fieldName)
+	return fd != nil && fd.Required
 }
 
 func fieldDef(modelName, fieldName string) *orm.FieldDefinition {

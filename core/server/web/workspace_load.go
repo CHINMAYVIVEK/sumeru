@@ -173,6 +173,7 @@ func buildViewRecordData(ctx context.Context, w http.ResponseWriter, r *http.Req
 		ViewTabs:      render.WorkspaceViewTabs(ctx, resolved.targetModel, req.actionID, req.menuID, resolved.selectedMode, req.recordID),
 	}
 	appendPageFlashesToViewRecord(r, w, viewRecord)
+	appendQueryFlashesToViewRecord(r, viewRecord)
 
 	if recordID, ok := parsePositiveRecordID(req.recordID); ok {
 		viewRecord.RecordID = recordID
@@ -187,9 +188,10 @@ func buildViewRecordData(ctx context.Context, w http.ResponseWriter, r *http.Req
 func appendPageFlashesToViewRecord(r *http.Request, w http.ResponseWriter, viewRecord *render.ViewRecordData) {
 	for _, flash := range ConsumePageFlashes(r, w) {
 		viewRecord.FlashMessages = append(viewRecord.FlashMessages, render.FlashMessage{
-			Kind:  flash.Kind,
-			Title: flash.Title,
-			Body:  flash.Body,
+			Kind:    flash.Kind,
+			Title:   flash.Title,
+			Body:    flash.Body,
+			Details: flash.Details,
 		})
 	}
 }
@@ -202,7 +204,7 @@ func parsePositiveRecordID(recordIDRaw string) (int, bool) {
 func loadViewModeData(ctx context.Context, viewRecord *render.ViewRecordData, resolved *resolvedWorkspaceView, actionData map[string]interface{}, req workspaceRequest) error {
 	switch resolved.selectedMode {
 	case workspaceViewModeForm:
-		return loadWorkspaceFormData(ctx, viewRecord, resolved.targetModel, req.recordID)
+		return loadWorkspaceFormData(ctx, viewRecord, resolved.targetModel, req.recordID, actionData)
 	case workspaceViewModeList:
 		return loadWorkspaceListData(ctx, viewRecord, resolved.targetModel, actionData, maxWorkspaceListRows)
 	case workspaceViewModeKanban:
@@ -212,8 +214,11 @@ func loadViewModeData(ctx context.Context, viewRecord *render.ViewRecordData, re
 	}
 }
 
-func loadWorkspaceFormData(ctx context.Context, viewRecord *render.ViewRecordData, targetModel, recordIDRaw string) error {
+func loadWorkspaceFormData(ctx context.Context, viewRecord *render.ViewRecordData, targetModel, recordIDRaw string, actionData map[string]interface{}) error {
 	if recordIDRaw == "" {
+		if defaults := actionDefaultFieldValues(actionData); len(defaults) > 0 {
+			viewRecord.Record = defaults
+		}
 		return nil
 	}
 

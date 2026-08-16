@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -59,6 +60,10 @@ func installModuleUnlocked(ctx context.Context, moduleName string) error {
 				return fmt.Errorf("install dependency %q: %w", dependencyName, err)
 			}
 		}
+	}
+
+	if err := reloadInstalledDependencies(ctx, moduleName); err != nil {
+		return err
 	}
 
 	return reloadModuleData(ctx, moduleName, moduleReloadInstall)
@@ -321,4 +326,66 @@ func ListModules(ctx context.Context) ([]map[string]interface{}, error) {
 		moduleList = append(moduleList, moduleMap)
 	}
 	return moduleList, moduleRows.Err()
+}
+
+// reloadInstalledDependencies re-syncs XML for installed transitive dependencies before
+// installing or updating a module (e.g. ensure mail.activity views exist when CRM loads).
+func reloadInstalledDependencies(ctx context.Context, moduleName string) error {
+	for _, depName := range transitiveDependencies(moduleName) {
+		moduleRow, err := moduleRow(ctx, depName)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			}
+			return err
+		}
+		if moduleStateString(moduleRow) != "installed" {
+			continue
+		}
+		if err := reloadModuleData(ctx, depName, moduleReloadUpdate); err != nil {
+			return fmt.Errorf("update dependency %q: %w", depName, err)
+		}
+	}
+	return nil
+}
+
+// transitiveDependencies returns manifest depends (recursive) in topological order.
+func transitiveDependencies(moduleName string) []string {
+	needed := map[string]struct{}{}
+	var walk func(string)
+	walk = func(name string) {
+		addon, ok := DiscoveredAddons[name]
+		if !ok {
+			return
+		}
+		for _, depName := range addon.Manifest.Depends {
+			depName = strings.TrimSpace(depName)
+			if depName == "" || depName == name {
+				continue
+			}
+			if _, has := DiscoveredAddons[depName]; !has {
+				continue
+			}
+			walk(depName)
+			needed[depName] = struct{}{}
+		}
+	}
+	walk(moduleName)
+
+	topo, err := sortAddonsTopo(DiscoveredAddons)
+	if err != nil || len(topo) == 0 {
+		names := make([]string, 0, len(needed))
+		for n := range needed {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		return names
+	}
+	out := make([]string, 0, len(needed))
+	for _, addon := range topo {
+		if _, ok := needed[addon.Manifest.Name]; ok {
+			out = append(out, addon.Manifest.Name)
+		}
+	}
+	return out
 }

@@ -107,7 +107,7 @@
                     <summary class="sum-dropdown-trigger sum-dropdown-trigger--user">
                         {{if .ShellUserImage}}
                         <span class="sum-topbar-avatar sum-topbar-avatar--photo" aria-hidden="true">
-                            <img class="sum-topbar-avatar-img" src="{{.ShellUserImage}}" alt="" />
+                            <img class="sum-topbar-avatar-img" src="{{.ShellUserImage}}" alt=""{{.ShellUserImageCrop}} />
                         </span>
                         {{else}}
                         <span class="sum-topbar-avatar" aria-hidden="true">{{.ShellUserInitials}}</span>
@@ -245,9 +245,18 @@
                 <div class="sum-workspace-row{{if .ActivityEnabled}} sum-workspace-row--with-activity{{end}}">
                     <div class="sum-content">
                         {{range .FlashMessages}}
-                        <div class="sum-flash-prem sum-flash-prem--{{.Kind}}" role="status">
-                            {{if .Title}}<strong>{{.Title}}</strong>{{end}}
-                            {{if .Body}}<pre class="sum-flash-pre">{{.Body}}</pre>{{end}}
+                        <div class="sum-flash-prem sum-flash-prem--{{.Kind}}" role="{{if eq .Kind "error"}}alert{{else}}status{{end}}">
+                            {{if eq .Kind "error"}}
+                            <button type="button" class="sum-flash-dismiss" aria-label="Dismiss">×</button>
+                            {{end}}
+                            {{if .Title}}<strong class="sum-flash-title">{{.Title}}</strong>{{end}}
+                            {{if .Body}}<p class="sum-flash-body">{{.Body}}</p>{{end}}
+                            {{if .Details}}
+                            <details class="sum-flash-details">
+                                <summary>Show details</summary>
+                                <pre class="sum-flash-pre">{{.Details}}</pre>
+                            </details>
+                            {{end}}
                         </div>
                         {{end}}
                         {{.Content}}
@@ -333,8 +342,10 @@
             <p class="sum-app-launcher-hint"><kbd>Ctrl</kbd>+<kbd>K</kbd> anywhere · <kbd>Esc</kbd> close · ↑↓ navigate · Enter open</p>
         </div>
     </dialog>
+    <div id="sum-toast-stack" class="sum-toast-stack" aria-live="polite"></div>
     <script type="application/json" id="sum-app-launcher-data">{{.AppLauncherJSON}}</script>
     <script type="application/json" id="sum-pinned-apps-data">{{.PinnedAppsJSON}}</script>
+    {{if .ToastMessagesJSON}}<script type="application/json" id="sum-toast-data">{{.ToastMessagesJSON}}</script>{{end}}
     <script type="module" src="/static/js/core.js"></script>
 </body>
 

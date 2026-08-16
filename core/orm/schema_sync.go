@@ -12,7 +12,6 @@ import (
 // Additive DDL from model FieldDefinition definitions (PostgreSQL information_schema).
 //
 // Compares registered models to live columns and creates missing columns/indexes.
-// For one-off repairs and legacy upgrades, see schema_migrate.go.
 //
 // Called after SyncModels() on startup and on module install (-i) / update (-u).
 
@@ -44,7 +43,7 @@ func SyncRegistrySchema() error {
 			return fmt.Errorf("schema sync %s: %w", name, err)
 		}
 	}
-	return nil
+	return ensureExtraIndexes()
 }
 
 func syncModelSchema(ctx context.Context, model Model) error {
@@ -171,6 +170,39 @@ func ensureModelIndexes(modelName, tableName, quotedTable string, model Model) e
 		}
 	}
 	return nil
+}
+
+// ensureExtraIndexes creates composite indexes not expressible via single-field Index flags.
+func ensureExtraIndexes() error {
+	if DB == nil {
+		return nil
+	}
+	tablePhysical := MustModelToTableName("mail.message")
+	if tablePhysical == "" {
+		return nil
+	}
+	ok, err := tableExists(tablePhysical)
+	if err != nil || !ok {
+		return err
+	}
+	tableQuoted := MustQuotedTableName("mail.message")
+	modelCol, err := QuotedColumnForModel("mail.message", "model")
+	if err != nil {
+		return err
+	}
+	coreCol, err := QuotedColumnForModel("mail.message", "core_id")
+	if err != nil {
+		return err
+	}
+	dateCol, err := QuotedColumnForModel("mail.message", "create_date")
+	if err != nil {
+		return err
+	}
+	idxName := "idx_" + tablePhysical + "_model_core_created"
+	q := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s, %s, %s DESC)",
+		quoteIdent(idxName), tableQuoted, modelCol, coreCol, dateCol)
+	_, err = DB.Exec(q)
+	return err
 }
 
 func pgIdentOK(name string) bool {

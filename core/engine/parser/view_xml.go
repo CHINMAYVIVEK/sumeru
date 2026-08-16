@@ -32,6 +32,21 @@ type View struct {
 	GroupBy            string `xml:"group_by,attr"`
 	RecordsDraggable   string `xml:"records_draggable,attr"`
 	QuickCreate        string `xml:"quick_create,attr"`
+
+	// Report exchange (download CSV/PDF, bulk upload) — opt-in per view.
+	Report           *ReportElement `xml:"report"`
+	ReportDownload   string         `xml:"report_download,attr"`
+	BulkUpload       string         `xml:"bulk_upload,attr"`
+	ReportPDFSizes   string         `xml:"pdf_sizes,attr"`
+	ReportBulkModes  string         `xml:"bulk_modes,attr"`
+}
+
+// ReportElement declares report download and bulk upload on a view.
+type ReportElement struct {
+	Download  string `xml:"download,attr"`
+	Upload    string `xml:"upload,attr"`
+	PDFSizes  string `xml:"pdf_sizes,attr"`
+	Modes     string `xml:"modes,attr"`
 }
 
 // KanbanGroupField returns the column grouping field (default_group_by, then group_by).
@@ -63,6 +78,15 @@ func (v *View) KanbanDraggable() bool {
 type Header struct {
 	Button []Button `xml:"button"`
 	Field  []Field  `xml:"field"`
+	Widget []Widget `xml:"widget"`
+}
+
+// Widget is a header toolbar widget (e.g. report_download, bulk_upload).
+type Widget struct {
+	Type     string `xml:"type,attr"`
+	Formats  string `xml:"formats,attr"`
+	PDFSizes string `xml:"pdf_sizes,attr"`
+	Modes    string `xml:"modes,attr"`
 }
 
 type Sheet struct {

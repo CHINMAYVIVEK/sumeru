@@ -1,0 +1,121 @@
+package web
+
+import (
+	"net/http"
+	"strconv"
+	"strings"
+
+	"sumeru/core/orm"
+	"sumeru/core/report"
+)
+
+func resolveExportRequest(w http.ResponseWriter, r *http.Request) (report.ExportCSVInput, bool) {
+	modelName := strings.TrimSpace(r.URL.Query().Get(importModelField))
+	if modelName == "" {
+		http.Error(w, "model required", http.StatusBadRequest)
+		return report.ExportCSVInput{}, false
+	}
+	if _, ok := requireRegisteredModel(w, modelName); !ok {
+		return report.ExportCSVInput{}, false
+	}
+	if !requireModelAccess(w, r, modelName, "read") {
+		return report.ExportCSVInput{}, false
+	}
+	fields := report.ParseFieldsParam(r.URL.Query().Get(reportFieldsParam))
+	if len(fields) == 0 {
+		http.Error(w, "fields required", http.StatusBadRequest)
+		return report.ExportCSVInput{}, false
+	}
+	domain := exportDomain(r)
+	recordID, _ := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get(workspaceRecordIDParam)))
+	return report.ExportCSVInput{
+		Model:    modelName,
+		Fields:   fields,
+		Domain:   domain,
+		RecordID: recordID,
+	}, true
+}
+
+func exportDomain(r *http.Request) [][]interface{} {
+	actionID := report.ParseActionIDParam(r.URL.Query().Get(actionIDField))
+	if actionID <= 0 {
+		return nil
+	}
+	actionData, err := orm.SearchOne(r.Context(), "sys.action.window", map[string]interface{}{"id": actionID})
+	if err != nil {
+		return nil
+	}
+	return actionListDomain(r.Context(), actionData)
+}
+
+// ExportCSVHandler GET /web/export/csv
+func ExportCSVHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireLogin(w, r) {
+		return
+	}
+	in, ok := resolveExportRequest(w, r)
+	if !ok {
+		return
+	}
+	data, err := report.ExportCSV(r.Context(), in)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename="+report.ExportFilename(in.Model, "csv"))
+	_, _ = w.Write(data)
+}
+
+// ExportPDFHandler GET /web/export/pdf
+func ExportPDFHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireLogin(w, r) {
+		return
+	}
+	csvIn, ok := resolveExportRequest(w, r)
+	if !ok {
+		return
+	}
+	pageSize := strings.TrimSpace(r.URL.Query().Get(reportPageSizeParam))
+	if pageSize == "" {
+		pageSize = report.PageSizeA4
+	}
+	data, err := report.ExportPDF(r.Context(), report.ExportPDFInput{
+		Model:    csvIn.Model,
+		Fields:   csvIn.Fields,
+		Domain:   csvIn.Domain,
+		RecordID: csvIn.RecordID,
+		PageSize: pageSize,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "attachment; filename="+report.ExportFilename(csvIn.Model, "pdf"))
+	_, _ = w.Write(data)
+}
+
+// BulkTemplateHandler GET /web/bulk/template
+func BulkTemplateHandler(w http.ResponseWriter, r *http.Request) {
+	if !requireLogin(w, r) {
+		return
+	}
+	modelName := strings.TrimSpace(r.URL.Query().Get(importModelField))
+	if modelName == "" {
+		http.Error(w, "model required", http.StatusBadRequest)
+		return
+	}
+	if !requireModelAccess(w, r, modelName, "create") {
+		return
+	}
+	fields := report.ParseFieldsParam(r.URL.Query().Get(reportFieldsParam))
+	data, err := report.BulkTemplateCSV(modelName, fields)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename="+report.ExportFilename(modelName+"_template", "csv"))
+	_, _ = w.Write(data)
+}

@@ -13,7 +13,8 @@
 //   - Cfg() (INI is loaded by the process entrypoint via sumeru/core/server/config)
 //   - InitDB(InitDBInput), SyncModels(SyncModelsInput)
 //   - SearchOne, Search, Create, Upsert, ResolveXmlId (each with corresponding *Input struct)
-//   - AsString, CoerceInt64 (*Input structs)
+//   - ExportCSV, ExportPDF, BulkTemplateCSV, PreviewBulkImport, ExecuteBulkImport (see report.go)
+//   - RegisterReportCellFormatter for custom export cell text
 //
 // Module load / CLI and stylesheet registration live on sumeru/core/server (and module/render)
 // so this package stays importable from addon models without cycles into engine or addons.

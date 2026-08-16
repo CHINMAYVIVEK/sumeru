@@ -8,9 +8,10 @@ import (
 	"strings"
 
 	"sumeru/core/engine/parser"
+	"sumeru/core/report"
 )
 
-func renderWorkspaceFormToolbar(ctx context.Context, sb *strings.Builder, vr *ViewRecordData, header *parser.Header, record map[string]interface{}) {
+func renderWorkspaceFormToolbar(ctx context.Context, sb *strings.Builder, vr *ViewRecordData, view *parser.View, header *parser.Header, record map[string]interface{}) {
 	if vr == nil || strings.TrimSpace(vr.ResModel) == "" {
 		return
 	}
@@ -49,6 +50,15 @@ func renderWorkspaceFormToolbar(ctx context.Context, sb *strings.Builder, vr *Vi
 	}
 	if !hasID || vr.FormEditing {
 		writeSaveCancelButtons(sb, cancelURL)
+	}
+
+	if view != nil {
+		caps := report.CapabilitiesFromView(view)
+		recordID := 0
+		if hasID {
+			recordID = vr.RecordID
+		}
+		sb.WriteString(RenderReportToolbar(caps, view.Model, vr.ActionID, menuIDFromFormBaseQuery(vr.FormBaseQuery), recordID, viewFieldsForReport(view), vr.CSRFToken))
 	}
 
 	if header != nil {

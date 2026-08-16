@@ -57,6 +57,24 @@ func buildSearchWhereClause(modelName string, domain [][]interface{}) (string, [
 		if err != nil {
 			return "", nil, err
 		}
+		if dateLike, isBool := dateLikeNullCheck(modelName, field, d[2]); isBool {
+			switch op {
+			case "!=":
+				if dateLike {
+					parts = append(parts, fmt.Sprintf("%s IS NOT NULL", col))
+				} else {
+					parts = append(parts, fmt.Sprintf("%s IS NULL", col))
+				}
+				continue
+			case "=":
+				if dateLike {
+					parts = append(parts, fmt.Sprintf("%s IS NULL", col))
+				} else {
+					parts = append(parts, fmt.Sprintf("%s IS NOT NULL", col))
+				}
+				continue
+			}
+		}
 		switch op {
 		case "=":
 			parts = append(parts, fmt.Sprintf("%s = $%d", col, n))
@@ -87,6 +105,28 @@ func buildSearchWhereClause(modelName string, domain [][]interface{}) (string, [
 		}
 	}
 	return strings.Join(parts, " AND "), args, nil
+}
+
+// dateLikeNullCheck detects date unset/set domains: ("field", "!=", false) means IS NOT NULL.
+func dateLikeNullCheck(modelName, fieldName string, value interface{}) (isSetCheck bool, ok bool) {
+	b, ok := value.(bool)
+	if !ok {
+		return false, false
+	}
+	inst, has := Registry[modelName]
+	if !has || inst == nil {
+		return false, false
+	}
+	for _, f := range inst.Fields() {
+		if f.Name != fieldName {
+			continue
+		}
+		if f.Type != Date && f.Type != DateTime {
+			return false, false
+		}
+		return !b, true
+	}
+	return false, false
 }
 
 // buildAndWhereClauses ANDs independent domain parts, each compiled separately

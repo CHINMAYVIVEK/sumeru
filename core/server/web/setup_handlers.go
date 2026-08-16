@@ -112,9 +112,6 @@ func runFirstTimeSetup(ctx context.Context, adminParams orm.SetupAdminParams) er
 		logSetupFailure(ctx, "Security bootstrap failed", err)
 		return fmt.Errorf("security bootstrap failed: %w", err)
 	}
-	if err := orm.RunMenuDataFixes(); err != nil {
-		applog.WarnMsg(ctx, "web", setupOperation, "Menu data fixes reported issues", err, nil)
-	}
 	return nil
 }
 

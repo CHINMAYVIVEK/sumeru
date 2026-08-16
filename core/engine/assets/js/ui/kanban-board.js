@@ -2,6 +2,7 @@
  * Grouped kanban: drag cards between columns and persist via POST /web/kanban/move.
  */
 import { moveKanbanRecord } from "../lib/kanban-move.js";
+import { showWorkspaceToast } from "../lib/toast.js";
 
 export function initKanbanBoard() {
   const board = document.querySelector(".sum-kanban-board--grouped[data-draggable='1']");
@@ -85,6 +86,7 @@ export function initKanbanBoard() {
           value: groupValue,
           csrfEl: board,
         });
+        showWorkspaceToast({ kind: "success", title: "Moved", body: "Record moved." });
       } catch (_) {
         if (prevColumn) {
           const prevZone = prevColumn.querySelector(".sum-kanban-cards");

@@ -20,7 +20,7 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 
 	form := parseRecordSaveForm(r)
 	if form.ModelName == "" {
-		http.Error(w, "Missing model", http.StatusBadRequest)
+		redirectRecordError(w, r, form.Next, "record_save", "", fmt.Errorf("missing model"))
 		return
 	}
 
@@ -31,7 +31,8 @@ func RecordSaveHandler(w http.ResponseWriter, r *http.Request) {
 
 	fieldValues, err := postFormToModelValues(modelInst, r.PostForm)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		next := ensureFormEditRedirectURL(form.Next, isNewRecord(form.RecordIDRaw))
+		redirectRecordError(w, r, next, "record_save", form.ModelName, err)
 		return
 	}
 
@@ -62,35 +63,38 @@ func isNewRecord(recordIDRaw string) bool {
 
 func handleRecordCreate(w http.ResponseWriter, r *http.Request, form recordSaveForm, modelInst orm.Model, fieldValues map[string]interface{}) {
 	ctx := r.Context()
+	applyActionDefaultsOnCreate(ctx, form.Next, fieldValues)
+	applyCreateOwnershipDefaults(ctx, modelInst, fieldValues)
 	newRecordID, err := orm.Create(ctx, modelInst, fieldValues)
 	if err != nil {
-		WebLogf(ctx, recordSaveRoute, "create %s: %v", form.ModelName, err)
-		http.Error(w, "Save failed", http.StatusInternalServerError)
+		next := ensureFormEditRedirectURL(form.Next, true)
+		redirectRecordError(w, r, next, "record_save", form.ModelName, err)
 		return
 	}
 
 	applyUserSecurityPostIfNeeded(ctx, form.ModelName, newRecordID, r.PostForm)
 	notifyRecordSaved(ctx, form.ModelName, newRecordID, fmt.Sprintf("Record created (id %d).", newRecordID))
-	http.Redirect(w, r, workspaceFormURL(form.Next, newRecordID), http.StatusSeeOther)
+	redirectRecordSuccess(w, r, workspaceFormURL(form.Next, newRecordID), saveOKCreatedMsg)
 }
 
 func handleRecordUpdate(w http.ResponseWriter, r *http.Request, form recordSaveForm, modelInst orm.Model, fieldValues map[string]interface{}) {
 	recordID, err := strconv.Atoi(form.RecordIDRaw)
 	if err != nil || recordID <= 0 {
-		http.Error(w, "Invalid id", http.StatusBadRequest)
+		next := ensureFormEditRedirectURL(form.Next, false)
+		redirectRecordError(w, r, next, "record_save", form.ModelName, fmt.Errorf("invalid id"))
 		return
 	}
 
 	ctx := r.Context()
 	if err := orm.UpdateRecordByID(ctx, form.ModelName, recordID, fieldValues); err != nil {
-		WebLogf(ctx, recordSaveRoute, "update %s id=%d: %v", form.ModelName, recordID, err)
-		http.Error(w, "Save failed", http.StatusInternalServerError)
+		next := ensureFormEditRedirectURL(form.Next, false)
+		redirectRecordError(w, r, next, "record_save", form.ModelName, err)
 		return
 	}
 
 	applyUserSecurityPostIfNeeded(ctx, form.ModelName, recordID, r.PostForm)
 	notifyRecordSaved(ctx, form.ModelName, recordID, fmt.Sprintf("Record updated (id %d).", recordID))
-	http.Redirect(w, r, form.Next, http.StatusSeeOther)
+	redirectRecordSuccess(w, r, form.Next, saveOKUpdatedMsg)
 }
 
 func applyUserSecurityPostIfNeeded(ctx context.Context, modelName string, recordID int, form url.Values) {
@@ -102,6 +106,41 @@ func applyUserSecurityPostIfNeeded(ctx context.Context, modelName string, record
 
 func notifyRecordSaved(ctx context.Context, modelName string, recordID int, message string) {
 	_ = mail.PostMessage(ctx, modelName, int64(recordID), message, mail.SubtypeNotification, recordSaveSystemAuthor)
+}
+
+func applyActionDefaultsOnCreate(ctx context.Context, nextURL string, fieldValues map[string]interface{}) {
+	if len(fieldValues) == 0 {
+		return
+	}
+	actionID := actionIDFromNextURL(nextURL)
+	if actionID <= 0 {
+		return
+	}
+	actionData, err := loadWindowAction(ctx, actionID)
+	if err != nil {
+		return
+	}
+	for key, val := range actionDefaultFieldValues(actionData) {
+		if _, ok := fieldValues[key]; !ok {
+			fieldValues[key] = val
+		}
+	}
+}
+
+func actionIDFromNextURL(nextURL string) int {
+	parsed, err := url.Parse(nextURL)
+	if err != nil {
+		return 0
+	}
+	raw := strings.TrimSpace(parsed.Query().Get(workspaceActionParam))
+	if raw == "" {
+		return 0
+	}
+	actionID, err := strconv.Atoi(raw)
+	if err != nil || actionID <= 0 {
+		return 0
+	}
+	return actionID
 }
 
 func workspaceFormURL(next string, recordID int) string {
@@ -193,6 +232,11 @@ func coerceSaveFieldValue(fieldName string, fieldType orm.FieldType, rawValue st
 		return number, false, nil
 	case orm.Many2Many:
 		return nil, true, nil
+	case orm.Date, orm.DateTime:
+		if rawValue == "" {
+			return nil, false, nil
+		}
+		return rawValue, false, nil
 	default:
 		return rawValue, false, nil
 	}

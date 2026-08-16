@@ -75,4 +75,14 @@ func TestCoerceSaveFieldValue(t *testing.T) {
 	if err != nil || !skip {
 		t.Fatalf("empty many2one should skip: skip=%v err=%v", skip, err)
 	}
+
+	value, skip, err = web.CoerceSaveFieldValue("date_deadline", orm.Date, "")
+	if err != nil || skip || value != nil {
+		t.Fatalf("empty date should coerce to nil: value=%#v skip=%v err=%v", value, skip, err)
+	}
+
+	value, skip, err = web.CoerceSaveFieldValue("date_last_stage_update", orm.DateTime, "2026-08-15T14:30")
+	if err != nil || skip || value != "2026-08-15T14:30" {
+		t.Fatalf("datetime value=%#v skip=%v err=%v", value, skip, err)
+	}
 }

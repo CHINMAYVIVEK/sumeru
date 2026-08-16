@@ -9,9 +9,10 @@ import (
 
 	"sumeru/core/engine/parser"
 	"sumeru/core/orm"
+	"sumeru/core/report"
 )
 
-func RenderList(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string) string {
+func RenderList(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string, csrfToken string) string {
 	if rows == nil {
 		rows = []map[string]interface{}{}
 	}
@@ -24,6 +25,8 @@ func RenderList(ctx context.Context, view *parser.View, rows []map[string]interf
 	sb.WriteString(`<div class="sum-list-control">`)
 	sb.WriteString(`<div class="sum-list-control-left">`)
 	sb.WriteString(`<a href="` + template.HTMLEscapeString(newHref) + `" class="sum-list-btn-new">New</a>`)
+	caps := report.CapabilitiesFromView(view)
+	sb.WriteString(RenderReportToolbar(caps, view.Model, actionID, menuID, 0, view.Field, csrfToken))
 	sb.WriteString(`<h1 class="sum-list-title">` + template.HTMLEscapeString(listTitle) + `</h1>`)
 	sb.WriteString(`<button type="button" class="sum-list-icon-btn" disabled aria-hidden="true" title="Configuration">`)
 	sb.WriteString(`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`)

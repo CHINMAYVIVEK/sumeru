@@ -61,7 +61,7 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 		d.UserProfileHref = "/web/settings"
 	}
 	if strings.TrimSpace(d.UserDocsHref) == "" {
-		d.UserDocsHref = AppDocumentationURL
+		d.UserDocsHref = AppDocumentationURL + "using/index.html"
 	}
 	d.ShellCompany = strings.TrimSpace(shell.Company)
 	d.ShellUser = strings.TrimSpace(shell.User)
@@ -88,6 +88,10 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 			}
 			if img := strings.TrimSpace(orm.AsString(u["image"])); imageSrcOK(img) {
 				d.ShellUserImage = template.URL(img)
+				cropRaw := strings.TrimSpace(orm.AsString(u["image_crop"]))
+				if crop, ok := ParseImageCrop(cropRaw); ok {
+					d.ShellUserImageCrop = AvatarCropStyle(crop, true)
+				}
 			}
 			if id, ok := orm.CoerceInt64(u["company_id"]); ok && id > 0 {
 				activeCID = int(id)

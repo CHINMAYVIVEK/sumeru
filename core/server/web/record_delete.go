@@ -14,13 +14,14 @@ func RecordDeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request, ok := parseRecordDeleteRequest(w, r)
-	if !ok {
+	request, err := parseRecordDeleteRequest(r)
+	if err != nil {
+		redirectRecordError(w, r, homeRoute, "record_delete", "", err)
 		return
 	}
 
 	if err := orm.Unlink(r.Context(), request.ModelName, request.RecordID); err != nil {
-		http.Error(w, fmt.Sprintf("Delete failed: %v", err), http.StatusInternalServerError)
+		redirectRecordError(w, r, workspaceListURL(request.ActionID, request.MenuID), "record_delete", request.ModelName, err)
 		return
 	}
 
@@ -34,18 +35,16 @@ type recordDeleteRequest struct {
 	MenuID    string
 }
 
-func parseRecordDeleteRequest(w http.ResponseWriter, r *http.Request) (recordDeleteRequest, bool) {
+func parseRecordDeleteRequest(r *http.Request) (recordDeleteRequest, error) {
 	modelName := formOrQueryValue(r, recordModelField)
 	recordIDRaw := formOrQueryValue(r, workspaceRecordIDParam)
 	if modelName == "" || recordIDRaw == "" {
-		http.Error(w, "Missing model or id", http.StatusBadRequest)
-		return recordDeleteRequest{}, false
+		return recordDeleteRequest{}, fmt.Errorf("missing model or id")
 	}
 
 	recordID, err := strconv.Atoi(recordIDRaw)
 	if err != nil || recordID <= 0 {
-		http.Error(w, "Invalid id", http.StatusBadRequest)
-		return recordDeleteRequest{}, false
+		return recordDeleteRequest{}, fmt.Errorf("invalid id")
 	}
 
 	return recordDeleteRequest{
@@ -53,5 +52,5 @@ func parseRecordDeleteRequest(w http.ResponseWriter, r *http.Request) (recordDel
 		RecordID:  recordID,
 		ActionID:  r.URL.Query().Get(workspaceActionParam),
 		MenuID:    r.URL.Query().Get(workspaceMenuIDParam),
-	}, true
+	}, nil
 }

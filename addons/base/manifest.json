@@ -22,6 +22,7 @@
     "views/apikey_views.xml",
     "views/platform_views.xml",
     "views/i18n_views.xml",
-    "views/geo_views.xml"
+    "views/geo_views.xml",
+    "views/sys_bulk_import_views.xml"
   ]
 }

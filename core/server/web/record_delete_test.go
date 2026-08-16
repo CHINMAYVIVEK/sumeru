@@ -1,11 +1,11 @@
 package web_test
 
 import (
-	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sumeru/core/server/web"
 	"testing"
+
+	"sumeru/core/server/web"
 )
 
 func TestParseRecordDeleteRequest(t *testing.T) {
@@ -15,10 +15,9 @@ func TestParseRecordDeleteRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	recorder := httptest.NewRecorder()
-	request, ok := web.ParseRecordDeleteRequest(recorder, req)
-	if !ok {
-		t.Fatalf("unexpected failure status=%d", recorder.Code)
+	request, err := web.ParseRecordDeleteRequest(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if request.ModelName != "sale.order" || request.RecordID != 99 || request.ActionID != "10" || request.MenuID != "3" {
 		t.Fatalf("unexpected request: %+v", request)
@@ -31,10 +30,9 @@ func TestParseRecordDeleteRequestMissingFields(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	recorder := httptest.NewRecorder()
-	_, ok := web.ParseRecordDeleteRequest(recorder, req)
-	if ok || recorder.Code != http.StatusBadRequest {
-		t.Fatalf("expected bad request, got ok=%v status=%d", ok, recorder.Code)
+	_, err := web.ParseRecordDeleteRequest(req)
+	if err == nil {
+		t.Fatal("expected error for missing id")
 	}
 }
 
@@ -44,10 +42,9 @@ func TestParseRecordDeleteRequestQueryFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	recorder := httptest.NewRecorder()
-	request, ok := web.ParseRecordDeleteRequest(recorder, req)
-	if !ok {
-		t.Fatal("expected success from query params")
+	request, err := web.ParseRecordDeleteRequest(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if request.ModelName != "core.company" || request.RecordID != 7 {
 		t.Fatalf("unexpected request: %+v", request)

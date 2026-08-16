@@ -19,19 +19,29 @@ type archFormRoot struct {
 }
 
 type archListRoot struct {
-	XMLName xml.Name `xml:"list"`
-	String  string   `xml:"string,attr"`
-	Open    string   `xml:"open,attr"`
-	Field   []Field  `xml:"field"`
+	XMLName         xml.Name       `xml:"list"`
+	String          string         `xml:"string,attr"`
+	Open            string         `xml:"open,attr"`
+	Report          *ReportElement `xml:"report"`
+	ReportDownload  string         `xml:"report_download,attr"`
+	BulkUpload      string         `xml:"bulk_upload,attr"`
+	ReportPDFSizes  string         `xml:"pdf_sizes,attr"`
+	ReportBulkModes string         `xml:"bulk_modes,attr"`
+	Field           []Field        `xml:"field"`
 }
 
 type archKanbanRoot struct {
-	XMLName          xml.Name `xml:"kanban"`
-	DefaultGroupBy   string   `xml:"default_group_by,attr"`
-	GroupBy          string   `xml:"group_by,attr"`
-	RecordsDraggable string   `xml:"records_draggable,attr"`
-	QuickCreate      string   `xml:"quick_create,attr"`
-	Field            []Field  `xml:"field"`
+	XMLName          xml.Name       `xml:"kanban"`
+	DefaultGroupBy   string         `xml:"default_group_by,attr"`
+	GroupBy          string         `xml:"group_by,attr"`
+	RecordsDraggable string         `xml:"records_draggable,attr"`
+	QuickCreate      string         `xml:"quick_create,attr"`
+	Report           *ReportElement `xml:"report"`
+	ReportDownload   string         `xml:"report_download,attr"`
+	BulkUpload       string         `xml:"bulk_upload,attr"`
+	ReportPDFSizes   string         `xml:"pdf_sizes,attr"`
+	ReportBulkModes  string         `xml:"bulk_modes,attr"`
+	Field            []Field        `xml:"field"`
 }
 
 func applyKanbanRootAttrs(v *View, k archKanbanRoot) {
@@ -102,16 +112,29 @@ func parseViewFromArchInternal(arch string) (*View, error) {
 	var l archListRoot
 	if err := xml.Unmarshal([]byte(arch), &l); err == nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(arch)), "<list") {
 		return &View{
-			Type:          "list",
-			Field:         l.Field,
-			ListOpenAttr:  l.Open,
-			ListNoRowOpen: listOpenAttrDisablesRowNavigation(l.Open),
+			Type:            "list",
+			Field:           l.Field,
+			ListOpenAttr:    l.Open,
+			ListNoRowOpen:   listOpenAttrDisablesRowNavigation(l.Open),
+			Report:          l.Report,
+			ReportDownload:  l.ReportDownload,
+			BulkUpload:      l.BulkUpload,
+			ReportPDFSizes:  l.ReportPDFSizes,
+			ReportBulkModes: l.ReportBulkModes,
 		}, nil
 	}
 
 	var k archKanbanRoot
 	if err := xml.Unmarshal([]byte(arch), &k); err == nil && strings.HasPrefix(strings.ToLower(strings.TrimSpace(arch)), "<kanban") {
-		v := &View{Type: "kanban", Field: k.Field}
+		v := &View{
+			Type:            "kanban",
+			Field:           k.Field,
+			Report:          k.Report,
+			ReportDownload:  k.ReportDownload,
+			BulkUpload:      k.BulkUpload,
+			ReportPDFSizes:  k.ReportPDFSizes,
+			ReportBulkModes: k.ReportBulkModes,
+		}
 		applyKanbanRootAttrs(v, k)
 		return v, nil
 	}

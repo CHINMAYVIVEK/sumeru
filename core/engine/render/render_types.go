@@ -68,6 +68,7 @@ type PageData struct {
 	ShellCompany      string
 	ShellUser         string
 	ShellUserImage    template.URL    // profile photo for top bar (template.URL so data: URLs are not scrubbed); empty → initials
+	ShellUserImageCrop template.HTMLAttr // inline crop style for shell avatar when image_crop is set
 	UserInitial       string          // legacy single-letter hint; prefer ShellUserInitials in shell chrome
 	ShellUserInitials string          // two-letter avatar label in top bar when no photo
 	ShellExtraHTML    template.HTML   // AI Assistant or other shell widgets
@@ -97,6 +98,10 @@ type PageData struct {
 
 	// FlashMessages are one-time banners (e.g. newly created API key).
 	FlashMessages []FlashMessage
+	// ToastMessages are success/info notifications shown in the top-right stack.
+	ToastMessages []FlashMessage
+	// ToastMessagesJSON bootstraps client toasts on first paint.
+	ToastMessagesJSON template.JS
 
 	// Right activity panel: Log tab (audit); Messages tab HTML set in RenderView when chatter applies.
 	ActivityEnabled         bool
@@ -114,9 +119,11 @@ type ActivityItem struct {
 
 // FlashMessage is a one-time banner in the shell layout.
 type FlashMessage struct {
-	Kind  string
-	Title string
-	Body  string
+	Kind      string
+	Title     string
+	Body      string
+	Details   string
+	ToastOnly bool
 }
 
 // SidebarMenu is a sidebar group with child menu links.

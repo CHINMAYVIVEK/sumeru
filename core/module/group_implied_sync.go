@@ -12,7 +12,7 @@ import (
 // impliedGroupLinkRefRE matches (4, ref('module.xml_id')) link tuples in core.group implied_ids eval strings.
 var impliedGroupLinkRefRE = regexp.MustCompile(`\(\s*4\s*,\s*ref\s*\(\s*['"]([^'"]+)['"]\s*\)\s*\)`)
 
-// ExtractImpliedGroupXMLRefs returns XML id refs from a core.group implied_ids eval (Odoo-style link tuples).
+// ExtractImpliedGroupXMLRefs returns XML id refs from a core.group implied_ids eval.
 func ExtractImpliedGroupXMLRefs(evalStr string) []string {
 	evalStr = strings.TrimSpace(evalStr)
 	if evalStr == "" {
