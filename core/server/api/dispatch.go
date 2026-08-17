@@ -21,6 +21,8 @@ var PublicMethods = map[string]bool{
 	"create_many":  true,
 	"write_many":   true,
 	"unlink_many":  true,
+	"read_group":   true,
+	"call":         true,
 }
 
 // rpcRequest is the JSON body for POST /api/rpc.
@@ -87,6 +89,10 @@ func dispatchRPC(ctx context.Context, body []byte) (interface{}, error) {
 		return rpcWriteMany(ctx, model, in.Args)
 	case "unlink_many":
 		return rpcUnlinkMany(ctx, model, in.Args)
+	case "read_group":
+		return rpcReadGroup(ctx, model, in.Args, in.Kwargs)
+	case "call":
+		return rpcCall(ctx, model, in.Args)
 	default:
 		return nil, newRPCError(CodeMethodNotAllowed, fmt.Sprintf("unsupported method %q", method), map[string]interface{}{"method": method})
 	}
