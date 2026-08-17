@@ -204,6 +204,7 @@ const (
 	workspaceViewModeList   = "list"
 	workspaceViewModeForm   = "form"
 	workspaceViewModeKanban = "kanban"
+	workspaceViewModePivot  = "pivot"
 	maxWorkspaceListRows    = 500
 	maxWorkspaceKanbanRows  = 200
 )

@@ -1,4 +1,4 @@
-.PHONY: help build css run generate bp check-sql check-logs
+.PHONY: help build css run generate bp check-sql check-logs db-check i18n-export
 
 # Extra flags for `make run`, e.g. `make run EXTRA_RUN_FLAGS='-p 9090 -d sumeru_staging'`
 EXTRA_RUN_FLAGS ?=
@@ -30,6 +30,12 @@ bp:
 css:
 	@echo "No CSS build step — edit core/engine/assets/css/*.css"
 
+db-check:
+	go run ./cmd/sumeru-db-check -- -c sumeru.conf
+
+i18n-export:
+	go run ./cmd/sumeru-i18n-export -- -c sumeru.conf -o translations.csv
+
 help:
 	@echo "Sumeru Makefile targets:"
 	@echo "  make generate - go generate ./cmd/sumeru (refresh cmd/sumeru/zimports.go from sumeru.conf.example; copy to sumeru.conf for make run)"
@@ -39,5 +45,7 @@ help:
 	@echo "  make css     - reminder: styles are plain CSS (no compile step)"
 	@echo "  make check-sql - static SQL injection pattern guard"
 	@echo "  make check-logs - forbid stdlib log and operational fmt.Printf in server paths"
+	@echo "  make db-check  - validate sumeru.conf and PostgreSQL connectivity"
+	@echo "  make i18n-export - export sys.translation rows to translations.csv"
 	@echo "  make help    - this message"
 	@echo "See README.md for CLI flags (-d, -i, -u, -p/--http-port, --stop-after-init) and sumeru.sh."

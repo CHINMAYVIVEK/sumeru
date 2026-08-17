@@ -26,7 +26,7 @@ func RenderView(ctx context.Context, view *parser.View, activeMenuID, templatesD
 	case "kanban":
 		content = RenderKanban(ctx, view, recData, recData.ActionID, activeMenuID)
 	case "pivot":
-		content = RenderPivot(ctx, view)
+		content = RenderPivot(ctx, view, recData.Pivot)
 	default:
 		content = RenderForm(ctx, view, recData)
 	}

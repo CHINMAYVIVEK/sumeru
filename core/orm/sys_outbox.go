@@ -25,7 +25,6 @@ func (SysOutboxEvent) Fields() []FieldDefinition {
 		{Name: "payload_json", Type: Text},
 		{Name: "actor", Type: Integer},
 		{Name: "created_at", Type: DateTime, Required: true},
-		// TODO: outbox drain worker + partial index WHERE published_at IS NULL
 		{Name: "published_at", Type: DateTime, Index: true},
 	}
 }

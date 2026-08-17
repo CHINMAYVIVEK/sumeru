@@ -16,6 +16,7 @@ const (
 	keyDbName             = "db_name"
 	keyDbSSLMode          = "db_sslmode"
 	keyHTTPPort           = "http_port"
+	keyHTTPInterface      = "http_interface"
 	keyAddonsPath         = "addons_path"
 	keySumeruHome         = "sumeru_home"
 	keyAssetsPath         = "assets_path"

@@ -46,12 +46,9 @@ func UpdateModuleData(ctx context.Context, name string) error {
 func RunModuleCLI(installCSV, updateCSV string) error {
 	ctx := orm.ContextWithBypass(context.Background(), true)
 
-	installNames := splitCSV(installCSV)
-	// "-i all" is explicitly blocked. Module installs require exact names.
-	for _, name := range installNames {
-		if strings.EqualFold(name, "all") {
-			return fmt.Errorf("-i all is not supported; specify module names explicitly (e.g. -i sales,crm)")
-		}
+	installNames, err := expandInstallModuleNames(ctx, splitCSV(installCSV))
+	if err != nil {
+		return err
 	}
 
 	for _, name := range installNames {
@@ -197,6 +194,67 @@ func orderModulesForUpdate(names []string) []string {
 	}
 	sort.Strings(rest)
 	return append(ordered, rest...)
+}
+
+// expandInstallModuleNames resolves -i all into uninstalled module names in dependency order.
+func expandInstallModuleNames(ctx context.Context, parts []string) ([]string, error) {
+	if len(parts) == 0 {
+		return nil, nil
+	}
+	var installedSet map[string]struct{}
+	loadInstalled := func() error {
+		if installedSet != nil {
+			return nil
+		}
+		installed, err := listInstalledModuleNames(ctx)
+		if err != nil {
+			return err
+		}
+		installedSet = make(map[string]struct{}, len(installed))
+		for _, n := range installed {
+			installedSet[n] = struct{}{}
+		}
+		return nil
+	}
+
+	seen := make(map[string]struct{})
+	var raw []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		if strings.EqualFold(p, "all") {
+			if err := loadInstalled(); err != nil {
+				return nil, err
+			}
+			topo, err := sortAddonsTopo(DiscoveredAddons)
+			if err != nil {
+				return nil, err
+			}
+			for _, a := range topo {
+				n := a.Manifest.Name
+				if _, ok := installedSet[n]; ok {
+					continue
+				}
+				if _, ok := seen[n]; ok {
+					continue
+				}
+				seen[n] = struct{}{}
+				raw = append(raw, n)
+			}
+			continue
+		}
+		if _, ok := DiscoveredAddons[p]; !ok {
+			return nil, fmt.Errorf("unknown module %q", p)
+		}
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		raw = append(raw, p)
+	}
+	return orderModulesForUpdate(raw), nil
 }
 
 func splitCSV(s string) []string {

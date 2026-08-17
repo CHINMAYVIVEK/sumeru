@@ -123,6 +123,7 @@ func loadModuleXMLData(ctx context.Context, moduleName string, mode moduleReload
 			return err
 		}
 	}
+	ctx = ContextWithSyncMode(ctx, mode)
 	return recordSyncToDBResult(ctx, moduleName, addon.SyncToDB(ctx))
 }
 

@@ -209,6 +209,8 @@ func loadViewModeData(ctx context.Context, viewRecord *render.ViewRecordData, re
 		return loadWorkspaceListData(ctx, viewRecord, resolved.targetModel, actionData, maxWorkspaceListRows)
 	case workspaceViewModeKanban:
 		return loadWorkspaceKanbanData(ctx, viewRecord, resolved, actionData)
+	case workspaceViewModePivot:
+		return loadWorkspacePivotData(ctx, viewRecord, resolved, actionData)
 	default:
 		return nil
 	}
@@ -274,6 +276,15 @@ func loadWorkspaceKanbanData(ctx context.Context, viewRecord *render.ViewRecordD
 		viewRecord.KanbanGroupField = groupField
 		viewRecord.KanbanDraggable = draggable
 	}
+	return nil
+}
+
+func loadWorkspacePivotData(ctx context.Context, viewRecord *render.ViewRecordData, resolved *resolvedWorkspaceView, actionData map[string]interface{}) error {
+	rows, err := searchWorkspaceRows(ctx, resolved.targetModel, actionData, maxWorkspaceListRows)
+	if err != nil {
+		return fmt.Errorf("pivot load: %w", err)
+	}
+	viewRecord.Pivot = render.BuildPivotData(resolved.view, rows)
 	return nil
 }
 

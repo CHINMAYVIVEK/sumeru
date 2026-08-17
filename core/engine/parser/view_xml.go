@@ -138,6 +138,7 @@ type Field struct {
 	Placeholder string `xml:"placeholder,attr"`
 	Options     string `xml:"options,attr"`
 	Groups      string `xml:"groups,attr"`
+	PivotType   string `xml:"type,attr"` // row | col | measure (pivot views only)
 }
 
 type Group struct {

@@ -109,4 +109,16 @@ func executeCron(ctx context.Context, id int64, name, eventName, code string) {
 	if eventName = strings.TrimSpace(eventName); eventName != "" {
 		_ = event.Publish(ctx, event.Event{Name: eventName, Payload: payload})
 	}
+	if fn := lookupCronHandler(code); fn != nil {
+		if err := fn(ctx, payload); err != nil {
+			applog.Warn(ctx, applog.Event{
+				Message:   "cron handler failed",
+				Component: "scheduler",
+				Operation: "cron_handler",
+				Status:    "failed",
+				Context:   map[string]interface{}{"cron_id": id, "code": code},
+				Err:       err,
+			})
+		}
+	}
 }

@@ -17,6 +17,7 @@ type Config struct {
 	DbName             string
 	DbSslMode          string
 	HttpPort           string
+	HttpInterface      string   // optional bind address; empty = all interfaces (:port)
 	AddonsPath         string   // raw from file: comma-separated addon directory roots (see AddonPaths after AbsPaths)
 	AddonPaths         []string // absolute addon roots from addons_path; filled by AbsPaths()
 	SumeruHome         string   // optional: directory of standard sumeru repo (go.mod); used for default assets/templates if set
@@ -96,6 +97,8 @@ func LoadConfig(path string) error {
 			AppConfig.DbSslMode = val
 		case keyHTTPPort:
 			AppConfig.HttpPort = val
+		case keyHTTPInterface:
+			AppConfig.HttpInterface = val
 		case keyAddonsPath:
 			AppConfig.AddonsPath = val
 		case keySumeruHome:
