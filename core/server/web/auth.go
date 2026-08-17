@@ -13,6 +13,7 @@ import (
 	"sumeru/core/applog"
 	"sumeru/core/engine/assets"
 	"sumeru/core/engine/render"
+	"sumeru/core/mail"
 	"sumeru/core/orm"
 	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/server/config"
@@ -73,6 +74,9 @@ func SecurityMiddleware(next http.Handler) http.Handler {
 		next = http.DefaultServeMux
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !enforceRateLimit(w, r) {
+			return
+		}
 		start := time.Now()
 		requestID := requestIDFromHeader(r)
 		w.Header().Set(requestIDHeader, requestID)
@@ -167,8 +171,21 @@ func ActionResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	userID := strings.TrimSpace(r.PostFormValue(resetUserIDField))
 	loginName := strings.TrimSpace(r.PostFormValue(loginField))
-	WebLogf(r.Context(), resetPasswordRoute,
-		"requested for user id=%s login=%q (email not yet wired)", userID, loginName)
+	to := strings.TrimSpace(r.PostFormValue("email"))
+	if to == "" && strings.Contains(loginName, "@") {
+		to = loginName
+	}
+	loginURL := loginRoute
+	if mail.Configured() && to != "" {
+		if err := mail.SendPasswordResetEmail(r.Context(), to, loginName, loginURL); err != nil {
+			WebLogf(r.Context(), resetPasswordRoute, "email failed for user id=%s: %v", userID, err)
+		} else {
+			WebLogf(r.Context(), resetPasswordRoute, "reset email sent for user id=%s login=%q", userID, loginName)
+		}
+	} else {
+		WebLogf(r.Context(), resetPasswordRoute,
+			"requested for user id=%s login=%q (configure smtp_host/smtp_from to send email)", userID, loginName)
+	}
 	redirectWithWebMessage(w, r, r.PostFormValue(nextField), resetPasswordMsg)
 }
 

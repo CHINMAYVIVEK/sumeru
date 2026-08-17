@@ -11,8 +11,11 @@ import (
 	"sumeru/core/orm"
 )
 
-func processXMLRecords(ctx context.Context, moduleName string, records []parser.Record, inheritQueue *[]parser.Record) {
+func processXMLRecords(ctx context.Context, moduleName string, records []parser.Record, inheritQueue *[]parser.Record, opts dataFileOpts) {
 	for _, xmlRecord := range records {
+		if opts.skipExistingOnUpdate(ctx, moduleName, xmlRecord.ID) {
+			continue
+		}
 		if xmlRecord.Model == "sys.action.window" {
 			upsertSysActionWindowFromRecord(ctx, moduleName, xmlRecord)
 		}
@@ -43,10 +46,11 @@ func RecordsFromActions(actions []parser.Action) []parser.Record {
 func loadManifestDataFile(ctx context.Context, moduleName, xmlPath, relFile string, inheritQueue *[]parser.Record, menuCollector *[]parser.MenuItem) []error {
 	parsedViewData, viewErr := parser.ParseViewList(xmlPath)
 	if viewErr == nil {
+		opts := dataFileOpts{noUpdate: parsedViewData.NoUpdate}
 		records := append([]parser.Record(nil), parsedViewData.Records...)
 		records = append(records, RecordsFromActions(parsedViewData.Actions)...)
 		if len(records) > 0 || len(parsedViewData.Views) > 0 || len(parsedViewData.MenuItems) > 0 {
-			processXMLRecords(ctx, moduleName, records, inheritQueue)
+			processXMLRecords(ctx, moduleName, records, inheritQueue, opts)
 			for i := range parsedViewData.Views {
 				upsertInlineViewDef(ctx, moduleName, &parsedViewData.Views[i])
 			}
@@ -61,13 +65,14 @@ func loadManifestDataFile(ctx context.Context, moduleName, xmlPath, relFile stri
 
 	menuList, menuErr := parser.ParseMenuList(xmlPath)
 	if menuErr == nil {
+		opts := dataFileOpts{noUpdate: menuList.NoUpdate}
 		records := append([]parser.Record(nil), menuList.Records...)
 		records = append(records, RecordsFromActions(menuList.Actions)...)
 		if len(menuList.MenuItems) > 0 || len(records) > 0 {
 			if len(menuList.MenuItems) > 0 {
 				*menuCollector = append(*menuCollector, menuList.MenuItems...)
 			}
-			processXMLRecords(ctx, moduleName, records, inheritQueue)
+			processXMLRecords(ctx, moduleName, records, inheritQueue, opts)
 			return nil
 		}
 		return nil

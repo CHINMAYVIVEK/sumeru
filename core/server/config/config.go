@@ -17,6 +17,7 @@ type Config struct {
 	DbName             string
 	DbSslMode          string
 	HttpPort           string
+	HttpInterface      string   // optional bind address; empty = all interfaces (:port)
 	AddonsPath         string   // raw from file: comma-separated addon directory roots (see AddonPaths after AbsPaths)
 	AddonPaths         []string // absolute addon roots from addons_path; filled by AbsPaths()
 	SumeruHome         string   // optional: directory of standard sumeru repo (go.mod); used for default assets/templates if set
@@ -37,6 +38,16 @@ type Config struct {
 	DevMode            bool     // dev_mode INI key; parseBoolKey(..., false) — debug slog level and dev-only server paths
 	SetupToken         string   // optional secret required for POST /setup/init (header X-Setup-Token or JSON setup_token)
 	SetupLocalhostOnly bool     // when true (default), setup mode listens on 127.0.0.1 only
+	DbMaxOpenConns     int      // db_max_open_conns; 0 = Go default
+	DbMaxIdleConns     int      // db_max_idle_conns; 0 = Go default
+	DbConnMaxLifetimeMin int    // db_conn_max_lifetime_minutes; 0 = no limit
+	DbReadReplicaDSN   string   // optional libpq DSN for read replica (search/read_group RPC)
+	RateLimitRPM       int      // rate_limit_rpm per client IP on /api/rpc and login; 0 = disabled
+	SMTPHost           string
+	SMTPPort           int
+	SMTPUser           string
+	SMTPPassword       string
+	SMTPFrom           string
 }
 
 var AppConfig Config
@@ -96,6 +107,8 @@ func LoadConfig(path string) error {
 			AppConfig.DbSslMode = val
 		case keyHTTPPort:
 			AppConfig.HttpPort = val
+		case keyHTTPInterface:
+			AppConfig.HttpInterface = val
 		case keyAddonsPath:
 			AppConfig.AddonsPath = val
 		case keySumeruHome:
@@ -140,6 +153,36 @@ func LoadConfig(path string) error {
 			AppConfig.SetupToken = val
 		case keySetupLocalhostOnly:
 			AppConfig.SetupLocalhostOnly = parseBoolKey(val, true)
+		case keyDbMaxOpenConns:
+			if n, err := strconv.Atoi(strings.TrimSpace(val)); err == nil {
+				AppConfig.DbMaxOpenConns = n
+			}
+		case keyDbMaxIdleConns:
+			if n, err := strconv.Atoi(strings.TrimSpace(val)); err == nil {
+				AppConfig.DbMaxIdleConns = n
+			}
+		case keyDbConnMaxLifetimeMin:
+			if n, err := strconv.Atoi(strings.TrimSpace(val)); err == nil {
+				AppConfig.DbConnMaxLifetimeMin = n
+			}
+		case keyDbReadReplicaDSN:
+			AppConfig.DbReadReplicaDSN = val
+		case keyRateLimitRPM:
+			if n, err := strconv.Atoi(strings.TrimSpace(val)); err == nil {
+				AppConfig.RateLimitRPM = n
+			}
+		case keySMTPHost:
+			AppConfig.SMTPHost = val
+		case keySMTPPort:
+			if n, err := strconv.Atoi(strings.TrimSpace(val)); err == nil {
+				AppConfig.SMTPPort = n
+			}
+		case keySMTPUser:
+			AppConfig.SMTPUser = val
+		case keySMTPPassword:
+			AppConfig.SMTPPassword = val
+		case keySMTPFrom:
+			AppConfig.SMTPFrom = val
 		}
 	}
 

@@ -20,6 +20,7 @@ func rpcSearch(ctx context.Context, model string, args, kwargs json.RawMessage) 
 		}
 	}
 	domain = orm.SubstituteDomainUID(domain, orm.UIDFromContext(ctx))
+	ctx = orm.ContextWithReadReplica(ctx, true)
 	limit, offset := parseLimitOffset(kwargs)
 	return orm.SearchPage(ctx, model, domain, limit, offset, "")
 }

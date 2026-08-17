@@ -155,4 +155,19 @@ type ViewRecordData struct {
 	FormSaveAction string // POST URL; default "/web/record/save"
 	CSRFToken      string // per-session CSRF hidden field value
 	FlashMessages  []FlashMessage
+
+	// Pivot aggregation (view type pivot).
+	Pivot *PivotData
+
+	// List view quick search (GET q=).
+	ListSearchQuery string
+	ListSearchURL   string
+}
+
+// PivotData holds aggregated pivot table cells for HTML rendering.
+type PivotData struct {
+	RowLabels    []string
+	ColLabels    []string
+	Values       map[string]map[string]float64 // rowKey -> colKey -> sum
+	MeasureLabel string
 }

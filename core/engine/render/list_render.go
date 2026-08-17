@@ -12,7 +12,7 @@ import (
 	"sumeru/core/report"
 )
 
-func RenderList(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string, csrfToken string) string {
+func RenderList(ctx context.Context, view *parser.View, rows []map[string]interface{}, actionID int, menuID string, csrfToken string, searchQuery string, _ string) string {
 	if rows == nil {
 		rows = []map[string]interface{}{}
 	}
@@ -38,9 +38,18 @@ func RenderList(ctx context.Context, view *parser.View, rows []map[string]interf
 	}
 	sb.WriteString(`</div>`)
 	sb.WriteString(`<div class="sum-list-search-wrap" role="search">`)
+	sb.WriteString(`<form method="GET" action="/web" class="sum-list-search-form">`)
+	if actionID > 0 {
+		sb.WriteString(`<input type="hidden" name="action" value="` + template.HTMLEscapeString(strconv.Itoa(actionID)) + `" />`)
+	}
+	if menuTrim := strings.TrimSpace(menuID); menuTrim != "" {
+		sb.WriteString(`<input type="hidden" name="menu_id" value="` + template.HTMLEscapeString(menuTrim) + `" />`)
+	}
+	sb.WriteString(`<input type="hidden" name="view_type" value="list" />`)
 	sb.WriteString(`<span class="sum-list-search-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></span>`)
-	sb.WriteString(`<input type="search" class="sum-list-search" placeholder="Search…" disabled aria-disabled="true" />`)
+	sb.WriteString(`<input type="search" name="q" class="sum-list-search" placeholder="Search…" value="` + template.HTMLEscapeString(strings.TrimSpace(searchQuery)) + `" />`)
 	sb.WriteString(`<span class="sum-list-search-caret" aria-hidden="true"></span>`)
+	sb.WriteString(`</form>`)
 	sb.WriteString(`</div>`)
 	sb.WriteString(`</div>`)
 

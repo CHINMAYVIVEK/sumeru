@@ -72,7 +72,7 @@ func Run() {
 	databaseSource := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		config.AppConfig.DbHost, config.AppConfig.DbPort, config.AppConfig.DbUser,
 		config.AppConfig.DbPass, config.AppConfig.DbName, config.AppConfig.DbSslMode)
-	InitDB(databaseSource)
+	InitDatabase(databaseSource)
 
 	if orm.IsInitialized() {
 		if err := SyncModels(); err != nil {
@@ -95,10 +95,7 @@ func Run() {
 		registerBrandingAndStatic()
 		registerSetupRoutes()
 
-		listenHost := ":" + config.AppConfig.HttpPort
-		if config.AppConfig.SetupLocalhostOnly {
-			listenHost = "127.0.0.1:" + config.AppConfig.HttpPort
-		}
+		listenHost := setupListenAddr(config.AppConfig)
 		applog.InfoMsg(ctx, "server", "listen", "Server starting in setup mode",
 			map[string]interface{}{"port": config.AppConfig.HttpPort, "bind": listenHost})
 		setupHandler := web.SecurityMiddleware(nil)
@@ -128,13 +125,22 @@ func Run() {
 
 	registerBrandingAndStatic()
 	registerAppRoutes()
+	web.InitRateLimit()
 	scheduler.Start(context.Background(), time.Minute)
+	orm.StartOutboxDrain(context.Background(), 5*time.Second)
 
+	listenHost := listenAddr(config.AppConfig.HttpInterface, config.AppConfig.HttpPort)
 	applog.InfoMsg(ctx, "server", "listen", "Server starting",
-		map[string]interface{}{"port": config.AppConfig.HttpPort})
+		map[string]interface{}{"port": config.AppConfig.HttpPort, "bind": listenHost})
 	runtime.SyncFromGlobals()
 	appHandler := web.SecurityMiddleware(nil)
-	if err := http.ListenAndServe(":"+config.AppConfig.HttpPort, appHandler); err != nil {
+	srv := &http.Server{
+		Addr:         listenHost,
+		Handler:      appHandler,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
 		applog.Fatal(ctx, "Server failed", "err", err)
 	}
 }
@@ -145,4 +151,22 @@ func registerAppRoutes() {
 
 func registerSetupRoutes() {
 	web.RegisterSetupRoutes(nil)
+}
+
+func listenAddr(host, port string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return ":" + port
+	}
+	return host + ":" + port
+}
+
+func setupListenAddr(cfg config.Config) string {
+	if strings.TrimSpace(cfg.HttpInterface) != "" {
+		return listenAddr(cfg.HttpInterface, cfg.HttpPort)
+	}
+	if cfg.SetupLocalhostOnly {
+		return "127.0.0.1:" + cfg.HttpPort
+	}
+	return listenAddr("", cfg.HttpPort)
 }

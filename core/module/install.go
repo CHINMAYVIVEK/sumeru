@@ -89,6 +89,9 @@ func reloadModuleData(ctx context.Context, moduleName string, mode moduleReloadM
 	if err := syncModuleSchema(ctx, moduleName, mode); err != nil {
 		return err
 	}
+	if err := RunModuleMigrations(ctx, moduleName); err != nil {
+		return fmt.Errorf("migrations: %w", err)
+	}
 	if err := loadModuleXMLData(ctx, moduleName, mode, addon); err != nil {
 		return err
 	}
@@ -123,6 +126,7 @@ func loadModuleXMLData(ctx context.Context, moduleName string, mode moduleReload
 			return err
 		}
 	}
+	ctx = ContextWithSyncMode(ctx, mode)
 	return recordSyncToDBResult(ctx, moduleName, addon.SyncToDB(ctx))
 }
 

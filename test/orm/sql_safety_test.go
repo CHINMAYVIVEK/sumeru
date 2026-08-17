@@ -65,7 +65,7 @@ func TestBuildWhereWithRecordRules_rejectsBadDomain(t *testing.T) {
 	badDomains := [][][]interface{}{
 		{{"id; DROP", "=", 1}},
 		{{"1=1--", "=", "x"}},
-		{{"name", "LIKE", "%"}},
+		{{"name", "REGEXP", ".*"}},
 		{{"name", "=", "ok", "extra"}},
 	}
 	for _, dom := range badDomains {

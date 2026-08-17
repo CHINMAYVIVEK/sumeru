@@ -2,7 +2,6 @@ package automation
 
 import (
 	"context"
-	"fmt"
 
 	_ "sumeru/addons/automation/models"
 	"sumeru/core/applog"
@@ -16,7 +15,6 @@ func init() {
 	event.Subscribe("cron.tick", runServerActionsForEvent)
 }
 
-// TODO: run server actions (log matches for now)
 func runServerActionsForEvent(ctx context.Context, ev event.Event) error {
 	if orm.DB == nil {
 		return nil
@@ -33,9 +31,16 @@ func runServerActionsForEvent(ctx context.Context, ev event.Event) error {
 		return err
 	}
 	for _, row := range rows {
-		applog.DebugMsg(ctx, "module", "automation",
-			fmt.Sprintf("server action %v on event %s", row["name"], ev.Name),
-			map[string]interface{}{"module": "automation", "event": ev.Name})
+		if err := executeServerAction(ctx, row, ev); err != nil {
+			applog.Warn(ctx, applog.Event{
+				Message:   "server action failed",
+				Component: "automation",
+				Operation: "server_action",
+				Status:    "failed",
+				Context:   map[string]interface{}{"event": ev.Name, "action": row["name"]},
+				Err:       err,
+			})
+		}
 	}
 	return nil
 }
