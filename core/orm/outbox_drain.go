@@ -8,6 +8,7 @@ import (
 
 	"sumeru/core/applog"
 	"sumeru/core/event"
+	"sumeru/core/queue"
 )
 
 var (
@@ -57,6 +58,9 @@ func DrainOutboxOnce(ctx context.Context) int {
 			})
 			continue
 		}
+		queue.Publish(bypass, "outbox", map[string]interface{}{
+			"id": id, "name": name, "payload": payload, "actor": actor,
+		})
 		if _, err := DB.ExecContext(bypass,
 			`UPDATE `+tbl+` SET published_at = $1 WHERE id = $2`, now, id); err != nil {
 			continue

@@ -1,4 +1,3 @@
-// Package scheduler runs sys.cron jobs on an interval.
 package scheduler
 
 import (
@@ -66,33 +65,56 @@ func runDue(ctx context.Context) {
 	bypass := orm.ContextWithBypass(ctx, true)
 	tbl := orm.MustQuotedTableName("sys.cron")
 	now := time.Now().UTC()
-	rows, err := orm.DB.QueryContext(bypass,
+
+	tx, err := orm.DB.BeginTx(bypass, nil)
+	if err != nil {
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	rows, err := tx.QueryContext(bypass,
 		`SELECT id, name, COALESCE(event_name,''), COALESCE(code,'') FROM `+tbl+
-			` WHERE active = true AND (next_call IS NULL OR next_call <= $1)`, now,
+			` WHERE active = true AND (next_call IS NULL OR next_call <= $1)
+			  ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 20`, now,
 	)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
+
+	type cronRow struct {
+		id        int64
+		name      string
+		eventName string
+		code      string
+	}
+	var due []cronRow
 	for rows.Next() {
-		var id int64
-		var name, eventName, code string
-		if err := rows.Scan(&id, &name, &eventName, &code); err != nil {
+		var row cronRow
+		if err := rows.Scan(&row.id, &row.name, &row.eventName, &row.code); err != nil {
 			continue
 		}
-		executeCron(bypass, id, name, eventName, code)
-		interval := cronInterval(bypass, id)
+		due = append(due, row)
+	}
+	if err := rows.Err(); err != nil {
+		return
+	}
+
+	for _, row := range due {
+		executeCron(bypass, row.id, row.name, row.eventName, row.code)
+		interval := cronIntervalTx(bypass, tx, row.id)
 		next := now.Add(interval)
-		_, _ = orm.DB.ExecContext(bypass,
+		_, _ = tx.ExecContext(bypass,
 			`UPDATE `+tbl+` SET next_call = $1, last_call = $2 WHERE id = $3`,
-			next, now, id,
+			next, now, row.id,
 		)
 	}
+	_ = tx.Commit()
 }
 
-func cronInterval(ctx context.Context, id int64) time.Duration {
+func cronIntervalTx(ctx context.Context, tx orm.TxWrapper, id int64) time.Duration {
 	var mins sql.NullInt64
-	_ = orm.DB.QueryRowContext(ctx,
+	_ = tx.QueryRowContext(ctx,
 		`SELECT interval_number FROM `+orm.MustQuotedTableName("sys.cron")+` WHERE id = $1`, id,
 	).Scan(&mins)
 	n := int(mins.Int64)
