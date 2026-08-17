@@ -36,6 +36,16 @@ const (
 	keyDevMode            = "dev_mode"
 	keySetupToken         = "setup_token"
 	keySetupLocalhostOnly = "setup_localhost_only"
+	keyDbMaxOpenConns     = "db_max_open_conns"
+	keyDbMaxIdleConns     = "db_max_idle_conns"
+	keyDbConnMaxLifetimeMin = "db_conn_max_lifetime_minutes"
+	keyDbReadReplicaDSN   = "db_read_replica_dsn"
+	keyRateLimitRPM       = "rate_limit_rpm"
+	keySMTPHost           = "smtp_host"
+	keySMTPPort           = "smtp_port"
+	keySMTPUser           = "smtp_user"
+	keySMTPPassword       = "smtp_password"
+	keySMTPFrom           = "smtp_from"
 )
 
 const (
