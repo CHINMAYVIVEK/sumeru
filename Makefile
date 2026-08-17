@@ -1,4 +1,4 @@
-.PHONY: help build css run generate bp check-sql check-logs db-check i18n-export
+.PHONY: help build css run generate bp check-sql check-logs db-check i18n-export i18n-import migrate module shell test-db test-integration
 
 # Extra flags for `make run`, e.g. `make run EXTRA_RUN_FLAGS='-p 9090 -d sumeru_staging'`
 EXTRA_RUN_FLAGS ?=
@@ -36,6 +36,25 @@ db-check:
 i18n-export:
 	go run ./cmd/sumeru-i18n-export -- -c sumeru.conf -o translations.csv
 
+i18n-import:
+	go run ./cmd/sumeru-i18n-import -- -c sumeru.conf -i translations.csv
+
+migrate:
+	go run ./cmd/sumeru-migrate -- -c sumeru.conf
+
+module:
+	go run ./cmd/sumeru-module -- -c sumeru.conf $(ARGS)
+
+shell:
+	go run ./cmd/sumeru-shell -- -c sumeru.conf
+
+test-db:
+	docker compose -f docker-compose.test.yml up -d --wait
+
+test-integration: test-db
+	SUMERU_TEST_DSN='host=localhost port=5433 user=postgres password=postgres dbname=sumeru_test sslmode=disable' \
+		go test -tags=integration ./test/integration/... -count=1
+
 help:
 	@echo "Sumeru Makefile targets:"
 	@echo "  make generate - go generate ./cmd/sumeru (refresh cmd/sumeru/zimports.go from sumeru.conf.example; copy to sumeru.conf for make run)"
@@ -47,5 +66,11 @@ help:
 	@echo "  make check-logs - forbid stdlib log and operational fmt.Printf in server paths"
 	@echo "  make db-check  - validate sumeru.conf and PostgreSQL connectivity"
 	@echo "  make i18n-export - export sys.translation rows to translations.csv"
+	@echo "  make i18n-import - import translations.csv into sys.translation"
+	@echo "  make migrate     - run pending module SQL migrations"
+	@echo "  make module      - module CLI (ARGS='list' | 'depends-tree' | 'install sales' | ...)"
+	@echo "  make shell       - interactive ORM REPL (sumeru-shell)"
+	@echo "  make test-db     - start PostgreSQL via docker-compose.test.yml"
+	@echo "  make test-integration - run go test -tags=integration against test DB"
 	@echo "  make help    - this message"
 	@echo "See README.md for CLI flags (-d, -i, -u, -p/--http-port, --stop-after-init) and sumeru.sh."
