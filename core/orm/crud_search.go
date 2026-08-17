@@ -25,6 +25,7 @@ type searchPaging struct {
 }
 
 func execSearchQuery(ctx context.Context, modelName string, domain [][]interface{}, paging *searchPaging) ([]map[string]interface{}, error) {
+	ctx = ContextWithReadReplica(ctx, true)
 	if _, ok := Registry[modelName]; !ok {
 		return nil, fmt.Errorf("model %s not found", modelName)
 	}
@@ -56,7 +57,7 @@ func execSearchQuery(ctx context.Context, modelName string, domain [][]interface
 		query += fmt.Sprintf(" ORDER BY %s LIMIT $%d OFFSET $%d", paging.orderBySQL, n, n+1)
 		args = append(args, paging.limit, paging.offset)
 	}
-	rows, err := DB.QueryContext(ctx, query, args...)
+	rows, err := QueryDB(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +71,7 @@ func execSearchQuery(ctx context.Context, modelName string, domain [][]interface
 			return nil, err
 		}
 		RedactRecordForRead(ctx, uid, modelName, m)
+		_ = ApplyComputes(ctx, modelName, m)
 		results = append(results, m)
 	}
 	return results, rows.Err()

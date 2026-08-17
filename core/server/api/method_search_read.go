@@ -21,6 +21,7 @@ func rpcSearchRead(ctx context.Context, model string, args, kwargs json.RawMessa
 		return nil, newRPCError(CodeInvalidArgs, err.Error(), map[string]interface{}{"method": "search_read", "hint": "args[0] domain"})
 	}
 	domain = orm.SubstituteDomainUID(domain, orm.UIDFromContext(ctx))
+	ctx = orm.ContextWithReadReplica(ctx, true)
 	var fields []string
 	if err := json.Unmarshal(arr[1], &fields); err != nil {
 		return nil, newRPCError(CodeInvalidArgs, fmt.Sprintf("args[1] fields: %v", err), map[string]interface{}{"method": "search_read"})
