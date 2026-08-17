@@ -100,6 +100,14 @@ func buildSearchWhereClause(modelName string, domain [][]interface{}) (string, [
 				n++
 			}
 			parts = append(parts, fmt.Sprintf("%s IN (%s)", col, strings.Join(ph, ",")))
+		case "ilike", "like":
+			parts = append(parts, fmt.Sprintf("%s ILIKE $%d", col, n))
+			args = append(args, d[2])
+			n++
+		case "=like":
+			parts = append(parts, fmt.Sprintf("%s LIKE $%d", col, n))
+			args = append(args, d[2])
+			n++
 		default:
 			return "", nil, fmt.Errorf("unsupported domain operator %q", op)
 		}
