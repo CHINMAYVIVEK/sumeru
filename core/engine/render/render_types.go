@@ -158,6 +158,10 @@ type ViewRecordData struct {
 
 	// Pivot aggregation (view type pivot).
 	Pivot *PivotData
+
+	// List view quick search (GET q=).
+	ListSearchQuery string
+	ListSearchURL   string
 }
 
 // PivotData holds aggregated pivot table cells for HTML rendering.
