@@ -6,6 +6,7 @@
 
 /* When the main slot hosts a structured view, use column flex so inner regions scroll (not the shell row). */
 .sum-content:has(.sum-list-view),
+.sum-content:has(.sum-kanban-view),
 .sum-content:has(.sum-kanban-board),
 .sum-content:has(.sum-form-view) {
   display: flex;
@@ -19,6 +20,43 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
+}
+
+.sum-kanban-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.sum-view-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  padding: 0.65rem 0.85rem;
+  flex-shrink: 0;
+  background: var(--sum-surface);
+  border-bottom: 1px solid var(--sum-line);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+
+.sum-view-toolbar-primary {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.sum-view-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 .sum-list-control {
@@ -50,6 +88,81 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
+}
+
+/* SWC mount chain: fill workspace column so form body can scroll internally. */
+.sum-swc-mount,
+#swc-root-inner,
+.sum-workspace-inner,
+.sum-workspace-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.sum-swc-mount {
+  height: 100%;
+}
+
+/* Toolbar action buttons (Save, Cancel, object actions). */
+.sum-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--sum-radius-sm);
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  font-family: var(--sum-font-sans);
+  line-height: 1.25;
+  border: 1px solid transparent;
+  cursor: pointer;
+  box-shadow: var(--sum-shadow-sm);
+  transition:
+    background var(--sum-dur) var(--sum-ease),
+    border-color var(--sum-dur) var(--sum-ease),
+    box-shadow var(--sum-dur) var(--sum-ease);
+}
+
+.sum-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sum-btn--primary {
+  background: var(--sum-header);
+  color: var(--sum-topbar-fg);
+  border-color: var(--sum-header-dark);
+}
+
+.sum-btn--primary:hover:not(:disabled) {
+  background: var(--sum-header-dark);
+}
+
+.sum-btn--secondary {
+  background: var(--sum-surface);
+  color: var(--sum-muted-ink);
+  border-color: var(--sum-line-strong);
+}
+
+.sum-btn--secondary:hover:not(:disabled) {
+  background: var(--sum-surface-alt);
+  border-color: color-mix(in srgb, var(--sum-header) 28%, var(--sum-line-strong));
+}
+
+.sum-form-toolbar .sum-btn {
+  min-height: 2rem;
+}
+
+.sum-form-toolbar .sum-btn.sum_highlight,
+.sum-btn.sum_highlight {
+  background: color-mix(in srgb, var(--sum-header) 88%, white);
+  color: var(--sum-topbar-fg);
+  border-color: var(--sum-header-dark);
 }
 
 /* —— Premium list toolbar —— */
@@ -113,6 +226,10 @@
 }
 
 .sum-ws-record-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0;
 }
 

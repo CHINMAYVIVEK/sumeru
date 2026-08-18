@@ -196,12 +196,13 @@
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 1rem 0.75rem 1.5rem;
+  padding: 0 0.75rem 1.5rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (min-width: 768px) {
   .sum-form-sheet-bg {
-    padding: 1.25rem 1.25rem 1.75rem;
+    padding: 0 1.25rem 1.75rem;
   }
 }
 
@@ -210,6 +211,34 @@
     padding-left: 1.75rem;
     padding-right: 1.75rem;
   }
+}
+
+.sum-form-sheet-bg > .sum-form-statusbar {
+  max-width: 72rem;
+  width: 100%;
+  margin: 0.75rem auto 0;
+  box-sizing: border-box;
+}
+
+.sum-form-sheet-bg > .sum-form-statusbar + .sum-form-sheet {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: 1px solid var(--sum-line);
+  box-shadow: var(--sum-shadow-md), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+
+.sum-form-sheet-bg > .sum-form-sheet {
+  max-width: 72rem;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.sum-form-sheet-bg > .sum-form-footer {
+  max-width: 72rem;
+  width: 100%;
+  margin-inline: auto;
+  box-sizing: border-box;
 }
 
 .sum-form-view--workspace-chrome .sum-ws-record-toolbar {
@@ -791,6 +820,7 @@
 .sum-form-page-grid > .sum-form-group--full {
   grid-column: 1 / -1;
   max-width: 100%;
+  width: 100%;
 }
 
 .sum-form-group-grid > .sum-form-group--full {
@@ -812,8 +842,10 @@
 }
 
 .sum-form-sheet {
-  max-width: 72rem;
+  width: 100%;
+  max-width: 100%;
   margin-inline: auto;
+  box-sizing: border-box;
 }
 
 .sum-field-textarea {
@@ -934,12 +966,90 @@
   min-width: 0;
   max-width: 100%;
   width: 100%;
+  align-items: start;
 }
 
 @media (min-width: 768px) {
   .sum-form-group-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.sum-form-group-grid > .sum-field-widget,
+.sum-form-page-grid > .sum-field-widget,
+.sum-form-edit-grid > .sum-field-widget {
+  width: 100%;
+  min-width: 0;
+}
+
+.sum-form-group-grid > .sum-form-group--plain {
+  grid-column: 1 / -1;
+}
+
+.sum-field-widget--many2one {
+  position: relative;
+}
+
+.sum-field-value {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.55rem;
+  font-size: var(--sum-font-size-root);
+  color: var(--sum-ink);
+  border: 1px solid var(--sum-line-strong);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+}
+
+.sum-form-statusbar .sum-statusbar-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.sum-form-statusbar .sum-statusbar-stage {
+  cursor: pointer;
+}
+
+.sum-form-view--readonly .sum-form-statusbar .sum-statusbar-stage {
+  cursor: default;
+  pointer-events: none;
+}
+
+.sum-m2o-suggest {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% - 0.15rem);
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--sum-ink) 12%, transparent);
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.sum-m2o-suggest .sum-m2o-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.45rem 0.75rem;
+  font: inherit;
+  color: var(--sum-ink);
+  cursor: pointer;
+}
+
+.sum-m2o-suggest .sum-m2o-option:hover {
+  background: color-mix(in srgb, var(--sum-header) 12%, var(--sum-surface));
 }
 
 .sum-field-widget {
@@ -1079,57 +1189,6 @@
   object-fit: cover;
 }
 
-.sum-image-placeholder {
-  width: 6rem;
-  height: 6rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--sum-line);
-  border-radius: var(--sum-radius-sm);
-  background: var(--sum-surface-alt);
-}
-
-.sum-image-placeholder-icon {
-  width: 2rem;
-  height: 2rem;
-  color: var(--sum-muted);
-}
-
-.sum-pivot-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 16rem;
-  padding: 2rem 1.5rem;
-  text-align: center;
-  border: 1px solid var(--sum-line);
-  border-radius: var(--sum-radius);
-  background: var(--sum-surface);
-  box-shadow: var(--sum-shadow-sm);
-}
-
-.sum-pivot-placeholder-icon {
-  width: 4rem;
-  height: 4rem;
-  margin-bottom: 1rem;
-  color: var(--sum-muted);
-}
-
-.sum-pivot-placeholder-title {
-  margin: 0 0 0.35rem;
-  font-size: var(--sum-font-size-lg);
-  font-weight: var(--sum-font-weight-semibold);
-  color: var(--sum-muted-ink);
-}
-
-.sum-pivot-placeholder-text {
-  margin: 0;
-  font-size: var(--sum-font-size-md);
-  color: var(--sum-muted);
-}
-
 .sum-pivot-view {
   padding: 0 0 1.5rem;
 }
@@ -1217,6 +1276,10 @@
 
 .sum-form-view .sum-form-sheet {
   border-top: 3px solid color-mix(in srgb, var(--sum-header) 55%, var(--sum-line));
+}
+
+.sum-form-sheet-bg > .sum-form-statusbar + .sum-form-sheet {
+  border-top: 1px solid var(--sum-line);
 }
 
 .sum-form-view--readonly .sum-form-sheet {
