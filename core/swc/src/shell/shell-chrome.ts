@@ -5,6 +5,7 @@ import { initActivityPanel } from "./activity-panel.js";
 import { initHomeDashboard } from "./home-dashboard.js";
 import { initPinnedApps } from "./pinned-apps.js";
 import { initSidebar } from "./sidebar.js";
+import { initCompanySwitcher } from "./company-switcher.js";
 
 export function initShellChrome(boot: SwcBootstrap, http: HttpService): void {
   const shell = document.getElementById("sum-shell");
@@ -18,6 +19,7 @@ export function initShellChrome(boot: SwcBootstrap, http: HttpService): void {
 
   initPinnedApps(http, boot.pinnedApps ?? []);
   initHomeDashboard(http);
+  initCompanySwitcher(boot, http);
 
   new NotificationService().bootstrap(boot.toasts);
 }

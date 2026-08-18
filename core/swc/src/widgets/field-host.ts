@@ -1,7 +1,7 @@
-import type { SwcEnv } from "../core/env.js";
+import type { SwcEnv } from "../runtime/env.js";
 import type { SwcArchField } from "../types/workspace.js";
-import type { SwcRecord } from "../store/record.js";
-import { registry } from "../core/registry.js";
+import type { SwcRecord } from "../model/record.js";
+import { registry } from "../runtime/registry.js";
 import { resolveFieldWidget } from "./registry.js";
 import { DefaultField } from "./DefaultField.js";
 

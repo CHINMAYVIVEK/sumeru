@@ -1,5 +1,5 @@
-import { SwcApp } from "./core/app.js";
-import { SwcEnv } from "./core/env.js";
+import { SwcApp } from "./runtime/app.js";
+import { SwcEnv } from "./runtime/env.js";
 import { readBootstrap } from "./types/bootstrap.js";
 import { RpcService } from "./services/rpc.js";
 import { HttpService } from "./services/http.js";
@@ -7,16 +7,25 @@ import { NotificationService } from "./services/notification.js";
 import { ActionService } from "./services/action.js";
 import { RouterService } from "./services/router.js";
 import { BusService } from "./services/bus.js";
+import { DialogService } from "./services/dialog.js";
+import { registerCoreServices } from "./services/service-registry.js";
 import { ShellLayout } from "./shell/ShellLayout.js";
 import { initShellChrome } from "./shell/shell-chrome.js";
 import { registerDefaultWidgets } from "./widgets/registry.js";
-import { registry, type RegistryEntry } from "./core/registry.js";
+import { registry, type RegistryEntry } from "./runtime/registry.js";
 import { AddonLoader } from "./addon/loader.js";
-import { ListView } from "./views/ListView.js";
-import { FormView } from "./views/FormView.js";
-import { KanbanView } from "./views/KanbanView.js";
-import { PivotView } from "./views/PivotView.js";
-import { GraphView } from "./views/GraphView.js";
+import { ListView } from "./views/list/ListView.js";
+import { FormView } from "./views/form/FormView.js";
+import { KanbanView } from "./views/kanban/KanbanView.js";
+import { PivotView } from "./views/pivot/PivotView.js";
+import { GraphView } from "./views/graph/GraphView.js";
+import { CalendarView } from "./views/calendar/CalendarView.js";
+import { GanttView } from "./views/advanced/GanttView.js";
+import { MapView } from "./views/advanced/MapView.js";
+import { CohortView } from "./views/advanced/CohortView.js";
+import { loadTranslations } from "./i18n/translate.js";
+import { mountDebugPanel } from "./devtools/debug.js";
+import { initDevtoolsBridge } from "./devtools/bridge.js";
 
 function registerCore(): void {
   registerDefaultWidgets();
@@ -26,19 +35,26 @@ function registerCore(): void {
   views.add("kanban", KanbanView as unknown as RegistryEntry);
   views.add("pivot", PivotView as unknown as RegistryEntry);
   views.add("graph", GraphView as unknown as RegistryEntry);
+  views.add("calendar", CalendarView as unknown as RegistryEntry);
+  views.add("gantt", GanttView as unknown as RegistryEntry);
+  views.add("map", MapView as unknown as RegistryEntry);
+  views.add("cohort", CohortView as unknown as RegistryEntry);
   const main = registry.category("main_components");
   main.add("shell", ShellLayout as unknown as RegistryEntry);
 }
 
 function buildEnv(boot: ReturnType<typeof readBootstrap>): SwcEnv {
+  const router = new RouterService();
   const services = {
     rpc: new RpcService(boot.rpcUrl, boot.csrfToken),
     http: new HttpService(boot.csrfToken),
     notification: new NotificationService(),
-    action: new ActionService(),
-    router: new RouterService(),
+    action: new ActionService(router),
+    router,
     bus: new BusService(),
+    dialog: new DialogService(),
   };
+  registerCoreServices(services);
   return new SwcEnv(boot, services);
 }
 
@@ -54,6 +70,9 @@ function bootstrap(): void {
   }
 
   const env = buildEnv(boot);
+  loadTranslations(boot.translations);
+  initDevtoolsBridge();
+  mountDebugPanel();
   initShellChrome(boot, env.services.http);
 
   const mountEl = document.getElementById("swc-workspace");

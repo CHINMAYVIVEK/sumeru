@@ -1,7 +1,7 @@
-import { SwcComponent } from "../core/component.js";
-import { html } from "../core/template.js";
+import { SwcComponent } from "../runtime/component.js";
+import { html } from "../template/html.js";
 import type { SwcArchField } from "../types/workspace.js";
-import type { SwcRecord } from "../store/record.js";
+import type { SwcRecord } from "../model/record.js";
 import {
   fieldInputId,
   fieldPlaceholder,
@@ -9,6 +9,7 @@ import {
   renderFieldShell,
 } from "./field-shell.js";
 import { AsyncFieldController } from "./field-async.js";
+import { fieldDomain } from "../model/modifiers.js";
 
 interface FieldProps {
   field: SwcArchField;
@@ -29,7 +30,8 @@ export class Many2OneField extends SwcComponent<FieldProps> {
     const gen = this.asyncCtrl.begin();
     const comodel = this.props.field.relation ?? this.props.field.options?.relation ?? "";
     if (!comodel) return;
-    const domain = q ? [["name", "ilike", q]] : [];
+    const baseDomain = fieldDomain(this.props.field, this.props.record) ?? [];
+    const domain = q ? [...baseDomain, ["name", "ilike", q]] : baseDomain;
     this.suggestions = await this.env.services.rpc.searchRead(comodel, domain, ["id", "name"], 20);
     this.open = true;
     this.asyncCtrl.finish(gen);
@@ -68,6 +70,7 @@ export class Many2OneField extends SwcComponent<FieldProps> {
                     @click=${() => {
                       record.set(field.name, row.id);
                       record.set(`${field.name}_name`, row.name);
+                      record.notifyFieldChange(field.name);
                       this.open = false;
                       this.asyncCtrl.refresh();
                     }}

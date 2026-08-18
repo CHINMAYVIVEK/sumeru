@@ -4,6 +4,7 @@ export interface SwcViewArch {
   type: string;
   model: string;
   title?: string;
+  hasChatter?: boolean;
   fields: SwcArchField[];
   header?: SwcArchHeader;
   footer?: SwcArchFooter;
@@ -45,6 +46,10 @@ export interface SwcArchField {
   readonly?: boolean;
   required?: boolean;
   invisible?: boolean;
+  readonly_expr?: string;
+  required_expr?: string;
+  invisible_expr?: string;
+  default?: unknown;
   pivotType?: string;
   relation?: string;
   selection?: string[][];
@@ -76,6 +81,7 @@ export interface SwcArchSheet {
 export interface SwcArchDiv {
   class?: string;
   fields?: SwcArchField[];
+  buttons?: SwcArchButton[];
   h1Fields?: SwcArchField[];
   divs?: SwcArchDiv[];
 }
@@ -158,5 +164,6 @@ export interface SwcWorkspacePayload {
   breadcrumbs: SwcBreadcrumb[];
   listSearch?: string;
   listSearchUrl?: string;
+  listTotal?: number;
   formBaseQuery?: string;
 }

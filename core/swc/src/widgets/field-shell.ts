@@ -1,4 +1,4 @@
-import { html, type TemplateResult } from "../core/template.js";
+import { html, type TemplateResult } from "../template/html.js";
 import type { SwcArchField } from "../types/workspace.js";
 
 export function fieldInputId(field: SwcArchField): string {

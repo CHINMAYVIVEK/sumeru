@@ -1,7 +1,7 @@
-import { SwcComponent } from "../core/component.js";
-import { html, type TemplateResult } from "../core/template.js";
+import { SwcComponent } from "../runtime/component.js";
+import { html, type TemplateResult } from "../template/html.js";
 import type { SwcArchField } from "../types/workspace.js";
-import type { SwcRecord } from "../store/record.js";
+import type { SwcRecord } from "../model/record.js";
 import { fieldControl, renderFieldShell } from "./field-shell.js";
 import { AsyncFieldController } from "./field-async.js";
 
@@ -183,6 +183,20 @@ export class One2ManyField extends SwcComponent<FieldProps> {
     this.scheduleWrite(line.id, col, value);
   }
 
+  private async addRowViaDialog(): Promise<void> {
+    const cols = columnsForField(this.props.field);
+    if (cols.length === 0) return;
+    const dialog = this.env.services.dialog;
+    if (dialog) {
+      const ok = await dialog.confirm(
+        "Add line",
+        `Add a new line to ${this.props.field.string ?? this.props.field.name}?`,
+      );
+      if (!ok) return;
+    }
+    this.addRow();
+  }
+
   private addRow(): void {
     const id = nextTempId();
     this.lines = [...this.lines, { id, data: {} }];
@@ -315,7 +329,7 @@ export class One2ManyField extends SwcComponent<FieldProps> {
           </tbody>
         </table>
         ${canEdit && cols.length > 0
-          ? html`<button type="button" class="sum-o2m-add-row" @click=${() => this.addRow()}>
+          ? html`<button type="button" class="sum-o2m-add-row" @click=${() => void this.addRowViaDialog()}>
               + Add a line
             </button>`
           : ""}

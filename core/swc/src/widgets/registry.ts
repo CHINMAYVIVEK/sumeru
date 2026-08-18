@@ -1,4 +1,4 @@
-import { registry, type RegistryEntry } from "../core/registry.js";
+import { registry, type RegistryEntry } from "../runtime/registry.js";
 import type { SwcArchField } from "../types/workspace.js";
 import { DefaultField } from "./DefaultField.js";
 import { Many2OneField } from "./Many2OneField.js";
@@ -14,6 +14,15 @@ import { Many2ManyTagsField } from "./Many2ManyTagsField.js";
 import { One2ManyField } from "./One2ManyField.js";
 import { DateField, DateTimeField } from "./DateField.js";
 import { ImageField } from "./ImageField.js";
+import {
+  MonetaryField,
+  HtmlField,
+  BinaryField,
+  ReferenceField,
+  ColorField,
+  UrlField,
+  ProgressField,
+} from "./extra-fields.js";
 
 export function registerDefaultWidgets(): void {
   const fields = registry.category("fields");
@@ -41,6 +50,13 @@ export function registerDefaultWidgets(): void {
   add("boolean_toggle", BooleanToggleField);
   add("many2many_tags", Many2ManyTagsField);
   add("image", ImageField);
+  add("monetary", MonetaryField);
+  add("html", HtmlField);
+  add("binary", BinaryField);
+  add("reference", ReferenceField);
+  add("color", ColorField);
+  add("url", UrlField);
+  add("progress", ProgressField);
 }
 
 export function resolveFieldWidget(field: SwcArchField): string {
@@ -54,6 +70,14 @@ export function resolveFieldWidget(field: SwcArchField): string {
   if (field.widget === "statusbar") return "statusbar";
   if (field.widget === "priority") return "priority";
   if (field.type === "boolean" && field.widget === "radio") return "radio";
+  if (field.widget === "image") return "image";
+  if (field.widget === "monetary") return "monetary";
+  if (field.widget === "html") return "html";
+  if (field.widget === "binary") return "binary";
+  if (field.widget === "reference") return "reference";
+  if (field.widget === "color") return "color";
+  if (field.widget === "url") return "url";
+  if (field.widget === "progressbar" || field.widget === "progress") return "progress";
   if (field.type === "boolean") return "boolean";
   if (field.type === "text") return "text";
   if (field.type === "many2one") return "many2one";
@@ -69,9 +93,9 @@ export function resolveFieldWidget(field: SwcArchField): string {
 }
 
 export function renderField(
-  env: import("../core/env.js").SwcEnv,
+  env: import("../runtime/env.js").SwcEnv,
   field: SwcArchField,
-  record: import("../store/record.js").SwcRecord,
+  record: import("../model/record.js").SwcRecord,
   readonly: boolean,
 ): HTMLElement {
   const key = resolveFieldWidget(field);

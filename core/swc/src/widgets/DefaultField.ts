@@ -1,7 +1,7 @@
-import { SwcComponent } from "../core/component.js";
-import { html } from "../core/template.js";
+import { SwcComponent } from "../runtime/component.js";
+import { html } from "../template/html.js";
 import type { SwcArchField } from "../types/workspace.js";
-import type { SwcRecord } from "../store/record.js";
+import type { SwcRecord } from "../model/record.js";
 import {
   fieldInputId,
   fieldPlaceholder,
@@ -67,6 +67,7 @@ export class DefaultField extends SwcComponent<FieldProps> {
         ${step ? html`step=${step}` : ""}
         @input=${(ev: Event) =>
           record.set(field.name, parseNumericValue(field, (ev.target as HTMLInputElement).value))}
+        @change=${() => record.notifyFieldChange(field.name)}
       />`,
       { labelFor: id },
     );

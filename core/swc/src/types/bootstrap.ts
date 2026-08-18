@@ -58,6 +58,7 @@ export interface SwcBootstrap {
   docsUrl: string;
   profileUrl: string;
   workspace?: SwcBootstrapWorkspace;
+  translations?: Record<string, string>;
   toasts?: SwcToastMessage[];
 }
 

@@ -1,4 +1,4 @@
-import { SwcError } from "../core/error.js";
+import { SwcError } from "../runtime/error.js";
 
 interface RpcEnvelope<T = unknown> {
   ok?: boolean;
@@ -105,5 +105,13 @@ export class RpcService {
       fields: fields.map((name) => ({ name, field: name, measure: name === "id" ? "count" : "sum" })),
     };
     return this.dispatch(model, "read_group", [spec], { limit });
+  }
+
+  onchange(
+    model: string,
+    values: Record<string, unknown>,
+    field: string,
+  ): Promise<Record<string, unknown>> {
+    return this.dispatch(model, "onchange", [values, field]);
   }
 }

@@ -1,4 +1,4 @@
-import { SwcError } from "../core/error.js";
+import { SwcError } from "../runtime/error.js";
 
 export class HttpService {
   private readonly csrfToken: string;

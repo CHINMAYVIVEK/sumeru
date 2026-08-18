@@ -1,6 +1,6 @@
-import { SwcComponent } from "../core/component.js";
-import { html } from "../core/template.js";
-import { useState, useEffect } from "../core/hooks.js";
+import { SwcComponent } from "../runtime/component.js";
+import { html } from "../template/html.js";
+import { useState, useEffect } from "../runtime/hooks.js";
 import type { SwcBootstrapApp } from "../types/bootstrap.js";
 
 export interface AppLauncherProps {

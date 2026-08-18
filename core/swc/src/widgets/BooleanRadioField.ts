@@ -1,7 +1,7 @@
-import { SwcComponent } from "../core/component.js";
-import { html } from "../core/template.js";
+import { SwcComponent } from "../runtime/component.js";
+import { html } from "../template/html.js";
 import type { SwcArchField } from "../types/workspace.js";
-import type { SwcRecord } from "../store/record.js";
+import type { SwcRecord } from "../model/record.js";
 import { renderFieldShell } from "./field-shell.js";
 
 interface FieldProps {

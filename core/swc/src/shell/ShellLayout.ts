@@ -1,8 +1,8 @@
-import { SwcComponent } from "../core/component.js";
-import { html } from "../core/template.js";
-import { useState, useEffect } from "../core/hooks.js";
+import { SwcComponent } from "../runtime/component.js";
+import { html } from "../template/html.js";
+import { useState, useEffect } from "../runtime/hooks.js";
 import { AppLauncher } from "./AppLauncher.js";
-import { WorkspaceRouter } from "../views/WorkspaceRouter.js";
+import { WorkspaceRouter } from "../views/workspace/WorkspaceRouter.js";
 
 export class ShellLayout extends SwcComponent {
   private launcherOpen = false;

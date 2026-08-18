@@ -1,5 +1,21 @@
+import type { RouterService } from "./router.js";
+
 export class ActionService {
+  constructor(private readonly router?: RouterService) {}
+
   navigate(url: string): void {
+    if (url.startsWith("/web?") && this.router) {
+      const q = new URLSearchParams(url.slice(url.indexOf("?") + 1));
+      this.router.push({
+        actionId: Number(q.get("action") ?? "0"),
+        menuId: q.get("menu_id") ?? "",
+        viewType: q.get("view_type") ?? "",
+        recordId: Number(q.get("id") ?? "0"),
+        formEdit: q.get("edit") === "1",
+        listSearch: q.get("q") ?? "",
+      });
+      return;
+    }
     window.location.assign(url);
   }
 

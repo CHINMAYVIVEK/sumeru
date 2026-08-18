@@ -1,4 +1,4 @@
-import { registry } from "../core/registry.js";
+import { registry } from "../runtime/registry.js";
 
 /** Loads addon swc_entry modules registered in manifest static paths. */
 export class AddonLoader {

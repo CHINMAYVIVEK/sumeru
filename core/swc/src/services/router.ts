@@ -5,6 +5,8 @@ export interface WorkspaceRoute {
   recordId: number;
   formEdit: boolean;
   listSearch: string;
+  /** SPA shell route: home | apps | settings */
+  shell?: string;
 }
 
 export class RouterService {
@@ -17,6 +19,7 @@ export class RouterService {
       recordId: Number(q.get("id") ?? "0"),
       formEdit: q.get("edit") === "1",
       listSearch: q.get("q") ?? "",
+      shell: q.get("shell") ?? "",
     };
   }
 
@@ -30,6 +33,7 @@ export class RouterService {
     if (merged.recordId) params.set("id", String(merged.recordId));
     if (merged.formEdit) params.set("edit", "1");
     if (merged.listSearch) params.set("q", merged.listSearch);
+    if (merged.shell) params.set("shell", merged.shell);
     return `/web?${params.toString()}`;
   }
 

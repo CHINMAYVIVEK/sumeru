@@ -1,7 +1,7 @@
-import { SwcComponent } from "../core/component.js";
-import { html, type TemplateResult } from "../core/template.js";
+import { SwcComponent } from "../runtime/component.js";
+import { html, type TemplateResult } from "../template/html.js";
 import type { SwcArchField } from "../types/workspace.js";
-import type { SwcRecord } from "../store/record.js";
+import type { SwcRecord } from "../model/record.js";
 import {
   fieldInputId,
   fieldReadonlyValue,
