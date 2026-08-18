@@ -65,6 +65,22 @@ func TestSerializeSheetNestedGroupsAndDivs(t *testing.T) {
 	}
 }
 
+func TestSerializeGroupColAttributes(t *testing.T) {
+	g := serializeGroup("crm.lead", parser.Group{
+		Col: "2",
+		Group: []parser.Group{
+			{Title: "Left", Colspan: "1", Field: []parser.Field{{Name: "a"}}},
+			{Title: "Right", Colspan: "1", Field: []parser.Field{{Name: "b"}}},
+		},
+	})
+	if g.Col != 2 {
+		t.Fatalf("expected col 2, got %d", g.Col)
+	}
+	if len(g.Groups) != 2 || g.Groups[0].Colspan != 1 || g.Groups[1].Colspan != 1 {
+		t.Fatalf("unexpected nested groups: %+v", g.Groups)
+	}
+}
+
 func TestSerializeGroupRecursive(t *testing.T) {
 	g := serializeGroup("core.partner", parser.Group{
 		Title: "Outer",
@@ -126,6 +142,74 @@ func TestFormMetaHasImageField(t *testing.T) {
 	meta := formMetaForModel(model)
 	if meta == nil || !meta.HasImageField {
 		t.Fatal("expected model to have image field")
+	}
+}
+
+func TestSerializeFieldListSubview(t *testing.T) {
+	fields := serializeFields([]parser.Field{
+		{
+			Name: "line_ids",
+			List: &parser.FieldList{
+				Editable: "bottom",
+				Field: []parser.Field{
+					{Name: "name", Label: "Description"},
+					{Name: "quantity", Label: "Qty"},
+				},
+			},
+		},
+	})
+	if len(fields) != 1 || fields[0].Subview == nil {
+		t.Fatalf("expected subview: %+v", fields)
+	}
+	if fields[0].Subview.Editable != "bottom" || len(fields[0].Subview.Fields) != 2 {
+		t.Fatalf("unexpected subview: %+v", fields[0].Subview)
+	}
+}
+
+func TestEnrichOne2ManyAutoColumns(t *testing.T) {
+	const parent = "test.o2m.parent"
+	const child = "test.o2m.child"
+	orm.Registry[parent] = stubO2MParent{}
+	orm.Registry[child] = stubO2MChild{}
+	t.Cleanup(func() {
+		delete(orm.Registry, parent)
+		delete(orm.Registry, child)
+	})
+
+	got := enrichField(parent, ArchField{Name: "line_ids"})
+	if got.Type != "one2many" {
+		t.Fatalf("expected one2many, got %q", got.Type)
+	}
+	if got.Options["inverse"] != "parent_id" {
+		t.Fatalf("expected inverse parent_id, got %q", got.Options["inverse"])
+	}
+	if got.Subview == nil || len(got.Subview.Fields) == 0 {
+		t.Fatal("expected auto subview columns")
+	}
+	if got.Subview.Fields[0].Name != "name" {
+		t.Fatalf("unexpected first column: %+v", got.Subview.Fields[0])
+	}
+}
+
+type stubO2MParent struct{ orm.BaseModel }
+
+func (stubO2MParent) ModelName() string { return "test.o2m.parent" }
+
+func (stubO2MParent) Fields() []orm.FieldDefinition {
+	return []orm.FieldDefinition{
+		{Name: "line_ids", Type: orm.One2Many, Relation: "test.o2m.child"},
+	}
+}
+
+type stubO2MChild struct{ orm.BaseModel }
+
+func (stubO2MChild) ModelName() string { return "test.o2m.child" }
+
+func (stubO2MChild) Fields() []orm.FieldDefinition {
+	return []orm.FieldDefinition{
+		{Name: "parent_id", Type: orm.Many2One, Relation: "test.o2m.parent"},
+		{Name: "name", Type: orm.Char, String: "Description"},
+		{Name: "quantity", Type: orm.Integer, String: "Qty"},
 	}
 }
 

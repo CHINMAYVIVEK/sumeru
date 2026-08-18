@@ -31,6 +31,11 @@ export interface SwcArchLabel {
   string?: string;
 }
 
+export interface SwcArchListSubview {
+  editable?: string;
+  fields: SwcArchField[];
+}
+
 export interface SwcArchField {
   name: string;
   string?: string;
@@ -44,6 +49,7 @@ export interface SwcArchField {
   relation?: string;
   selection?: string[][];
   options?: Record<string, string>;
+  subview?: SwcArchListSubview;
 }
 
 export interface SwcArchButton {
@@ -76,6 +82,8 @@ export interface SwcArchDiv {
 
 export interface SwcArchGroup {
   string?: string;
+  col?: number;
+  colspan?: number;
   fields: SwcArchField[];
   groups?: SwcArchGroup[];
   separators?: SwcArchSeparator[];

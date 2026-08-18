@@ -1,6 +1,7 @@
 package swcmeta
 
 import (
+	"strconv"
 	"strings"
 
 	"sumeru/core/engine/parser"
@@ -82,31 +83,98 @@ func enrichField(model string, f ArchField) ArchField {
 	if !ok {
 		return f
 	}
-	for _, fd := range inst.Fields() {
-		if fd.Name != f.Name {
+	var fd orm.FieldDefinition
+	found := false
+	for _, fieldDef := range inst.Fields() {
+		if fieldDef.Name != f.Name {
 			continue
 		}
-		if f.Type == "" {
-			f.Type = string(fd.Type)
-		}
-		if f.String == "" {
-			f.String = fd.String
-		}
-		if f.Relation == "" {
-			f.Relation = fd.Relation
-		}
-		if len(f.Selection) == 0 && len(fd.Selection) > 0 {
-			f.Selection = fd.Selection
-		}
-		if fd.Required {
-			f.Required = true
-		}
-		if f.Options == nil && fd.Relation != "" {
-			f.Options = map[string]string{"relation": fd.Relation}
-		}
+		fd = fieldDef
+		found = true
 		break
 	}
+	if !found {
+		return f
+	}
+	if f.Type == "" {
+		f.Type = string(fd.Type)
+	}
+	if f.String == "" {
+		f.String = fd.String
+	}
+	if f.Relation == "" {
+		f.Relation = fd.Relation
+	}
+	if len(f.Selection) == 0 && len(fd.Selection) > 0 {
+		f.Selection = fd.Selection
+	}
+	if fd.Required {
+		f.Required = true
+	}
+	if f.Options == nil && fd.Relation != "" {
+		f.Options = map[string]string{"relation": fd.Relation}
+	}
+	if fd.Type == orm.One2Many {
+		f = enrichOne2ManyField(model, f, fd)
+	}
 	return f
+}
+
+func enrichOne2ManyField(parentModel string, f ArchField, fd orm.FieldDefinition) ArchField {
+	comodel := strings.TrimSpace(fd.Relation)
+	if comodel == "" {
+		comodel = strings.TrimSpace(f.Relation)
+	}
+	if f.Options == nil {
+		f.Options = map[string]string{}
+	}
+	if inv := orm.ResolveInverseOne2ManyField(parentModel, comodel); inv != "" {
+		f.Options["inverse"] = inv
+		f.Options["relation"] = comodel
+	}
+	if f.Subview != nil && len(f.Subview.Fields) > 0 {
+		f.Subview.Fields = enrichFields(comodel, f.Subview.Fields)
+		return f
+	}
+	f.Subview = &ArchListSubview{
+		Editable: "bottom",
+		Fields:   autoColumnsForComodel(parentModel, comodel),
+	}
+	return f
+}
+
+func autoColumnsForComodel(parentModel, comodel string) []ArchField {
+	inst, ok := orm.Registry[comodel]
+	if !ok || inst == nil {
+		return nil
+	}
+	inv := orm.ResolveInverseOne2ManyField(parentModel, comodel)
+	skip := map[string]bool{
+		"id": true, "create_uid": true, "write_uid": true,
+		"create_date": true, "write_date": true,
+	}
+	if inv != "" {
+		skip[inv] = true
+	}
+	out := make([]ArchField, 0, 8)
+	for _, fd := range inst.Fields() {
+		if skip[fd.Name] {
+			continue
+		}
+		switch fd.Type {
+		case orm.Char, orm.Text, orm.Integer, orm.Float, orm.Numeric,
+			orm.Selection, orm.Date, orm.DateTime, orm.Boolean, orm.Many2One:
+			out = append(out, enrichField(comodel, ArchField{
+				Name:   fd.Name,
+				String: fd.String,
+				Type:   string(fd.Type),
+			}))
+		}
+		if len(out) >= 6 {
+			break
+		}
+	}
+	return out
 }
 
 func serializeSheet(model string, s *parser.Sheet) *ArchSheet {
@@ -143,6 +211,8 @@ func serializeSheet(model string, s *parser.Sheet) *ArchSheet {
 func serializeGroup(model string, g parser.Group) ArchGroup {
 	out := ArchGroup{
 		String:     strings.TrimSpace(g.Title),
+		Col:        parseArchInt(g.Col),
+		Colspan:    parseArchInt(g.Colspan),
 		Fields:     enrichFields(model, serializeFields(g.Field)),
 		Groups:     []ArchGroup{},
 		Separators: serializeSeparators(g.Separator),
@@ -152,6 +222,18 @@ func serializeGroup(model string, g parser.Group) ArchGroup {
 		out.Groups = append(out.Groups, serializeGroup(model, nested))
 	}
 	return out
+}
+
+func parseArchInt(raw string) int {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
 }
 
 func serializeDivs(model string, s *parser.Sheet) []ArchDiv {
@@ -208,16 +290,34 @@ func serializeButtons(buttons []parser.Button) []ArchButton {
 func serializeFields(fields []parser.Field) []ArchField {
 	out := make([]ArchField, 0, len(fields))
 	for _, f := range fields {
-		out = append(out, ArchField{
+		af := ArchField{
 			Name:        strings.TrimSpace(f.Name),
 			String:      strings.TrimSpace(f.Label),
 			Widget:      strings.TrimSpace(f.Widget),
 			Placeholder: strings.TrimSpace(f.Placeholder),
 			PivotType:   strings.TrimSpace(f.PivotType),
 			Options:     parseFieldOptions(f.Options),
-		})
+		}
+		sub := f.List
+		if sub == nil {
+			sub = f.Tree
+		}
+		if sub != nil {
+			af.Subview = serializeFieldList(sub)
+		}
+		out = append(out, af)
 	}
 	return out
+}
+
+func serializeFieldList(list *parser.FieldList) *ArchListSubview {
+	if list == nil {
+		return nil
+	}
+	return &ArchListSubview{
+		Editable: strings.TrimSpace(list.Editable),
+		Fields:   serializeFields(list.Field),
+	}
 }
 
 func parseFieldOptions(raw string) map[string]string {

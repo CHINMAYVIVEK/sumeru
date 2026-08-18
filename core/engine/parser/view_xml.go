@@ -133,17 +133,27 @@ type H1 struct {
 }
 
 type Field struct {
-	Name        string `xml:"name,attr"`
-	Label       string `xml:"string,attr"`
-	Widget      string `xml:"widget,attr"`
-	Placeholder string `xml:"placeholder,attr"`
-	Options     string `xml:"options,attr"`
-	Groups      string `xml:"groups,attr"`
-	PivotType   string `xml:"type,attr"` // row | col | measure (pivot views only)
+	Name        string     `xml:"name,attr"`
+	Label       string     `xml:"string,attr"`
+	Widget      string     `xml:"widget,attr"`
+	Placeholder string     `xml:"placeholder,attr"`
+	Options     string     `xml:"options,attr"`
+	Groups      string     `xml:"groups,attr"`
+	PivotType   string     `xml:"type,attr"` // row | col | measure (pivot views only)
+	List        *FieldList `xml:"list"`
+	Tree        *FieldList `xml:"tree"`
+}
+
+// FieldList is an embedded list/tree subview on a form field (O2M/M2M).
+type FieldList struct {
+	Editable string  `xml:"editable,attr"`
+	Field    []Field `xml:"field"`
 }
 
 type Group struct {
 	Title     string      `xml:"string,attr"`
+	Col       string      `xml:"col,attr"`
+	Colspan   string      `xml:"colspan,attr"`
 	Field     []Field     `xml:"field"`
 	Group     []Group     `xml:"group"`
 	Separator []Separator `xml:"separator"`

@@ -75,6 +75,12 @@ type ArchField struct {
 	Relation    string            `json:"relation,omitempty"`
 	Selection   [][]string        `json:"selection,omitempty"`
 	Options     map[string]string `json:"options,omitempty"`
+	Subview     *ArchListSubview  `json:"subview,omitempty"`
+}
+
+type ArchListSubview struct {
+	Editable string      `json:"editable,omitempty"`
+	Fields   []ArchField `json:"fields"`
 }
 
 type ArchButton struct {
@@ -107,6 +113,8 @@ type ArchDiv struct {
 
 type ArchGroup struct {
 	String     string          `json:"string,omitempty"`
+	Col        int             `json:"col,omitempty"`
+	Colspan    int             `json:"colspan,omitempty"`
 	Fields     []ArchField     `json:"fields"`
 	Groups     []ArchGroup     `json:"groups,omitempty"`
 	Separators []ArchSeparator `json:"separators,omitempty"`
