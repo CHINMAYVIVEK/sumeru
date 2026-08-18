@@ -3,6 +3,7 @@ import {
   exportQuery,
   newRecordUrl,
   renderReportActions,
+  renderSearchField,
   visibleFieldNames,
 } from "../../src/views/shared/view-toolbar.js";
 import type { SwcWorkspacePayload } from "../../src/types/workspace.js";
@@ -59,5 +60,13 @@ describe("view-toolbar", () => {
     expect(result!.textContent).toContain("Export CSV");
     expect(result!.textContent).toContain("Export PDF");
     expect(result!.querySelector('a[href*="/web/export/csv"]')).not.toBeNull();
+  });
+
+  it("renderSearchField renders search input", () => {
+    const root = renderSearchField("acme", () => {}, () => {}).render();
+    const input = root.querySelector(".sum-list-search") as HTMLInputElement;
+    expect(input).toBeTruthy();
+    expect(input.value).toBe("acme");
+    expect(input.getAttribute("placeholder")).toBe("Search…");
   });
 });

@@ -15,6 +15,7 @@ import { SwcError } from "../../runtime/error.js";
 import { registry } from "../../runtime/registry.js";
 import { logWorkspacePayload, logViewArch } from "../../devtools/debug.js";
 import { ShellPageView } from "../../shell/ShellPageView.js";
+import { syncWorkspaceViewTabs } from "../../shell/view-tab-sync.js";
 
 type ViewInstance = SwcComponent & { setup?: () => void; render(): HTMLElement };
 
@@ -37,6 +38,7 @@ export class WorkspaceRouter extends SwcComponent {
         this.payload = await this.fetchWorkspace();
         logWorkspacePayload("workspace", this.payload);
         logViewArch(this.payload.arch);
+        syncWorkspaceViewTabs(this.payload.viewTabs);
         this.syncView();
       } catch (err) {
         this.error = err instanceof SwcError ? err.message : String(err);
@@ -131,6 +133,7 @@ export class WorkspaceRouter extends SwcComponent {
     void this.fetchWorkspace()
       .then((payload) => {
         this.payload = payload;
+        syncWorkspaceViewTabs(payload.viewTabs);
         this.syncView();
         this.patch();
       })

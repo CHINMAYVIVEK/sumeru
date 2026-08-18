@@ -213,7 +213,8 @@ func loadViewModeData(ctx context.Context, viewRecord *render.ViewRecordData, re
 		viewRecord.ListSearchURL = workspaceListSearchURL(req.actionID, req.menuID, req.listSearch)
 		return loadWorkspaceListData(ctx, viewRecord, resolved.targetModel, actionData, resolved.view, req.listSearch, maxWorkspaceListRows)
 	case workspaceViewModeKanban:
-		return loadWorkspaceKanbanData(ctx, viewRecord, resolved, actionData)
+		viewRecord.ListSearchQuery = req.listSearch
+		return loadWorkspaceKanbanData(ctx, viewRecord, resolved, actionData, req.listSearch)
 	case workspaceViewModePivot:
 		return loadWorkspacePivotData(ctx, viewRecord, resolved, actionData)
 	default:
@@ -268,8 +269,8 @@ func loadWorkspaceListData(ctx context.Context, viewRecord *render.ViewRecordDat
 	return nil
 }
 
-func loadWorkspaceKanbanData(ctx context.Context, viewRecord *render.ViewRecordData, resolved *resolvedWorkspaceView, actionData map[string]interface{}) error {
-	rows, err := searchWorkspaceRows(ctx, resolved.targetModel, actionData, maxWorkspaceKanbanRows)
+func loadWorkspaceKanbanData(ctx context.Context, viewRecord *render.ViewRecordData, resolved *resolvedWorkspaceView, actionData map[string]interface{}, searchQuery string) error {
+	rows, err := searchWorkspaceRowsWithSearch(ctx, resolved.targetModel, actionData, resolved.view, searchQuery, maxWorkspaceKanbanRows)
 	if err != nil {
 		return fmt.Errorf("kanban load: %w", err)
 	}

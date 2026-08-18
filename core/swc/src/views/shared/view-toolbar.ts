@@ -50,6 +50,31 @@ export function exportQuery(
   return params;
 }
 
+export function renderSearchField(
+  value: string,
+  onSearch: () => void,
+  onInput: (next: string) => void,
+): TemplateResult {
+  return html`
+    <div class="sum-list-search-wrap">
+      <span class="sum-list-search-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3-3" />
+        </svg>
+      </span>
+      <input
+        type="search"
+        class="sum-list-search"
+        placeholder="Search…"
+        value=${value}
+        @keydown=${(ev: Event) => (ev as KeyboardEvent).key === "Enter" && onSearch()}
+        @input=${(ev: Event) => onInput((ev.target as HTMLInputElement).value)}
+      />
+    </div>
+  `;
+}
+
 export function renderNewButton(payload: SwcWorkspacePayload): HTMLElement {
   return linkButton(newRecordUrl(payload), "New", "sum-btn sum-list-btn-new");
 }

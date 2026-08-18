@@ -307,6 +307,23 @@
   border-color: transparent;
 }
 
+.sum-list-control--secondary {
+  padding-top: 0;
+  border-top: none;
+  box-shadow: none;
+  justify-content: flex-end;
+}
+
+.sum-list-toolbar .sum-list-search-wrap {
+  flex: 1 1 12rem;
+  max-width: 20rem;
+}
+
+.sum-kanban-report-bar .sum-list-search-wrap {
+  flex: 1 1 12rem;
+  max-width: 20rem;
+}
+
 .sum-list-search-wrap {
   display: flex;
   align-items: center;

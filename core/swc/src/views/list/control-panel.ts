@@ -12,68 +12,41 @@ export interface ControlPanelState {
 export interface ControlPanelOptions {
   payload: SwcWorkspacePayload;
   state: ControlPanelState;
-  onSearch: () => void;
   onPage: (offset: number) => void;
-  onBulkDelete?: () => void;
 }
 
-/** Compact list toolbar: search + pagination + bulk actions only (view tabs live in server breadcrumb bar). */
+/** List toolbar secondary row: pagination only (shown when multiple pages). */
 export function renderControlPanel(opts: ControlPanelOptions): TemplateResult {
-  const { payload, state, onSearch, onPage, onBulkDelete } = opts;
+  const { payload, state, onPage } = opts;
   const rows = payload.records ?? [];
   const total = payload.listTotal ?? rows.length;
   const page = Math.floor(state.offset / state.limit) + 1;
   const pageCount = Math.max(1, Math.ceil(total / state.limit));
   const showPager = pageCount > 1 || state.offset > 0;
 
+  if (!showPager) return html``;
+
   return html`
-    <div class="sum-list-control">
-      <div class="sum-list-control-left">
-        <div class="sum-list-search-wrap">
-          <span class="sum-list-search-icon" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3-3" />
-            </svg>
-          </span>
-          <input
-            type="search"
-            class="sum-list-search"
-            placeholder="Search…"
-            value=${state.search}
-            @keydown=${(ev: Event) => (ev as KeyboardEvent).key === "Enter" && onSearch()}
-            @input=${(ev: Event) => {
-              state.search = (ev.target as HTMLInputElement).value;
-            }}
-          />
-        </div>
-        ${onBulkDelete && state.selectedIds.size > 0
-          ? html`<button type="button" class="sum-btn sum-btn--danger" @click=${() => onBulkDelete()}>
-              Delete (${state.selectedIds.size})
-            </button>`
-          : ""}
+    <div class="sum-list-control sum-list-control--secondary">
+      <div class="sum-list-pager">
+        <button
+          type="button"
+          class="sum-btn sum-btn--ghost"
+          disabled=${state.offset <= 0 ? "disabled" : undefined}
+          @click=${() => onPage(Math.max(0, state.offset - state.limit))}
+        >
+          Prev
+        </button>
+        <span>${page} / ${pageCount}</span>
+        <button
+          type="button"
+          class="sum-btn sum-btn--ghost"
+          disabled=${state.offset + state.limit >= total ? "disabled" : undefined}
+          @click=${() => onPage(state.offset + state.limit)}
+        >
+          Next
+        </button>
       </div>
-      ${showPager
-        ? html`<div class="sum-list-pager">
-            <button
-              type="button"
-              class="sum-btn sum-btn--ghost"
-              disabled=${state.offset <= 0 ? "disabled" : undefined}
-              @click=${() => onPage(Math.max(0, state.offset - state.limit))}
-            >
-              Prev
-            </button>
-            <span>${page} / ${pageCount}</span>
-            <button
-              type="button"
-              class="sum-btn sum-btn--ghost"
-              disabled=${state.offset + state.limit >= total ? "disabled" : undefined}
-              @click=${() => onPage(state.offset + state.limit)}
-            >
-              Next
-            </button>
-          </div>`
-        : ""}
     </div>
   `;
 }

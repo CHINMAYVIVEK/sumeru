@@ -1,7 +1,7 @@
 import { SwcComponent } from "../../runtime/component.js";
 import { html } from "../../template/html.js";
 import type { SwcArchField, SwcWorkspacePayload } from "../../types/workspace.js";
-import { renderNewButton, renderReportActions, visibleFieldNames } from "../shared/view-toolbar.js";
+import { renderNewButton, renderReportActions, renderSearchField, visibleFieldNames } from "../shared/view-toolbar.js";
 import { renderKanbanCardInner } from "./kanban-card.js";
 
 interface KanbanViewProps {
@@ -9,8 +9,30 @@ interface KanbanViewProps {
 }
 
 export class KanbanView extends SwcComponent<KanbanViewProps> {
+  private search = "";
+
+  setup(): void {
+    this.search = this.props.payload.listSearch ?? "";
+  }
+
+  onPropsChanged(props: KanbanViewProps): void {
+    this.search = props.payload.listSearch ?? "";
+  }
+
   private cardFields(): SwcArchField[] {
     return this.props.payload.arch.fields.filter((f) => !f.invisible);
+  }
+
+  private applySearch(): void {
+    const p = this.props.payload;
+    this.env.services.action.navigate(
+      this.env.services.router.workspaceUrl({
+        actionId: p.actionId,
+        menuId: p.menuId,
+        viewType: "kanban",
+        listSearch: this.search,
+      }),
+    );
   }
 
   private openCard(row: Record<string, unknown>): void {
@@ -38,7 +60,16 @@ export class KanbanView extends SwcComponent<KanbanViewProps> {
     const reportActions = renderReportActions(p, fields);
     return html`
       <div class="sum-view-toolbar sum-kanban-report-bar">
-        <div class="sum-view-toolbar-primary">${renderNewButton(p)}</div>
+        <div class="sum-view-toolbar-primary">
+          ${renderNewButton(p)}
+          ${renderSearchField(
+            this.search,
+            () => this.applySearch(),
+            (next) => {
+              this.search = next;
+            },
+          )}
+        </div>
         ${reportActions ?? ""}
       </div>
     `;

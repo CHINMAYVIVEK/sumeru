@@ -2,7 +2,7 @@ import { SwcComponent } from "../../runtime/component.js";
 import { html } from "../../template/html.js";
 import type { SwcWorkspacePayload } from "../../types/workspace.js";
 import { useState } from "../../runtime/hooks.js";
-import { renderNewButton, renderReportActions, visibleFieldNames } from "../shared/view-toolbar.js";
+import { renderNewButton, renderReportActions, renderSearchField, visibleFieldNames } from "../shared/view-toolbar.js";
 import {
   renderControlPanel,
   renderRowCheckbox,
@@ -161,18 +161,28 @@ export class ListView extends SwcComponent<ListViewProps> {
 
     return html`
       <div class="sum-list-view">
-        <div class="sum-list-control">
-          <div class="sum-list-control-left">
+        <div class="sum-view-toolbar sum-list-toolbar">
+          <div class="sum-view-toolbar-primary">
             ${renderNewButton(p)}
-            ${reportActions ?? ""}
+            ${renderSearchField(
+              this.panelState.search,
+              () => this.applySearch(),
+              (next) => {
+                this.panelState.search = next;
+              },
+            )}
+            ${this.panelState.selectedIds.size > 0
+              ? html`<button type="button" class="sum-btn sum-btn--danger" @click=${() => void this.bulkDelete()}>
+                  Delete (${this.panelState.selectedIds.size})
+                </button>`
+              : ""}
           </div>
+          ${reportActions ?? ""}
         </div>
         ${renderControlPanel({
           payload: { ...p, records: allRows },
           state: this.panelState,
-          onSearch: () => this.applySearch(),
           onPage: (o) => this.applyPage(o),
-          onBulkDelete: () => void this.bulkDelete(),
         })}
         <div class="sum-list-table-wrap">
           <table class="sum-list-table">
