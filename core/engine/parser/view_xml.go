@@ -125,6 +125,7 @@ type Div struct {
 	Class string  `xml:"class,attr"`
 	Field []Field `xml:"field"`
 	H1    []H1    `xml:"h1"`
+	Div   []Div   `xml:"div"`
 }
 
 type H1 struct {
