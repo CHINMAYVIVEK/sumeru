@@ -11,6 +11,7 @@ import type {
 } from "../types/workspace.js";
 import type { SwcRecord } from "../store/record.js";
 import { renderField as defaultRenderField } from "../widgets/registry.js";
+import { fieldPlaceholder } from "../widgets/field-shell.js";
 
 export type RenderFieldFn = (
   field: SwcArchField,
@@ -80,7 +81,13 @@ function renderSeparators(separators: SwcArchSeparator[] = []): TemplateResult {
 
 function renderLabels(labels: SwcArchLabel[] = []): TemplateResult {
   if (labels.length === 0) return html``;
-  return html`${labels.map((lab) => html`<div class="sum-label--notebook">${lab.string ?? ""}</div>`)}`;
+  return html`${labels.map((lab) => {
+    const text = lab.string ?? "";
+    if (lab.for) {
+      return html`<label class="sum-form-label sum-form-label--hint" for=${`f-${lab.for}`}>${text}</label>`;
+    }
+    return html`<div class="sum-form-label sum-form-label--hint">${text}</div>`;
+  })}`;
 }
 
 function initialsFromName(name: string): string {
@@ -96,9 +103,14 @@ function renderHeroField(
   readonly: boolean,
 ): TemplateResult {
   const val = String(record.get(field.name) ?? "");
-  const placeholder = field.placeholder ?? field.string ?? field.name;
+  const placeholder = fieldPlaceholder(field);
+  const hasValue = val.trim() !== "";
   if (readonly || field.readonly) {
-    return html`<h1><div class="sum-form-hero-input sum-form-hero-input--bold">${val}</div></h1>`;
+    const text = hasValue ? val : placeholder;
+    const cls = hasValue
+      ? "sum-form-hero-input sum-form-hero-input--bold"
+      : "sum-form-hero-input sum-form-hero-input--bold sum-form-hero-input--placeholder";
+    return html`<h1><div class=${cls}>${text}</div></h1>`;
   }
   return html`<h1>
     <input
@@ -106,6 +118,7 @@ function renderHeroField(
       name=${field.name}
       placeholder=${placeholder}
       value=${val}
+      aria-label=${placeholder}
       @input=${(ev: Event) => record.set(field.name, (ev.target as HTMLInputElement).value)}
     />
   </h1>`;
@@ -118,11 +131,14 @@ function renderContactItem(
 ): TemplateResult {
   const val = String(record.get(field.name) ?? "");
   const label = field.string ?? field.name;
+  const placeholder = fieldPlaceholder(field);
   const inputType = field.widget === "email" ? "email" : "text";
   if (readonly || field.readonly) {
+    const text = val.trim() !== "" ? val : placeholder;
+    const cls = val.trim() !== "" ? "sum-form-inline-input" : "sum-form-inline-input sum-form-inline-input--placeholder";
     return html`<div class="sum-form-contact-item">
       <label class="sum-field-label">${label}</label>
-      <div class="sum-form-inline-input">${val}</div>
+      <div class=${cls}>${text}</div>
     </div>`;
   }
   return html`<div class="sum-form-contact-item">
@@ -131,7 +147,7 @@ function renderContactItem(
       type=${inputType}
       class="sum-form-inline-input"
       name=${field.name}
-      placeholder=${label}
+      placeholder=${placeholder}
       value=${val}
       @input=${(ev: Event) => record.set(field.name, (ev.target as HTMLInputElement).value)}
     />
@@ -236,31 +252,105 @@ function renderTitleDiv(
   </div>`;
 }
 
+type GroupLayoutContext = "sheet" | "row" | "inner";
+
+/** Max logical columns for an outer group row (group `col` attribute, else nested child count). */
+function outerGroupMaxCols(group: SwcArchGroup, childCount: number): number {
+  if (group.col && group.col > 0) return group.col;
+  return Math.max(childCount, 1);
+}
+
+function childGroupColspan(group: SwcArchGroup): number {
+  return group.colspan && group.colspan > 0 ? group.colspan : 1;
+}
+
+/** Map colspan within a maxCols row onto a 12-column grid span. */
+function gridSpan12(maxCols: number, colspan: number): number {
+  const cols = Math.max(maxCols, 1);
+  const span = Math.max(colspan, 1);
+  return Math.min(12, Math.max(1, Math.round((span * 12) / cols)));
+}
+
+interface GroupRowItem {
+  group: SwcArchGroup;
+  gridSpan: number;
+}
+
+function packGroupRows(parent: SwcArchGroup, nested: SwcArchGroup[]): GroupRowItem[][] {
+  const maxCols = outerGroupMaxCols(parent, nested.length);
+  const rows: GroupRowItem[][] = [];
+  let current: GroupRowItem[] = [];
+  let used = 0;
+
+  for (const child of nested) {
+    const colspan = childGroupColspan(child);
+    if (used + colspan > maxCols && current.length > 0) {
+      rows.push(current);
+      current = [];
+      used = 0;
+    }
+    current.push({ group: child, gridSpan: gridSpan12(maxCols, colspan) });
+    used += colspan;
+  }
+  if (current.length > 0) rows.push(current);
+  return rows;
+}
+
+function groupClassNames(group: SwcArchGroup, ctx: GroupLayoutContext, plain: boolean): string {
+  const parts = ["sum-form-group"];
+  if (plain || !group.string) {
+    parts.push("sum-form-group--plain");
+  } else if (ctx === "row" || ctx === "inner") {
+    parts.push("sum-form-group--col");
+  } else {
+    parts.push("sum-form-group--full");
+  }
+  if ((group.fields ?? []).length > 0) {
+    parts.push("sum-form-group--row-layout");
+  }
+  return parts.join(" ");
+}
+
 function renderGroup(
   rf: RenderFieldFn,
   group: SwcArchGroup,
   record: SwcRecord,
   readonly: boolean,
+  ctx: GroupLayoutContext = "sheet",
   plain = false,
 ): TemplateResult {
   const nested = group.groups ?? [];
   const fields = group.fields ?? [];
   const hasNested = nested.length > 0;
-  const groupModifier = plain || !group.string ? "sum-form-group--plain" : "sum-form-group--full";
 
   if (hasNested && fields.length === 0) {
-    return html`<div class="sum-form-edit-grid sum-field-region--sheet">
-      ${nested.map((g) => renderGroup(rf, g, record, readonly))}
+    const rows = packGroupRows(group, nested);
+    return html`<div class="sum-form-group-outer sum-field-region--sheet">
+      ${rows.map(
+        (row) => html`<div class="sum-form-group-row">
+          ${row.map(
+            (item) => html`<div class="sum-form-group-span" style=${`--sum-group-span:${item.gridSpan}`}>
+              ${renderGroup(rf, item.group, record, readonly, "row")}
+            </div>`,
+          )}
+        </div>`,
+      )}
     </div>`;
   }
 
-  return html`<div .sum-form-group class=${groupModifier}>
+  const innerCols = group.col && group.col > 0 ? group.col : 0;
+  const innerColsClass = innerCols > 0 ? " sum-form-group--inner-cols" : "";
+
+  return html`<div
+    class=${groupClassNames(group, ctx, plain) + innerColsClass}
+    style=${innerCols ? `--sum-inner-cols:${innerCols}` : false}
+  >
     ${group.string ? html`<div class="sum-form-group-title">${group.string}</div>` : ""}
     <div class="sum-form-group-grid">
       ${renderFields(rf, fields, record, readonly)}
       ${renderSeparators(group.separators)}
       ${renderLabels(group.labels)}
-      ${nested.map((g) => renderGroup(rf, g, record, readonly, true))}
+      ${nested.map((g) => renderGroup(rf, g, record, readonly, "inner", true))}
     </div>
   </div>`;
 }
@@ -288,7 +378,7 @@ function renderNotebook(
       })}
     </div>
     <div class="sum-notebook-page sum-notebook-page--sheet" role="tabpanel">
-      <div class="sum-form-page-grid">
+      <div class="sum-form-sheet-stack sum-notebook-page-body">
         ${renderFields(rf, page.fields ?? [], record, readonly)}
         ${(page.groups ?? []).map((g) => renderGroup(rf, g, record, readonly))}
         ${renderSeparators(page.separators)}
@@ -336,7 +426,7 @@ export function renderFormSheet(opts: RenderFormSheetOptions): TemplateResult {
   const groups = sheet.groups ?? [];
   if (topFields.length > 0 || groups.length > 0) {
     parts.push(
-      html`<div class="sum-form-edit-grid sum-field-region--sheet">
+      html`<div class="sum-form-sheet-stack sum-field-region--sheet">
         ${renderFields(rf, topFields, record, readonly)}
         ${groups.map((g) => renderGroup(rf, g, record, readonly))}
       </div>`,

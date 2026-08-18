@@ -2,7 +2,6 @@ import { SwcComponent } from "../core/component.js";
 import { html } from "../core/template.js";
 import type { SwcArchButton, SwcWorkspacePayload } from "../types/workspace.js";
 import { RecordStore, SwcRecord } from "../store/record.js";
-import { useState } from "../core/hooks.js";
 import { SwcError } from "../core/error.js";
 import {
   headerButton,
@@ -31,8 +30,9 @@ export class FormView extends SwcComponent<FormViewProps> {
   private fieldHost!: FieldHost;
 
   setup(): void {
-    const [, bump] = useState(0);
-    this.bump = () => bump((n) => n + 1);
+    this.bump = () => {
+      if (this.el?.isConnected) this.patch();
+    };
     this.recordStore = new RecordStore(this.env.services.rpc);
     this.fieldHost = new FieldHost(this.env);
     const p = this.props.payload;
@@ -44,16 +44,29 @@ export class FormView extends SwcComponent<FormViewProps> {
   private bump: (() => void) | null = null;
 
   onMount(): void {
-    if (this.el) {
-      this.teardownInteractions?.();
-      this.teardownInteractions = initFormInteractions(this.el);
-    }
+    this.bindFormInteractions();
   }
 
   onWillUnmount(): void {
     this.teardownInteractions?.();
     this.teardownInteractions = null;
     this.fieldHost.clear();
+  }
+
+  patch(): void {
+    this.teardownInteractions?.();
+    if (!this.el?.parentElement) return;
+    const parent = this.el.parentElement;
+    const next = this.template().render();
+    parent.replaceChild(next, this.el);
+    this.el = next;
+    this.bindFormInteractions();
+  }
+
+  private bindFormInteractions(): void {
+    if (this.el) {
+      this.teardownInteractions = initFormInteractions(this.el);
+    }
   }
 
   private renderFieldCached = (

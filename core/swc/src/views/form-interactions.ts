@@ -172,6 +172,19 @@ function bindAvatarUpload(root: HTMLElement): () => void {
   return () => root.removeEventListener("change", onChange);
 }
 
+function bindDateDismiss(root: HTMLElement): () => void {
+  const onDocClick = (ev: MouseEvent): void => {
+    const target = ev.target;
+    if (!(target instanceof Node)) return;
+    for (const details of root.querySelectorAll<HTMLDetailsElement>("details.sum-date-field[open]")) {
+      if (details.contains(target)) continue;
+      details.open = false;
+    }
+  };
+  document.addEventListener("click", onDocClick, true);
+  return () => document.removeEventListener("click", onDocClick, true);
+}
+
 export function initFormInteractions(root: HTMLElement): () => void {
   const cleanups: Array<() => void> = [];
   for (const tabs of root.querySelectorAll(".sum-notebook-tabs")) {
@@ -180,6 +193,7 @@ export function initFormInteractions(root: HTMLElement): () => void {
   }
   cleanups.push(bindMany2OneDismiss(root));
   cleanups.push(bindAvatarUpload(root));
+  cleanups.push(bindDateDismiss(root));
   return () => {
     for (const fn of cleanups) fn();
   };
