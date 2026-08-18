@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node esbuild.config.mjs",
-    "check": "tsc --noEmit -p tsconfig.build.json",
+    "build": "node esbuild.config.mjs && npm run build:extension",
+    "build:extension": "node devtools-extension/esbuild.config.mjs",
+    "check": "tsc --noEmit -p tsconfig.build.json && tsc --noEmit -p tsconfig.extension.json",
     "test": "vitest run"
   },
   "devDependencies": {
