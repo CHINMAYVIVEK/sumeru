@@ -29,9 +29,11 @@ export interface SwcBootstrapSidebarGroup {
 }
 
 export interface SwcBootstrapApp {
+  kind?: "app" | "menu";
   module: string;
   name: string;
   action: string;
+  description?: string;
   webIcon?: string;
   pinned?: boolean;
 }

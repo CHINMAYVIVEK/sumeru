@@ -11,6 +11,7 @@ import { DialogService } from "./services/dialog.js";
 import { registerCoreServices } from "./services/service-registry.js";
 import { ShellLayout } from "./shell/ShellLayout.js";
 import { initShellChrome } from "./shell/shell-chrome.js";
+import { initAppLauncher } from "./shell/app-launcher.js";
 import { registerDefaultWidgets } from "./widgets/registry.js";
 import { registry, type RegistryEntry } from "./runtime/registry.js";
 import { AddonLoader } from "./addon/loader.js";
@@ -74,6 +75,7 @@ function bootstrap(): void {
   initDevtoolsBridge();
   mountDebugPanel();
   initShellChrome(boot, env.services.http);
+  initAppLauncher(boot, env.services.action);
 
   const mountEl = document.getElementById("swc-workspace");
   if (mountEl) {

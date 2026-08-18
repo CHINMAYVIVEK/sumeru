@@ -74,9 +74,11 @@ type swcBootstrapSidebar struct {
 }
 
 type swcBootstrapApp struct {
-	Module string `json:"module"`
-	Name   string `json:"name"`
-	Action string `json:"action"`
+	Kind        string `json:"kind,omitempty"`
+	Module      string `json:"module"`
+	Name        string `json:"name"`
+	Action      string `json:"action"`
+	Description string `json:"description,omitempty"`
 }
 
 type swcBootstrapToast struct {
@@ -163,8 +165,10 @@ func BuildSWCBootstrapJSON(ctx context.Context, page PageData, ws *SWCBootstrapW
 
 func parseSWCLauncherApps(raw template.JS) []swcBootstrapApp {
 	var items []struct {
+		Kind        string `json:"kind"`
 		Name        string `json:"name"`
 		DisplayName string `json:"displayName"`
+		Description string `json:"description"`
 		Href        string `json:"href"`
 	}
 	if err := json.Unmarshal([]byte(raw), &items); err != nil {
@@ -172,7 +176,17 @@ func parseSWCLauncherApps(raw template.JS) []swcBootstrapApp {
 	}
 	out := make([]swcBootstrapApp, 0, len(items))
 	for _, it := range items {
-		out = append(out, swcBootstrapApp{Module: it.Name, Name: it.DisplayName, Action: it.Href})
+		kind := strings.TrimSpace(it.Kind)
+		if kind == "" {
+			kind = "app"
+		}
+		out = append(out, swcBootstrapApp{
+			Kind:        kind,
+			Module:      it.Name,
+			Name:        it.DisplayName,
+			Action:      it.Href,
+			Description: strings.TrimSpace(it.Description),
+		})
 	}
 	return out
 }
