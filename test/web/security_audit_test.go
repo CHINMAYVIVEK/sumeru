@@ -16,7 +16,7 @@ func TestCSRFTokenForRequest_emptyWithoutSession(t *testing.T) {
 }
 
 func TestValidateCSRF_rejectsMissingToken(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/web/record/save", nil)
+	req := httptest.NewRequest(http.MethodPost, "/web/company/switch", nil)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	_ = req.ParseForm()
 	if web.ValidateCSRF(req) {

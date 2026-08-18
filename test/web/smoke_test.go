@@ -32,18 +32,17 @@ func TestSmoke_unauthenticatedWebRedirectsToLogin(t *testing.T) {
 	}
 }
 
-func TestSmoke_unauthenticatedRecordSaveRedirectsToLogin(t *testing.T) {
+func TestSmoke_unauthenticatedSwcWorkspaceRedirectsToLogin(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/web/record/save", web.RecordSaveHandler)
+	web.RegisterAppRoutes(mux)
 	h := web.SecurityMiddleware(mux)
 
 	rr := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/web/record/save", strings.NewReader("model=core.user"))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req := httptest.NewRequest(http.MethodGet, "/web/swc/workspace?action=1", nil)
 	h.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusFound {
-		t.Fatalf("POST /web/record/save: status %d; want %d", rr.Code, http.StatusFound)
+		t.Fatalf("GET /web/swc/workspace: status %d; want %d", rr.Code, http.StatusFound)
 	}
 	loc := rr.Header().Get("Location")
 	if !strings.Contains(loc, "/web/login") {
