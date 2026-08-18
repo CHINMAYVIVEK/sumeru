@@ -23,18 +23,20 @@ export class BooleanToggleField extends SwcComponent<FieldProps> {
     return renderFieldShell(
       field,
       html`<label class="sum-field-toggle" for=${id}>
+        <span class="sum-field-toggle-name">${field.string ?? field.name}</span>
         <input
           id=${id}
           type="checkbox"
           class="sum-field-input"
           name=${field.name}
+          autocomplete="off"
           checked=${checked ? "checked" : ""}
           disabled=${readonly || field.readonly ? "disabled" : undefined}
           @change=${(ev: Event) => record.set(field.name, (ev.target as HTMLInputElement).checked)}
         />
         <span>${checked ? "On" : "Off"}</span>
       </label>`,
-      { showLabel: true, labelFor: id },
+      { showLabel: false },
     );
   }
 }

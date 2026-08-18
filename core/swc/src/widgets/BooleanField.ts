@@ -25,7 +25,7 @@ export class BooleanField extends SwcComponent<FieldProps> {
     const id = fieldInputId(field);
 
     if (readonly || field.readonly) {
-      return renderFieldShell(field, fieldReadonlyValue(checked ? "Yes" : "No"));
+      return renderFieldShell(field, fieldReadonlyValue(checked ? "Yes" : "No"), { labelFor: false });
     }
 
     return renderFieldShell(
@@ -35,6 +35,7 @@ export class BooleanField extends SwcComponent<FieldProps> {
         type="checkbox"
         class="sum-field-input"
         name=${field.name}
+        autocomplete="off"
         checked=${checked ? "checked" : ""}
         @change=${(ev: Event) => record.set(field.name, (ev.target as HTMLInputElement).checked)}
       />`,

@@ -2,7 +2,7 @@ import { SwcComponent } from "../runtime/component.js";
 import { html } from "../template/html.js";
 import type { SwcArchField } from "../types/workspace.js";
 import type { SwcRecord } from "../model/record.js";
-import { renderFieldShell } from "./field-shell.js";
+import { fieldInputId, renderFieldShell } from "./field-shell.js";
 import { AsyncFieldController } from "./field-async.js";
 
 interface FieldProps {
@@ -102,8 +102,11 @@ export class Many2ManyTagsField extends SwcComponent<FieldProps> {
         html`<div class="sum-multi-select-tags sum-multi-select-tags--readonly sum-field-tags">
           ${selected.map((tag) => html`<span class="sum-multi-select-tag"><span class="sum-multi-select-tag-label">${tag.name}</span></span>`)}
         </div>`,
+        { labelFor: false },
       );
     }
+
+    const id = fieldInputId(field);
 
     return renderFieldShell(
       field,
@@ -118,6 +121,7 @@ export class Many2ManyTagsField extends SwcComponent<FieldProps> {
           )}
         </div>
         <select
+          id=${id}
           class="sum-multi-select-add sum-field-select"
           @change=${(ev: Event) => {
             const val = Number((ev.target as HTMLSelectElement).value);
@@ -133,6 +137,7 @@ export class Many2ManyTagsField extends SwcComponent<FieldProps> {
         </select>
         ${!this.loaded ? html`<span class="sum-field-hint">Loading…</span>` : ""}
       </div>`,
+      { labelFor: id },
     );
   }
 }

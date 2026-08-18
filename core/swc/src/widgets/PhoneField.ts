@@ -5,6 +5,7 @@ import type { SwcRecord } from "../model/record.js";
 import {
   fieldInputId,
   fieldPlaceholder,
+  fieldAutocomplete,
   fieldReadonlyValue,
   renderFieldShell,
 } from "./field-shell.js";
@@ -23,7 +24,7 @@ export class PhoneField extends SwcComponent<FieldProps> {
     const id = fieldInputId(field);
 
     if (readonly || field.readonly) {
-      return renderFieldShell(field, fieldReadonlyValue(val, placeholder));
+      return renderFieldShell(field, fieldReadonlyValue(val, placeholder), { labelFor: false });
     }
 
     return renderFieldShell(
@@ -35,6 +36,7 @@ export class PhoneField extends SwcComponent<FieldProps> {
         name=${field.name}
         placeholder=${placeholder}
         value=${val}
+        autocomplete=${fieldAutocomplete(field)}
         @input=${(ev: Event) => record.set(field.name, (ev.target as HTMLInputElement).value)}
       />`,
       { labelFor: id },

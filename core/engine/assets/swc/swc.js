@@ -478,7 +478,7 @@ var SumeruSWC = (() => {
         }
       } else if (k === "style" && v) {
         applyStyle(el, v);
-      } else if (k.startsWith("data-") || k === "id" || k === "for" || k === "href" || k === "type" || k === "name" || k === "value" || k === "placeholder" || k === "aria-label" || k === "title" || k === "role" || k === "aria-selected" || k === "checked" || k === "src" || k === "alt" || k === "rows" || k === "selected" || k === "method" || k === "action" || k === "enctype" || k === "accept" || k === "open" || k === "hidden" || k === "disabled") {
+      } else if (k.startsWith("data-") || k === "id" || k === "for" || k === "href" || k === "type" || k === "name" || k === "value" || k === "placeholder" || k === "autocomplete" || k === "step" || k === "tabindex" || k === "aria-label" || k === "aria-labelledby" || k === "aria-controls" || k === "title" || k === "role" || k === "aria-selected" || k === "checked" || k === "src" || k === "alt" || k === "rows" || k === "selected" || k === "method" || k === "action" || k === "enctype" || k === "accept" || k === "open" || k === "hidden" || k === "disabled") {
         el.setAttribute(k, v);
       }
     }
@@ -1058,6 +1058,26 @@ var SumeruSWC = (() => {
     if (recordId > 0) params.set("id", String(recordId));
     return params;
   }
+  function renderSearchField(value, onSearch, onInput) {
+    return html`
+    <div class="sum-list-search-wrap">
+      <span class="sum-list-search-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3-3" />
+        </svg>
+      </span>
+      <input
+        type="search"
+        class="sum-list-search"
+        placeholder="Search…"
+        value=${value}
+        @keydown=${(ev) => ev.key === "Enter" && onSearch()}
+        @input=${(ev) => onInput(ev.target.value)}
+      />
+    </div>
+  `;
+  }
   function renderNewButton(payload) {
     return linkButton(newRecordUrl(payload), "New", "sum-btn sum-list-btn-new");
   }
@@ -1117,56 +1137,34 @@ var SumeruSWC = (() => {
 
   // src/views/list/control-panel.ts
   function renderControlPanel(opts) {
-    const { payload, state, onSearch, onPage, onBulkDelete } = opts;
+    const { payload, state, onPage } = opts;
     const rows = payload.records ?? [];
     const total = payload.listTotal ?? rows.length;
     const page = Math.floor(state.offset / state.limit) + 1;
     const pageCount = Math.max(1, Math.ceil(total / state.limit));
     const showPager = pageCount > 1 || state.offset > 0;
+    if (!showPager) return html``;
     return html`
-    <div class="sum-list-control">
-      <div class="sum-list-control-left">
-        <div class="sum-list-search-wrap">
-          <span class="sum-list-search-icon" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3-3" />
-            </svg>
-          </span>
-          <input
-            type="search"
-            class="sum-list-search"
-            placeholder="Search…"
-            value=${state.search}
-            @keydown=${(ev) => ev.key === "Enter" && onSearch()}
-            @input=${(ev) => {
-      state.search = ev.target.value;
-    }}
-          />
-        </div>
-        ${onBulkDelete && state.selectedIds.size > 0 ? html`<button type="button" class="sum-btn sum-btn--danger" @click=${() => onBulkDelete()}>
-              Delete (${state.selectedIds.size})
-            </button>` : ""}
+    <div class="sum-list-control sum-list-control--secondary">
+      <div class="sum-list-pager">
+        <button
+          type="button"
+          class="sum-btn sum-btn--ghost"
+          disabled=${state.offset <= 0 ? "disabled" : void 0}
+          @click=${() => onPage(Math.max(0, state.offset - state.limit))}
+        >
+          Prev
+        </button>
+        <span>${page} / ${pageCount}</span>
+        <button
+          type="button"
+          class="sum-btn sum-btn--ghost"
+          disabled=${state.offset + state.limit >= total ? "disabled" : void 0}
+          @click=${() => onPage(state.offset + state.limit)}
+        >
+          Next
+        </button>
       </div>
-      ${showPager ? html`<div class="sum-list-pager">
-            <button
-              type="button"
-              class="sum-btn sum-btn--ghost"
-              disabled=${state.offset <= 0 ? "disabled" : void 0}
-              @click=${() => onPage(Math.max(0, state.offset - state.limit))}
-            >
-              Prev
-            </button>
-            <span>${page} / ${pageCount}</span>
-            <button
-              type="button"
-              class="sum-btn sum-btn--ghost"
-              disabled=${state.offset + state.limit >= total ? "disabled" : void 0}
-              @click=${() => onPage(state.offset + state.limit)}
-            >
-              Next
-            </button>
-          </div>` : ""}
     </div>
   `;
   }
@@ -1337,18 +1335,26 @@ var SumeruSWC = (() => {
       const allSelected = ids.length > 0 && ids.every((id) => this.panelState.selectedIds.has(id));
       return html`
       <div class="sum-list-view">
-        <div class="sum-list-control">
-          <div class="sum-list-control-left">
+        <div class="sum-view-toolbar sum-list-toolbar">
+          <div class="sum-view-toolbar-primary">
             ${renderNewButton(p)}
-            ${reportActions ?? ""}
+            ${renderSearchField(
+        this.panelState.search,
+        () => this.applySearch(),
+        (next) => {
+          this.panelState.search = next;
+        }
+      )}
+            ${this.panelState.selectedIds.size > 0 ? html`<button type="button" class="sum-btn sum-btn--danger" @click=${() => void this.bulkDelete()}>
+                  Delete (${this.panelState.selectedIds.size})
+                </button>` : ""}
           </div>
+          ${reportActions ?? ""}
         </div>
         ${renderControlPanel({
         payload: { ...p, records: allRows },
         state: this.panelState,
-        onSearch: () => this.applySearch(),
-        onPage: (o) => this.applyPage(o),
-        onBulkDelete: () => void this.bulkDelete()
+        onPage: (o) => this.applyPage(o)
       })}
         <div class="sum-list-table-wrap">
           <table class="sum-list-table">
@@ -1490,6 +1496,27 @@ var SumeruSWC = (() => {
   function fieldInputId(field) {
     return `f-${field.name}`;
   }
+  function fieldLabelId(field) {
+    return `${fieldInputId(field)}-label`;
+  }
+  function fieldAutocomplete(field) {
+    const explicit = field.options?.autocomplete;
+    if (typeof explicit === "string" && explicit.trim()) {
+      return explicit.trim();
+    }
+    const name = field.name.toLowerCase();
+    const widget = (field.widget ?? "").toLowerCase();
+    if (widget === "email" || name === "email") return "email";
+    if (name === "phone" || name === "mobile" || name === "phone_number") return "tel";
+    if (name === "name" || name === "display_name") return "organization";
+    if (name === "street" || name === "street2") return "street-address";
+    if (name === "city") return "address-level2";
+    if (name === "zip" || name === "postal_code") return "postal-code";
+    if (name === "website" || name === "url") return "url";
+    if (name === "firstname" || name === "first_name") return "given-name";
+    if (name === "lastname" || name === "last_name") return "family-name";
+    return "off";
+  }
   function isFullWidthField(field) {
     if (field.type === "text" || field.widget === "text") return true;
     if (field.type === "one2many" || field.widget === "one2many") return true;
@@ -1509,16 +1536,19 @@ var SumeruSWC = (() => {
     }
     return parts.join(" ");
   }
-  function fieldLabel(field, forId, row = false) {
+  function fieldLabel(field, forId, row = false, labelId = fieldLabelId(field)) {
     const label = field.string ?? field.name;
     const cls = row ? "sum-field-label sum-field-label--row" : "sum-field-label";
     if (forId) {
-      return html`<label class=${cls} for=${forId}>${label}</label>`;
+      return html`<label class=${cls} id=${labelId} for=${forId}>${label}</label>`;
     }
-    return html`<label class=${cls}>${label}</label>`;
+    return html`<span class=${cls} id=${labelId}>${label}</span>`;
   }
-  function fieldControl(body, compact = false) {
+  function fieldControl(body, compact = false, ariaLabelledBy) {
     const cls = compact ? "sum-field-control sum-field-control--compact" : "sum-field-control";
+    if (ariaLabelledBy) {
+      return html`<div class=${cls} aria-labelledby=${ariaLabelledBy}>${body}</div>`;
+    }
     return html`<div class=${cls}>${body}</div>`;
   }
   function fieldPlaceholder(field) {
@@ -1534,29 +1564,32 @@ var SumeruSWC = (() => {
     const placeholder = fieldPlaceholder(field);
     return html`<input
     type=${inputType}
+    id=${fieldInputId(field)}
     class="sum-field-input"
     name=${field.name}
     value=${val}
     placeholder=${placeholder}
+    autocomplete=${fieldAutocomplete(field)}
     readonly
     tabindex="-1"
   />`;
   }
   function renderFieldShell(field, body, options = {}) {
     const showLabel = options.showLabel !== false;
-    const labelFor = options.labelFor ?? fieldInputId(field);
+    const labelId = fieldLabelId(field);
+    const labelFor = options.labelFor === false ? void 0 : options.labelFor;
     const useRow = options.layout === "row" || options.layout !== "stack" && !isFullWidthField(field) && !options.compact;
     const modifiers = [...options.modifiers ?? []];
     if (useRow) modifiers.push("sum-field-widget--row");
-    const wrappedBody = fieldControl(body, options.compact === true);
+    const wrappedBody = fieldControl(body, options.compact === true, labelFor ? void 0 : labelId);
     if (useRow) {
       return html`<div class=${fieldWidgetClass(field, modifiers)}>
-      ${showLabel ? fieldLabel(field, labelFor, true) : ""}
+      ${showLabel ? fieldLabel(field, labelFor, true, labelId) : ""}
       ${wrappedBody}
     </div>`;
     }
     return html`<div class=${fieldWidgetClass(field, modifiers)}>
-    ${showLabel ? fieldLabel(field, labelFor) : ""}
+    ${showLabel ? fieldLabel(field, labelFor, false, labelId) : ""}
     ${wrappedBody}
   </div>`;
   }
@@ -1591,7 +1624,8 @@ var SumeruSWC = (() => {
       if (readonly || field.readonly) {
         return renderFieldShell(
           field,
-          field.type === "integer" || field.type === "float" || field.type === "numeric" ? fieldReadonlyInput(field, val, "text") : fieldReadonlyValue(val, placeholder)
+          field.type === "integer" || field.type === "float" || field.type === "numeric" ? fieldReadonlyInput(field, val, "text") : fieldReadonlyInput(field, val, inputType === "text" ? "text" : inputType),
+          { labelFor: id }
         );
       }
       return renderFieldShell(
@@ -1603,6 +1637,7 @@ var SumeruSWC = (() => {
         name=${field.name}
         placeholder=${placeholder}
         value=${val}
+        autocomplete=${fieldAutocomplete(field)}
         ${step ? html`step=${step}` : ""}
         @input=${(ev) => record.set(field.name, parseNumericValue(field, ev.target.value))}
         @change=${() => record.notifyFieldChange(field.name)}
@@ -1722,7 +1757,7 @@ var SumeruSWC = (() => {
       const id = fieldInputId(field);
       const placeholder = fieldPlaceholder(field);
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(String(display), placeholder));
+        return renderFieldShell(field, fieldReadonlyValue(String(display), placeholder), { labelFor: false });
       }
       return renderFieldShell(
         field,
@@ -1869,9 +1904,9 @@ var SumeruSWC = (() => {
       if (readonly || field.readonly) {
         const label = options.find((o) => o.value === value)?.label ?? value;
         if (mode === "select") {
-          return renderFieldShell(field, fieldReadonlyValue(label));
+          return renderFieldShell(field, fieldReadonlyValue(label), { labelFor: false });
         }
-        return renderFieldShell(field, this.renderStars(numericLevel(value), true));
+        return renderFieldShell(field, this.renderStars(numericLevel(value), true), { labelFor: false });
       }
       if (mode === "select") {
         const id = fieldInputId(field);
@@ -1896,7 +1931,8 @@ var SumeruSWC = (() => {
         field,
         this.renderStars(numericLevel(value), false, (level) => {
           record.set(field.name, String(level));
-        })
+        }),
+        { labelFor: false }
       );
     }
     starButtons(level, disabled, onPick) {
@@ -1924,7 +1960,7 @@ var SumeruSWC = (() => {
     }
     renderStars(level, disabled, onPick) {
       const { field } = this.props;
-      return html`<div class="sum-priority-stars" role="group" aria-label=${field.string ?? field.name}>
+      return html`<div class="sum-priority-stars" role="group" aria-labelledby=${fieldLabelId(field)}>
       ${this.starButtons(level, disabled, onPick)}
     </div>`;
     }
@@ -1940,7 +1976,7 @@ var SumeruSWC = (() => {
       const checked = isChecked(record.get(field.name));
       const id = fieldInputId(field);
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(checked ? "Yes" : "No"));
+        return renderFieldShell(field, fieldReadonlyValue(checked ? "Yes" : "No"), { labelFor: false });
       }
       return renderFieldShell(
         field,
@@ -1949,6 +1985,7 @@ var SumeruSWC = (() => {
         type="checkbox"
         class="sum-field-input"
         name=${field.name}
+        autocomplete="off"
         checked=${checked ? "checked" : ""}
         @change=${(ev) => record.set(field.name, ev.target.checked)}
       />`,
@@ -1965,7 +2002,7 @@ var SumeruSWC = (() => {
       const placeholder = fieldPlaceholder(field);
       const id = fieldInputId(field);
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(val, placeholder));
+        return renderFieldShell(field, fieldReadonlyValue(val, placeholder), { labelFor: false });
       }
       return renderFieldShell(
         field,
@@ -1974,6 +2011,7 @@ var SumeruSWC = (() => {
         class="sum-field-textarea"
         name=${field.name}
         placeholder=${placeholder}
+        autocomplete=${fieldAutocomplete(field)}
         rows="5"
         @input=${(ev) => record.set(field.name, ev.target.value)}
       >${val}</textarea>`,
@@ -2038,7 +2076,7 @@ var SumeruSWC = (() => {
       const id = fieldInputId(field);
       const placeholder = fieldPlaceholder(field);
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(this.displayValue(), placeholder));
+        return renderFieldShell(field, fieldReadonlyValue(this.displayValue(), placeholder), { labelFor: false });
       }
       return renderFieldShell(
         field,
@@ -2046,6 +2084,7 @@ var SumeruSWC = (() => {
         id=${id}
         class="sum-field-input sum-field-select"
         name=${field.name}
+        autocomplete="off"
         @change=${(ev) => {
           const val = ev.target.value;
           const opt = this.options.find((o) => o.value === val);
@@ -2075,7 +2114,7 @@ var SumeruSWC = (() => {
       const placeholder = fieldPlaceholder(field);
       const id = fieldInputId(field);
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(val, placeholder));
+        return renderFieldShell(field, fieldReadonlyValue(val, placeholder), { labelFor: false });
       }
       return renderFieldShell(
         field,
@@ -2086,6 +2125,7 @@ var SumeruSWC = (() => {
         name=${field.name}
         placeholder=${placeholder}
         value=${val}
+        autocomplete=${fieldAutocomplete(field)}
         @input=${(ev) => record.set(field.name, ev.target.value)}
       />`,
         { labelFor: id }
@@ -2104,7 +2144,7 @@ var SumeruSWC = (() => {
       const name = field.name;
       return renderFieldShell(
         field,
-        html`<div class="sum-field-radio-group" role="radiogroup">
+        html`<div class="sum-field-radio-group" role="radiogroup" aria-labelledby=${fieldLabelId(field)}>
         <label class="sum-field-radio">
           <input
             type="radio"
@@ -2127,7 +2167,8 @@ var SumeruSWC = (() => {
           />
           No
         </label>
-      </div>`
+      </div>`,
+        { labelFor: false }
       );
     }
   };
@@ -2144,18 +2185,20 @@ var SumeruSWC = (() => {
       return renderFieldShell(
         field,
         html`<label class="sum-field-toggle" for=${id}>
+        <span class="sum-field-toggle-name">${field.string ?? field.name}</span>
         <input
           id=${id}
           type="checkbox"
           class="sum-field-input"
           name=${field.name}
+          autocomplete="off"
           checked=${checked ? "checked" : ""}
           disabled=${readonly || field.readonly ? "disabled" : void 0}
           @change=${(ev) => record.set(field.name, ev.target.checked)}
         />
         <span>${checked ? "On" : "Off"}</span>
       </label>`,
-        { showLabel: true, labelFor: id }
+        { showLabel: false }
       );
     }
   };
@@ -2234,9 +2277,11 @@ var SumeruSWC = (() => {
           field,
           html`<div class="sum-multi-select-tags sum-multi-select-tags--readonly sum-field-tags">
           ${selected.map((tag) => html`<span class="sum-multi-select-tag"><span class="sum-multi-select-tag-label">${tag.name}</span></span>`)}
-        </div>`
+        </div>`,
+          { labelFor: false }
         );
       }
+      const id = fieldInputId(field);
       return renderFieldShell(
         field,
         html`<div class="sum-multi-select-box">
@@ -2249,6 +2294,7 @@ var SumeruSWC = (() => {
         )}
         </div>
         <select
+          id=${id}
           class="sum-multi-select-add sum-field-select"
           @change=${(ev) => {
           const val = Number(ev.target.value);
@@ -2261,7 +2307,8 @@ var SumeruSWC = (() => {
           ${this.catalog.filter((t) => !selectedSet.has(t.id)).map((t) => html`<option value=${String(t.id)}>${t.name}</option>`)}
         </select>
         ${!this.loaded ? html`<span class="sum-field-hint">Loading…</span>` : ""}
-      </div>`
+      </div>`,
+        { labelFor: id }
       );
     }
   };
@@ -2580,10 +2627,6 @@ var SumeruSWC = (() => {
     }
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
-  function closeDetails(ev) {
-    const details = ev.currentTarget?.closest("details.sum-date-field");
-    if (details instanceof HTMLDetailsElement) details.open = false;
-  }
   var DateField = class extends SwcComponent {
     template() {
       const { field, record, readonly } = this.props;
@@ -2594,62 +2637,53 @@ var SumeruSWC = (() => {
       const id = fieldInputId(field);
       const inputType = isDateTime(field) ? "datetime-local" : "date";
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(display, placeholder));
+        return renderFieldShell(field, fieldReadonlyInput(field, display, "text"), { labelFor: id });
       }
       return renderFieldShell(
         field,
-        html`<details class="sum-date-field">
-        <summary class="sum-date-field-trigger">
-          <span class=${display ? "sum-date-field-value" : "sum-date-field-value sum-date-field-value--placeholder"}>
-            ${display || placeholder}
-          </span>
-          <span class="sum-date-field-icon" aria-hidden="true">📅</span>
-        </summary>
-        <input type="hidden" id=${id} name=${field.name} value=${native} />
-        <div class="sum-date-popover" role="dialog" aria-label=${placeholder}>
-          <div class="sum-date-popover-header">${field.string ?? field.name}</div>
-          <input
-            type=${inputType}
-            class="sum-date-popover-input"
-            value=${native}
-            @input=${(ev) => {
+        html`<div class="sum-date-field-inline">
+        <input
+          id=${id}
+          type=${inputType}
+          class="sum-field-input sum-date-input"
+          name=${field.name}
+          value=${native}
+          placeholder=${placeholder}
+          autocomplete="off"
+          @input=${(ev) => {
           record.set(field.name, ev.target.value || null);
           this.patch();
         }}
-            @change=${(ev) => {
+          @change=${(ev) => {
           record.set(field.name, ev.target.value || null);
-          this.patch();
+          record.notifyFieldChange(field.name);
         }}
-          />
-          <div class="sum-date-popover-actions">
-            <button
-              type="button"
-              class="sum-date-popover-btn"
-              @click=${(ev) => {
+        />
+        <div class="sum-date-field-actions">
+          <button
+            type="button"
+            class="sum-date-action-btn"
+            @click=${() => {
           record.set(field.name, todayNative(field));
+          record.notifyFieldChange(field.name);
           this.patch();
-          closeDetails(ev);
         }}
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              class="sum-date-popover-btn"
-              @click=${(ev) => {
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            class="sum-date-action-btn"
+            @click=${() => {
           record.set(field.name, null);
+          record.notifyFieldChange(field.name);
           this.patch();
-          closeDetails(ev);
         }}
-            >
-              Clear
-            </button>
-            <button type="button" class="sum-date-popover-btn sum-date-popover-btn--primary" @click=${closeDetails}>
-              Done
-            </button>
-          </div>
+          >
+            Clear
+          </button>
         </div>
-      </details>`,
+      </div>`,
         { labelFor: id }
       );
     }
@@ -2661,13 +2695,14 @@ var SumeruSWC = (() => {
       const { field, record, readonly } = this.props;
       const image = String(record.get(field.name) ?? "");
       const hasImage = image.length > 0;
+      const id = fieldInputId(field);
       return renderFieldShell(
         field,
         html`<div data-sum-avatar>
         ${hasImage ? html`<div class="sum-image-thumb"><img class="sum-image-thumb-img" src=${image} alt="" /></div>` : html`<div class="sum-image-thumb sum-image-thumb--empty">No image</div>`}
         ${readonly || field.readonly ? html`<input type="hidden" data-sum-image-value name=${field.name} value=${image} />` : html`<label class="sum-form-avatar-upload">
               Upload
-              <input type="file" accept="image/*" />
+              <input id=${id} type="file" accept="image/*" />
               <input
                 type="hidden"
                 data-sum-image-value
@@ -2677,7 +2712,7 @@ var SumeruSWC = (() => {
               />
             </label>`}
       </div>`,
-        { modifiers: ["sum-field-widget--image"] }
+        { modifiers: ["sum-field-widget--image"], labelFor: readonly || field.readonly ? false : id }
       );
     }
   };
@@ -2689,7 +2724,7 @@ var SumeruSWC = (() => {
       const symbol = field.options?.currency_symbol ?? "\xA4";
       const val = String(record.get(field.name) ?? "");
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(val ? `${symbol} ${val}` : ""));
+        return renderFieldShell(field, fieldReadonlyValue(val ? `${symbol} ${val}` : ""), { labelFor: false });
       }
       return super.template();
     }
@@ -2700,7 +2735,7 @@ var SumeruSWC = (() => {
       const raw = String(record.get(field.name) ?? "");
       if (readonly || field.readonly) {
         const text = raw.replace(/<[^>]+>/g, " ").trim();
-        return renderFieldShell(field, fieldReadonlyValue(text));
+        return renderFieldShell(field, fieldReadonlyValue(text), { labelFor: false });
       }
       return super.template();
     }
@@ -2711,7 +2746,8 @@ var SumeruSWC = (() => {
       const name = String(record.get(`${field.name}_name`) ?? record.get(field.name) ?? "Download");
       return renderFieldShell(
         field,
-        html`<a class="sum-field-link" href="/web/content/${field.name}/${record.id}" download>${name}</a>`
+        html`<a class="sum-field-link" href="/web/content/${field.name}/${record.id}" download>${name}</a>`,
+        { labelFor: false }
       );
     }
   };
@@ -2725,7 +2761,8 @@ var SumeruSWC = (() => {
       if (readonly || field.readonly) {
         return renderFieldShell(
           field,
-          html`<span class="sum-color-swatch" style=${`background:${swatch}`}></span>`
+          html`<span class="sum-color-swatch" style=${`background:${swatch}`}></span>`,
+          { labelFor: false }
         );
       }
       return super.template();
@@ -2738,7 +2775,8 @@ var SumeruSWC = (() => {
       if ((readonly || field.readonly) && val) {
         return renderFieldShell(
           field,
-          html`<a class="sum-field-link" href=${val} target="_blank" rel="noopener">${val}</a>`
+          html`<a class="sum-field-link" href=${val} target="_blank" rel="noopener">${val}</a>`,
+          { labelFor: false }
         );
       }
       return super.template();
@@ -2754,7 +2792,8 @@ var SumeruSWC = (() => {
           html`<div class="sum-progress">
           <div class="sum-progress-bar" style=${`width:${val}%`}></div>
           <span>${val}%</span>
-        </div>`
+        </div>`,
+          { labelFor: false }
         );
       }
       return super.template();
@@ -2909,10 +2948,12 @@ var SumeruSWC = (() => {
     }
     return html`<h1>
     <input
+      id=${fieldInputId(field)}
       class="sum-form-hero-input sum-form-hero-input--bold"
       name=${field.name}
       placeholder=${placeholder}
       value=${val}
+      autocomplete=${fieldAutocomplete(field)}
       aria-label=${placeholder}
       @input=${(ev) => record.set(field.name, ev.target.value)}
     />
@@ -3860,8 +3901,26 @@ var SumeruSWC = (() => {
 
   // src/views/kanban/KanbanView.ts
   var KanbanView = class extends SwcComponent {
+    search = "";
+    setup() {
+      this.search = this.props.payload.listSearch ?? "";
+    }
+    onPropsChanged(props) {
+      this.search = props.payload.listSearch ?? "";
+    }
     cardFields() {
       return this.props.payload.arch.fields.filter((f) => !f.invisible);
+    }
+    applySearch() {
+      const p = this.props.payload;
+      this.env.services.action.navigate(
+        this.env.services.router.workspaceUrl({
+          actionId: p.actionId,
+          menuId: p.menuId,
+          viewType: "kanban",
+          listSearch: this.search
+        })
+      );
     }
     openCard(row) {
       const id = Number(row.id ?? 0);
@@ -3886,7 +3945,16 @@ var SumeruSWC = (() => {
       const reportActions = renderReportActions(p, fields);
       return html`
       <div class="sum-view-toolbar sum-kanban-report-bar">
-        <div class="sum-view-toolbar-primary">${renderNewButton(p)}</div>
+        <div class="sum-view-toolbar-primary">
+          ${renderNewButton(p)}
+          ${renderSearchField(
+        this.search,
+        () => this.applySearch(),
+        (next) => {
+          this.search = next;
+        }
+      )}
+        </div>
         ${reportActions ?? ""}
       </div>
     `;
@@ -4261,6 +4329,39 @@ var SumeruSWC = (() => {
     }
   };
 
+  // src/shell/view-tab-sync.ts
+  function syncWorkspaceViewTabs(viewTabs) {
+    if (viewTabs.length === 0) return;
+    const byMode = new Map(viewTabs.map((tab) => [tab.mode, tab]));
+    const tabs = document.querySelectorAll(
+      ".sum-breadcrumb-right .sum-view-tab[data-view]"
+    );
+    for (const el of tabs) {
+      const tab = byMode.get(el.dataset.view ?? "");
+      if (!tab) {
+        el.classList.remove("is-active");
+        el.removeAttribute("aria-current");
+        continue;
+      }
+      el.href = tab.href;
+      el.classList.toggle("is-active", tab.active);
+      if (tab.active) el.setAttribute("aria-current", "page");
+      else el.removeAttribute("aria-current");
+    }
+  }
+  function initViewTabNavigation() {
+    document.addEventListener("click", (ev) => {
+      const tab = ev.target.closest(
+        ".sum-breadcrumb-right .sum-view-tab[href]"
+      );
+      if (!tab?.href.includes("/web?")) return;
+      ev.preventDefault();
+      const url = new URL(tab.href, window.location.origin);
+      window.history.pushState({}, "", `${url.pathname}${url.search}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+  }
+
   // src/views/workspace/WorkspaceRouter.ts
   var WorkspaceRouter = class extends SwcComponent {
     payload = null;
@@ -4279,6 +4380,7 @@ var SumeruSWC = (() => {
           this.payload = await this.fetchWorkspace();
           logWorkspacePayload("workspace", this.payload);
           logViewArch(this.payload.arch);
+          syncWorkspaceViewTabs(this.payload.viewTabs);
           this.syncView();
         } catch (err) {
           this.error = err instanceof SwcError ? err.message : String(err);
@@ -4346,6 +4448,7 @@ var SumeruSWC = (() => {
     reload() {
       void this.fetchWorkspace().then((payload) => {
         this.payload = payload;
+        syncWorkspaceViewTabs(payload.viewTabs);
         this.syncView();
         this.patch();
       }).catch((err) => {
@@ -4755,6 +4858,7 @@ var SumeruSWC = (() => {
     const shell = document.getElementById("sum-shell");
     if (!shell) return;
     initSidebar(shell);
+    initViewTabNavigation();
     if (boot.activityEnabled) {
       initActivityPanel(shell);
     }

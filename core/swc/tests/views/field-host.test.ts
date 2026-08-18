@@ -20,8 +20,8 @@ describe("FieldHost", () => {
     const el1 = host.render(field, record, true);
     const el2 = host.render(field, record, true);
     expect(el1).not.toBe(el2);
-    expect(el1.textContent).toContain("a@x.com");
-    expect(el2.textContent).toContain("a@x.com");
+    expect((el1.querySelector("input") as HTMLInputElement | null)?.value).toBe("a@x.com");
+    expect((el2.querySelector("input") as HTMLInputElement | null)?.value).toBe("a@x.com");
     host.clear();
   });
 

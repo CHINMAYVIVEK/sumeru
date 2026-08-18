@@ -11,7 +11,7 @@ import type {
 } from "../../types/workspace.js";
 import type { SwcRecord } from "../../model/record.js";
 import { renderField as defaultRenderField } from "../../widgets/registry.js";
-import { fieldPlaceholder } from "../../widgets/field-shell.js";
+import { fieldInputId, fieldPlaceholder, fieldAutocomplete } from "../../widgets/field-shell.js";
 
 export type RenderFieldFn = (
   field: SwcArchField,
@@ -114,10 +114,12 @@ function renderHeroField(
   }
   return html`<h1>
     <input
+      id=${fieldInputId(field)}
       class="sum-form-hero-input sum-form-hero-input--bold"
       name=${field.name}
       placeholder=${placeholder}
       value=${val}
+      autocomplete=${fieldAutocomplete(field)}
       aria-label=${placeholder}
       @input=${(ev: Event) => record.set(field.name, (ev.target as HTMLInputElement).value)}
     />

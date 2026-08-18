@@ -4,6 +4,7 @@ import type { SwcArchField } from "../types/workspace.js";
 import type { SwcRecord } from "../model/record.js";
 import {
   fieldInputId,
+  fieldLabelId,
   fieldReadonlyValue,
   renderFieldShell,
 } from "./field-shell.js";
@@ -58,9 +59,9 @@ export class PriorityField extends SwcComponent<FieldProps> {
     if (readonly || field.readonly) {
       const label = options.find((o) => o.value === value)?.label ?? value;
       if (mode === "select") {
-        return renderFieldShell(field, fieldReadonlyValue(label));
+        return renderFieldShell(field, fieldReadonlyValue(label), { labelFor: false });
       }
-      return renderFieldShell(field, this.renderStars(numericLevel(value), true));
+      return renderFieldShell(field, this.renderStars(numericLevel(value), true), { labelFor: false });
     }
 
     if (mode === "select") {
@@ -90,6 +91,7 @@ export class PriorityField extends SwcComponent<FieldProps> {
       this.renderStars(numericLevel(value), false, (level) => {
         record.set(field.name, String(level));
       }),
+      { labelFor: false },
     );
   }
 
@@ -128,7 +130,7 @@ export class PriorityField extends SwcComponent<FieldProps> {
     onPick?: (level: number) => void,
   ): TemplateResult {
     const { field } = this.props;
-    return html`<div class="sum-priority-stars" role="group" aria-label=${field.string ?? field.name}>
+    return html`<div class="sum-priority-stars" role="group" aria-labelledby=${fieldLabelId(field)}>
       ${this.starButtons(level, disabled, onPick)}
     </div>`;
   }

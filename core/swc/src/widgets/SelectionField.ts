@@ -87,7 +87,7 @@ export class SelectionField extends SwcComponent<FieldProps> {
     const placeholder = fieldPlaceholder(field);
 
     if (readonly || field.readonly) {
-      return renderFieldShell(field, fieldReadonlyValue(this.displayValue(), placeholder));
+      return renderFieldShell(field, fieldReadonlyValue(this.displayValue(), placeholder), { labelFor: false });
     }
 
     return renderFieldShell(
@@ -96,6 +96,7 @@ export class SelectionField extends SwcComponent<FieldProps> {
         id=${id}
         class="sum-field-input sum-field-select"
         name=${field.name}
+        autocomplete="off"
         @change=${(ev: Event) => {
           const val = (ev.target as HTMLSelectElement).value;
           const opt = this.options.find((o) => o.value === val);

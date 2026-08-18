@@ -2,7 +2,7 @@ import { SwcComponent } from "../runtime/component.js";
 import { html } from "../template/html.js";
 import type { SwcArchField } from "../types/workspace.js";
 import type { SwcRecord } from "../model/record.js";
-import { renderFieldShell } from "./field-shell.js";
+import { fieldInputId, renderFieldShell } from "./field-shell.js";
 
 interface FieldProps {
   field: SwcArchField;
@@ -16,6 +16,8 @@ export class ImageField extends SwcComponent<FieldProps> {
     const image = String(record.get(field.name) ?? "");
     const hasImage = image.length > 0;
 
+    const id = fieldInputId(field);
+
     return renderFieldShell(
       field,
       html`<div data-sum-avatar>
@@ -26,7 +28,7 @@ export class ImageField extends SwcComponent<FieldProps> {
           ? html`<input type="hidden" data-sum-image-value name=${field.name} value=${image} />`
           : html`<label class="sum-form-avatar-upload">
               Upload
-              <input type="file" accept="image/*" />
+              <input id=${id} type="file" accept="image/*" />
               <input
                 type="hidden"
                 data-sum-image-value
@@ -36,7 +38,7 @@ export class ImageField extends SwcComponent<FieldProps> {
               />
             </label>`}
       </div>`,
-      { modifiers: ["sum-field-widget--image"] },
+      { modifiers: ["sum-field-widget--image"], labelFor: readonly || field.readonly ? false : id },
     );
   }
 }

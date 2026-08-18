@@ -5,6 +5,7 @@ import type { SwcRecord } from "../model/record.js";
 import {
   fieldInputId,
   fieldPlaceholder,
+  fieldAutocomplete,
   fieldReadonlyValue,
   renderFieldShell,
 } from "./field-shell.js";
@@ -23,7 +24,7 @@ export class TextareaField extends SwcComponent<FieldProps> {
     const id = fieldInputId(field);
 
     if (readonly || field.readonly) {
-      return renderFieldShell(field, fieldReadonlyValue(val, placeholder));
+      return renderFieldShell(field, fieldReadonlyValue(val, placeholder), { labelFor: false });
     }
 
     return renderFieldShell(
@@ -33,6 +34,7 @@ export class TextareaField extends SwcComponent<FieldProps> {
         class="sum-field-textarea"
         name=${field.name}
         placeholder=${placeholder}
+        autocomplete=${fieldAutocomplete(field)}
         rows="5"
         @input=${(ev: Event) => record.set(field.name, (ev.target as HTMLTextAreaElement).value)}
       >${val}</textarea>`,

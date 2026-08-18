@@ -33,11 +33,12 @@ describe("form field widgets", () => {
     expect(el.querySelector('input[type="tel"]')).toBeTruthy();
   });
 
-  it("date field uses date picker popover", () => {
+  it("date field uses inline native date input", () => {
     const record = new SwcRecord("m", 1, { date_start: "2026-01-01" });
     const el = renderField(env, field({ name: "date_start", type: "date", string: "Start Date" }), record, false);
-    expect(el.querySelector(".sum-date-field")).toBeTruthy();
-    expect(el.querySelector(".sum-date-popover-input")?.getAttribute("type")?.trim()).toBe("date");
+    expect(el.querySelector(".sum-date-field-inline")).toBeTruthy();
+    expect(el.querySelector(".sum-date-input")?.getAttribute("type")?.trim()).toBe("date");
+    expect(el.querySelector(".sum-date-action-btn")).toBeTruthy();
   });
 
   it("many2many_tags renders tag container", () => {

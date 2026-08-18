@@ -5,8 +5,8 @@ import type { SwcRecord } from "../model/record.js";
 import {
   fieldInputId,
   fieldPlaceholder,
+  fieldAutocomplete,
   fieldReadonlyInput,
-  fieldReadonlyValue,
   renderFieldShell,
 } from "./field-shell.js";
 
@@ -51,7 +51,8 @@ export class DefaultField extends SwcComponent<FieldProps> {
         field,
         field.type === "integer" || field.type === "float" || field.type === "numeric"
           ? fieldReadonlyInput(field, val, "text")
-          : fieldReadonlyValue(val, placeholder),
+          : fieldReadonlyInput(field, val, inputType === "text" ? "text" : inputType),
+        { labelFor: id },
       );
     }
 
@@ -64,6 +65,7 @@ export class DefaultField extends SwcComponent<FieldProps> {
         name=${field.name}
         placeholder=${placeholder}
         value=${val}
+        autocomplete=${fieldAutocomplete(field)}
         ${step ? html`step=${step}` : ""}
         @input=${(ev: Event) =>
           record.set(field.name, parseNumericValue(field, (ev.target as HTMLInputElement).value))}

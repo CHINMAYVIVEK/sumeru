@@ -5,7 +5,7 @@ import type { SwcRecord } from "../model/record.js";
 import {
   fieldInputId,
   fieldPlaceholder,
-  fieldReadonlyValue,
+  fieldReadonlyInput,
   renderFieldShell,
 } from "./field-shell.js";
 
@@ -59,11 +59,6 @@ function todayNative(field: SwcArchField): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function closeDetails(ev: Event): void {
-  const details = (ev.currentTarget as HTMLElement | null)?.closest("details.sum-date-field");
-  if (details instanceof HTMLDetailsElement) details.open = false;
-}
-
 export class DateField extends SwcComponent<FieldProps> {
   template() {
     const { field, record, readonly } = this.props;
@@ -75,63 +70,54 @@ export class DateField extends SwcComponent<FieldProps> {
     const inputType = isDateTime(field) ? "datetime-local" : "date";
 
     if (readonly || field.readonly) {
-      return renderFieldShell(field, fieldReadonlyValue(display, placeholder));
+      return renderFieldShell(field, fieldReadonlyInput(field, display, "text"), { labelFor: id });
     }
 
     return renderFieldShell(
       field,
-      html`<details class="sum-date-field">
-        <summary class="sum-date-field-trigger">
-          <span class=${display ? "sum-date-field-value" : "sum-date-field-value sum-date-field-value--placeholder"}>
-            ${display || placeholder}
-          </span>
-          <span class="sum-date-field-icon" aria-hidden="true">📅</span>
-        </summary>
-        <input type="hidden" id=${id} name=${field.name} value=${native} />
-        <div class="sum-date-popover" role="dialog" aria-label=${placeholder}>
-          <div class="sum-date-popover-header">${field.string ?? field.name}</div>
-          <input
-            type=${inputType}
-            class="sum-date-popover-input"
-            value=${native}
-            @input=${(ev: Event) => {
-              record.set(field.name, (ev.target as HTMLInputElement).value || null);
+      html`<div class="sum-date-field-inline">
+        <input
+          id=${id}
+          type=${inputType}
+          class="sum-field-input sum-date-input"
+          name=${field.name}
+          value=${native}
+          placeholder=${placeholder}
+          autocomplete="off"
+          @input=${(ev: Event) => {
+            record.set(field.name, (ev.target as HTMLInputElement).value || null);
+            this.patch();
+          }}
+          @change=${(ev: Event) => {
+            record.set(field.name, (ev.target as HTMLInputElement).value || null);
+            record.notifyFieldChange(field.name);
+          }}
+        />
+        <div class="sum-date-field-actions">
+          <button
+            type="button"
+            class="sum-date-action-btn"
+            @click=${() => {
+              record.set(field.name, todayNative(field));
+              record.notifyFieldChange(field.name);
               this.patch();
             }}
-            @change=${(ev: Event) => {
-              record.set(field.name, (ev.target as HTMLInputElement).value || null);
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            class="sum-date-action-btn"
+            @click=${() => {
+              record.set(field.name, null);
+              record.notifyFieldChange(field.name);
               this.patch();
             }}
-          />
-          <div class="sum-date-popover-actions">
-            <button
-              type="button"
-              class="sum-date-popover-btn"
-              @click=${(ev: Event) => {
-                record.set(field.name, todayNative(field));
-                this.patch();
-                closeDetails(ev);
-              }}
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              class="sum-date-popover-btn"
-              @click=${(ev: Event) => {
-                record.set(field.name, null);
-                this.patch();
-                closeDetails(ev);
-              }}
-            >
-              Clear
-            </button>
-            <button type="button" class="sum-date-popover-btn sum-date-popover-btn--primary" @click=${closeDetails}>
-              Done
-            </button>
-          </div>
+          >
+            Clear
+          </button>
         </div>
-      </details>`,
+      </div>`,
       { labelFor: id },
     );
   }

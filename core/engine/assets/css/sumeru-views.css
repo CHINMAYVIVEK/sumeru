@@ -1040,6 +1040,47 @@ label.sum-form-label--hint {
   width: 100%;
 }
 
+.sum-date-field-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.sum-date-field-inline .sum-date-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sum-date-field-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
+}
+
+.sum-date-action-btn {
+  padding: 0.28rem 0.55rem;
+  font-size: var(--sum-font-size-sm);
+  font-family: var(--sum-font-sans);
+  color: var(--sum-muted-ink);
+  background: var(--sum-surface-alt);
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  cursor: pointer;
+  transition: background var(--sum-dur) var(--sum-ease), border-color var(--sum-dur) var(--sum-ease);
+}
+
+.sum-date-action-btn:hover {
+  background: var(--sum-row-hover-bg);
+  border-color: color-mix(in srgb, var(--sum-header) 24%, var(--sum-line));
+}
+
+.sum-field-toggle-name {
+  font-weight: var(--sum-font-weight-medium);
+  color: var(--sum-ink);
+  margin-right: 0.35rem;
+}
+
 .sum-date-field > summary {
   list-style: none;
 }

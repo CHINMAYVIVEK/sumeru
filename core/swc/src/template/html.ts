@@ -330,7 +330,12 @@ function renderVNode(vn: VNode): HTMLElement {
       k === "name" ||
       k === "value" ||
       k === "placeholder" ||
+      k === "autocomplete" ||
+      k === "step" ||
+      k === "tabindex" ||
       k === "aria-label" ||
+      k === "aria-labelledby" ||
+      k === "aria-controls" ||
       k === "title" ||
       k === "role" ||
       k === "aria-selected" ||

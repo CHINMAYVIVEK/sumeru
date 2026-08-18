@@ -46,7 +46,7 @@ describe("form-sheet", () => {
     expect(el.textContent).toContain("Acme");
     expect(el.textContent).toContain("Contact");
     expect(el.textContent).toContain("Notes");
-    expect(el.textContent).toContain("a@x.com");
+    expect((el.querySelector('input[name="email"]') as HTMLInputElement | null)?.value).toBe("a@x.com");
     expect(el.querySelector(".sum-form-group--col .sum-form-group-title")?.textContent).toBe("Contact");
     expect(el.querySelector(".sum-form-group-row")).toBeTruthy();
     expect(el.querySelector(".sum-form-group-span")).toBeTruthy();

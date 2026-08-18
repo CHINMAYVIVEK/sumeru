@@ -45,7 +45,7 @@ export class Many2OneField extends SwcComponent<FieldProps> {
     const placeholder = fieldPlaceholder(field);
 
     if (readonly || field.readonly) {
-      return renderFieldShell(field, fieldReadonlyValue(String(display), placeholder));
+      return renderFieldShell(field, fieldReadonlyValue(String(display), placeholder), { labelFor: false });
     }
 
     return renderFieldShell(

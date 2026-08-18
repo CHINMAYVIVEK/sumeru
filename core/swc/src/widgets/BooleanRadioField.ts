@@ -2,7 +2,7 @@ import { SwcComponent } from "../runtime/component.js";
 import { html } from "../template/html.js";
 import type { SwcArchField } from "../types/workspace.js";
 import type { SwcRecord } from "../model/record.js";
-import { renderFieldShell } from "./field-shell.js";
+import { fieldLabelId, renderFieldShell } from "./field-shell.js";
 
 interface FieldProps {
   field: SwcArchField;
@@ -22,7 +22,7 @@ export class BooleanRadioField extends SwcComponent<FieldProps> {
 
     return renderFieldShell(
       field,
-      html`<div class="sum-field-radio-group" role="radiogroup">
+      html`<div class="sum-field-radio-group" role="radiogroup" aria-labelledby=${fieldLabelId(field)}>
         <label class="sum-field-radio">
           <input
             type="radio"
@@ -46,6 +46,7 @@ export class BooleanRadioField extends SwcComponent<FieldProps> {
           No
         </label>
       </div>`,
+      { labelFor: false },
     );
   }
 }
