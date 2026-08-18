@@ -122,10 +122,11 @@ type Chatter struct {
 }
 
 type Div struct {
-	Class string  `xml:"class,attr"`
-	Field []Field `xml:"field"`
-	H1    []H1    `xml:"h1"`
-	Div   []Div   `xml:"div"`
+	Class  string   `xml:"class,attr"`
+	Field  []Field  `xml:"field"`
+	Button []Button `xml:"button"`
+	H1     []H1     `xml:"h1"`
+	Div    []Div    `xml:"div"`
 }
 
 type H1 struct {
@@ -139,6 +140,9 @@ type Field struct {
 	Placeholder string     `xml:"placeholder,attr"`
 	Options     string     `xml:"options,attr"`
 	Groups      string     `xml:"groups,attr"`
+	Invisible   string     `xml:"invisible,attr"`
+	Readonly    string     `xml:"readonly,attr"`
+	Required    string     `xml:"required,attr"`
 	PivotType   string     `xml:"type,attr"` // row | col | measure (pivot views only)
 	List        *FieldList `xml:"list"`
 	Tree        *FieldList `xml:"tree"`

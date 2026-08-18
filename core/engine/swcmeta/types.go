@@ -32,10 +32,11 @@ type Breadcrumb struct {
 }
 
 type ViewArch struct {
-	Type     string        `json:"type"`
-	Model    string        `json:"model"`
-	Title    string        `json:"title,omitempty"`
-	Fields   []ArchField   `json:"fields"`
+	Type       string        `json:"type"`
+	Model      string        `json:"model"`
+	Title      string        `json:"title,omitempty"`
+	HasChatter bool          `json:"hasChatter,omitempty"`
+	Fields     []ArchField   `json:"fields"`
 	Header   *ArchHeader   `json:"header,omitempty"`
 	Footer   *ArchFooter   `json:"footer,omitempty"`
 	Sheet    *ArchSheet    `json:"sheet,omitempty"`
@@ -105,10 +106,11 @@ type ArchSheet struct {
 }
 
 type ArchDiv struct {
-	Class    string      `json:"class,omitempty"`
-	Fields   []ArchField `json:"fields,omitempty"`
-	H1Fields []ArchField `json:"h1Fields,omitempty"`
-	Divs     []ArchDiv   `json:"divs,omitempty"`
+	Class    string       `json:"class,omitempty"`
+	Fields   []ArchField  `json:"fields,omitempty"`
+	Buttons  []ArchButton `json:"buttons,omitempty"`
+	H1Fields []ArchField  `json:"h1Fields,omitempty"`
+	Divs     []ArchDiv    `json:"divs,omitempty"`
 }
 
 type ArchGroup struct {

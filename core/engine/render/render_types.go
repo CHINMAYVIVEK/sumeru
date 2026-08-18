@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"sumeru/core/engine/parser"
+	"sumeru/core/engine/swcmeta"
 )
 
 // UIHook allows addons to inject custom HTML into specific parts of the UI.
@@ -30,6 +31,11 @@ func RegisterNotebookHook(model, pageTitle string, hook UIHook) {
 		NotebookHooks[model] = map[string]UIHook{}
 	}
 	NotebookHooks[model][strings.ToLower(pageTitle)] = hook
+	// Mirror into swcmeta for SWC workspace rendering.
+	swcmeta.RegisterNotebookHook(model, pageTitle, func(ctx context.Context, m string, record map[string]interface{}, ro bool) string {
+		vr := &ViewRecordData{ResModel: m, Record: record}
+		return string(hook(ctx, vr, ro))
+	})
 }
 
 type ShellCompanyOption struct {

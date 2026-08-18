@@ -35,6 +35,9 @@ func SerializeView(view *parser.View) ViewArch {
 		arch.Sheet = serializeSheet(model, view.Sheet)
 	}
 	arch.FormMeta = formMetaForModel(model)
+	if view.Chatter != nil {
+		arch.HasChatter = true
+	}
 	if strings.EqualFold(view.Type, "kanban") {
 		arch.Kanban = &KanbanMeta{
 			GroupField: view.KanbanGroupField(),
@@ -255,8 +258,9 @@ func serializeDivs(model string, s *parser.Sheet) []ArchDiv {
 
 func serializeDiv(model string, d parser.Div) ArchDiv {
 	out := ArchDiv{
-		Class:  strings.TrimSpace(d.Class),
-		Fields: enrichFields(model, serializeFields(d.Field)),
+		Class:   strings.TrimSpace(d.Class),
+		Fields:  enrichFields(model, serializeFields(d.Field)),
+		Buttons: serializeButtons(d.Button),
 	}
 	for _, h1 := range d.H1 {
 		out.H1Fields = append(out.H1Fields, enrichFields(model, serializeFields(h1.Field))...)
@@ -271,7 +275,7 @@ func serializeDiv(model string, d parser.Div) ArchDiv {
 }
 
 func divHasContent(d ArchDiv) bool {
-	return len(d.Fields) > 0 || len(d.H1Fields) > 0 || len(d.Divs) > 0
+	return len(d.Fields) > 0 || len(d.H1Fields) > 0 || len(d.Divs) > 0 || len(d.Buttons) > 0
 }
 
 func serializeButtons(buttons []parser.Button) []ArchButton {
@@ -297,6 +301,9 @@ func serializeFields(fields []parser.Field) []ArchField {
 			Placeholder: strings.TrimSpace(f.Placeholder),
 			PivotType:   strings.TrimSpace(f.PivotType),
 			Options:     parseFieldOptions(f.Options),
+			Readonly:    parseBoolAttr(f.Readonly),
+			Required:    parseBoolAttr(f.Required),
+			Invisible:   parseBoolAttr(f.Invisible),
 		}
 		sub := f.List
 		if sub == nil {
@@ -339,6 +346,11 @@ func parseFieldOptions(raw string) map[string]string {
 		return nil
 	}
 	return out
+}
+
+func parseBoolAttr(raw string) bool {
+	s := strings.ToLower(strings.TrimSpace(raw))
+	return s == "1" || s == "true" || s == "yes" || s == "on"
 }
 
 func serializeSeparators(items []parser.Separator) []ArchSeparator {

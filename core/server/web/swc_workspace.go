@@ -10,6 +10,7 @@ const swcWorkspaceRoute = "/web/swc/workspace"
 func registerSwcRoutes() {
 	registerSession(http.MethodGet, swcWorkspaceRoute, SwcWorkspaceHandler)
 	registerSwcBusRoute()
+	registerSwcChatterRoute()
 }
 
 // SwcWorkspaceHandler GET /web/swc/workspace — JSON workspace payload for SWC.
