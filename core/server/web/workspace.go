@@ -48,7 +48,7 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	html := render.RenderView(ctx, resolved.view, req.menuID, config.AppConfig.TemplatesPath, viewRecord)
+	html := render.RenderSWCWorkspace(ctx, resolved.view, req.menuID, config.AppConfig.TemplatesPath, viewRecord, resolved.selectedMode)
 	logWorkspaceViewOpened(ctx, r.URL.Path, req, actionID, resolved)
 	writeHTML(w, ctx, r.URL.Path, html)
 }

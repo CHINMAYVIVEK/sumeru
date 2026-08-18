@@ -11,7 +11,6 @@ const (
 	moduleActionRoute   = "/web/module/action"
 	resetPasswordRoute  = "/web/action/reset_password"
 	createAPIKeyRoute   = "/web/action/create_api_key"
-	objectActionRoute   = "/web/action/object"
 	pinnedAppsRoute     = "/web/user/pinned-apps"
 	settingsRoute       = "/web/settings"
 	appLogsRoute        = "/web/settings/app-logs"
@@ -217,18 +216,9 @@ const (
 
 // Workspace error message fragments mapped to HTTP status codes.
 const (
-	workspaceErrNoView   = "No view for model"
-	workspaceErrNotFound = "not found"
+	workspaceErrNoView    = "No view for model"
+	workspaceErrNotFound  = "not found"
 	workspaceErrInvalidID = "invalid id"
-)
-
-// Record delete route.
-const recordDeleteRoute = "/web/record/delete"
-
-// Record save route and notification author.
-const (
-	recordSaveRoute        = "/web/record/save"
-	recordSaveSystemAuthor = "System"
 )
 
 // Record save form fields excluded from ORM values.
@@ -269,23 +259,12 @@ const (
 	chatterDefaultAuthor = "User"
 )
 
-// Relational search API query parameters (/web/rel/search).
-const (
-	relSearchRoute            = "/web/rel/search"
-	relSearchQueryParam       = "q"
-	relSearchLimitParam       = "limit"
-	relSearchFilterFieldParam = "filter_field"
-	relSearchFilterIDParam    = "filter_id"
-	defaultRelSearchLimit     = 20
-)
-
 // Apps page routes, templates, and ORM model.
 const (
 	appsRoute         = "/web/apps"
 	appsPageTitle     = "Apps"
 	appsInnerTemplate = "apps_inner.html"
 	appsModuleModel   = "sys.module"
-	appsStylesheetURL = "/static/css/sumeru-apps.css"
 )
 
 // Apps browse query values (filter, scope, layout).

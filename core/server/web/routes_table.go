@@ -28,6 +28,7 @@ func RegisterAppRoutes(mux *http.ServeMux) {
 
 	registerAuthRoutes()
 	registerWorkspaceRoutes()
+	registerSwcRoutes()
 	registerAppsRoutes()
 	registerRecordRoutes()
 	registerActionRoutes()
@@ -48,9 +49,7 @@ func registerWorkspaceRoutes() {
 	registerSession(http.MethodGet, homeRoute, HomeDashboardHandler)
 	registerSession(http.MethodPost, pinnedAppsRoute, PinnedAppsSaveHandler)
 	registerSession(http.MethodGet, workspaceRoute, WebHandler)
-	registerSession(http.MethodGet, relSearchRoute, RelSearchHandler)
 	registerSession(http.MethodPost, companySwitchRoute, SwitchCompanyPost)
-	registerSession(http.MethodPost, kanbanMoveRoute, KanbanMoveHandler)
 	registerSession(http.MethodPost, chatterPostRoute, ChatterPostHandler)
 	registerSession(http.MethodPost, importCSVRoute, ImportCSVHandler)
 }
@@ -61,8 +60,6 @@ func registerAppsRoutes() {
 }
 
 func registerRecordRoutes() {
-	registerSession(http.MethodPost, recordSaveRoute, RecordSaveHandler)
-	registerSession(http.MethodPost, recordDeleteRoute, RecordDeleteHandler)
 	registerSession(http.MethodGet, exportCSVRoute, ExportCSVHandler)
 	registerSession(http.MethodGet, exportPDFRoute, ExportPDFHandler)
 	registerSession(http.MethodGet, bulkTemplateRoute, BulkTemplateHandler)
@@ -74,7 +71,6 @@ func registerRecordRoutes() {
 func registerActionRoutes() {
 	registerSession(http.MethodPost, resetPasswordRoute, ActionResetPassword)
 	registerSession(http.MethodPost, createAPIKeyRoute, ActionCreateAPIKey)
-	registerSession(http.MethodPost, objectActionRoute, ActionObjectHandler)
 }
 
 func registerSettingsRoutes() {

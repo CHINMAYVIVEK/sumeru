@@ -10,6 +10,7 @@ import (
 
 	"sumeru/core/engine/parser"
 	"sumeru/core/engine/render"
+	"sumeru/core/engine/swcmeta"
 	"sumeru/core/orm"
 )
 
@@ -275,10 +276,16 @@ func loadWorkspaceKanbanData(ctx context.Context, viewRecord *render.ViewRecordD
 
 	viewRecord.ListRows = rows
 	viewRecord.KanbanModel = resolved.targetModel
-	if columns, groupField, draggable := render.BuildKanbanColumns(ctx, resolved.view, rows); groupField != "" {
-		viewRecord.KanbanColumns = columns
+	if columns, groupField, draggable := swcmeta.BuildKanbanColumns(ctx, resolved.view, rows); groupField != "" {
+		viewRecord.KanbanColumns = nil
 		viewRecord.KanbanGroupField = groupField
 		viewRecord.KanbanDraggable = draggable
+		for _, c := range columns {
+			viewRecord.KanbanColumns = append(viewRecord.KanbanColumns, render.KanbanColumn{
+				Value: c.Value, Label: c.Label, Sequence: c.Sequence,
+				Color: c.Color, Fold: c.Fold, Records: c.Records,
+			})
+		}
 	}
 	return nil
 }
@@ -288,7 +295,12 @@ func loadWorkspacePivotData(ctx context.Context, viewRecord *render.ViewRecordDa
 	if err != nil {
 		return fmt.Errorf("pivot load: %w", err)
 	}
-	viewRecord.Pivot = render.BuildPivotData(resolved.view, rows)
+	if pivot := swcmeta.BuildPivotData(resolved.view, rows); pivot != nil {
+		viewRecord.Pivot = &render.PivotData{
+			RowLabels: pivot.RowLabels, ColLabels: pivot.ColLabels,
+			Values: pivot.Values, MeasureLabel: pivot.MeasureLabel,
+		}
+	}
 	return nil
 }
 
