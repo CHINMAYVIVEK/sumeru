@@ -26,43 +26,45 @@ var SumeruSWC = (() => {
     registry: () => registry
   });
 
-  // src/core/component.ts
-  var SwcComponent = class {
-    props;
-    env;
-    el = null;
-    mounted = false;
-    constructor(props, env) {
-      this.props = props;
-      this.env = env;
+  // src/runtime/patch/keyed.ts
+  function collectKeyedChildren(container) {
+    const map = /* @__PURE__ */ new Map();
+    for (const child of container.children) {
+      if (!(child instanceof HTMLElement)) continue;
+      const key = child.dataset.swcKey;
+      if (key) map.set(key, child);
     }
-    render() {
-      const result = this.template();
-      const root = result.render();
-      this.el = root;
-      if (!this.mounted) {
-        this.mounted = true;
-        this.onMount?.();
+    return map;
+  }
+  function patchKeyedChildren(container, items) {
+    const prev = collectKeyedChildren(container);
+    const nextKeys = /* @__PURE__ */ new Set();
+    const ordered = [];
+    for (const item of items) {
+      nextKeys.add(item.key);
+      let el = prev.get(item.key);
+      if (!el) {
+        el = item.render();
+        el.dataset.swcKey = item.key;
       }
-      return root;
+      ordered.push(el);
     }
-    patch() {
-      if (!this.el?.parentElement) return;
-      const parent = this.el.parentElement;
-      const oldEl = this.el;
-      const next = this.template().render();
-      parent.replaceChild(next, oldEl);
-      this.el = next;
+    for (const [key, el] of prev) {
+      if (!nextKeys.has(key)) el.remove();
     }
-    destroy() {
-      this.onWillUnmount?.();
-      this.el?.remove();
-      this.el = null;
-      this.mounted = false;
+    for (let i = 0; i < ordered.length; i++) {
+      const el = ordered[i];
+      const current = container.children[i];
+      if (current !== el) {
+        container.insertBefore(el, current ?? null);
+      }
     }
-  };
+    while (container.children.length > ordered.length) {
+      container.lastElementChild?.remove();
+    }
+  }
 
-  // src/core/hooks.ts
+  // src/runtime/hooks.ts
   var mountCallbacks = [];
   var unmountCallbacks = [];
   var activeComponent = null;
@@ -102,7 +104,131 @@ var SumeruSWC = (() => {
     });
   }
 
-  // src/core/template.ts
+  // src/runtime/lifecycle.ts
+  var willPatchCallbacks = [];
+  var patchedCallbacks = [];
+  var willStartCallbacks = [];
+  var willUpdatePropsCallbacks = [];
+  var activeLifecycle = null;
+  function lifecycleTarget() {
+    return activeLifecycle ?? {
+      willPatch: willPatchCallbacks,
+      patched: patchedCallbacks,
+      willStart: willStartCallbacks,
+      willUpdateProps: willUpdatePropsCallbacks
+    };
+  }
+  function runWillPatch() {
+    for (const fn of lifecycleTarget().willPatch.splice(0)) {
+      fn();
+    }
+  }
+  function runPatched() {
+    for (const fn of lifecycleTarget().patched.splice(0)) {
+      fn();
+    }
+  }
+
+  // src/devtools/bridge.ts
+  var nextId = 1;
+  var components = /* @__PURE__ */ new Map();
+  var byElement = /* @__PURE__ */ new WeakMap();
+  function registerComponent(comp, parentId = null) {
+    const id = nextId++;
+    const name = comp.constructor.name || "Anonymous";
+    const record = { id, name, component: comp, parentId };
+    components.set(id, record);
+    if (comp.el) byElement.set(comp.el, id);
+    publish();
+    return id;
+  }
+  function unregisterComponent(comp) {
+    for (const [id, rec] of components) {
+      if (rec.component === comp) {
+        components.delete(id);
+        if (comp.el) byElement.delete(comp.el);
+        publish();
+        return;
+      }
+    }
+  }
+  function getComponentForElement(el) {
+    const id = byElement.get(el);
+    if (id === void 0) return null;
+    return components.get(id) ?? null;
+  }
+  function getTemplateSource(_comp) {
+    return null;
+  }
+  function publish() {
+    if (typeof window === "undefined") return;
+    window.__SWC_DEVTOOLS__ = {
+      apps: [],
+      components: [...components.values()],
+      getComponentForElement,
+      getTemplateSource
+    };
+  }
+  function initDevtoolsBridge() {
+    publish();
+  }
+
+  // src/runtime/component.ts
+  var SwcComponent = class {
+    props;
+    env;
+    el = null;
+    mounted = false;
+    constructor(props, env) {
+      this.props = props;
+      this.env = env;
+    }
+    /** Called when props are updated on an existing instance (SPA navigation). */
+    onPropsChanged(_props) {
+    }
+    /** Replace props and re-render without recreating the component instance. */
+    updateProps(next) {
+      this.props = next;
+      this.onPropsChanged(next);
+      this.patch();
+    }
+    render() {
+      const result = this.template();
+      const root = result.render();
+      this.el = root;
+      if (!this.mounted) {
+        this.mounted = true;
+        registerComponent(this);
+        this.onMount?.();
+      }
+      return root;
+    }
+    /** Patch keyed tbody/list regions in-place when possible. */
+    patchKeyedTbody(tbody, rows) {
+      if (!tbody) return false;
+      patchKeyedChildren(tbody, rows);
+      return true;
+    }
+    patch() {
+      if (!this.el?.parentElement) return;
+      runWillPatch();
+      const parent = this.el.parentElement;
+      const oldEl = this.el;
+      const next = this.template().render();
+      parent.replaceChild(next, oldEl);
+      this.el = next;
+      runPatched();
+    }
+    destroy() {
+      this.onWillUnmount?.();
+      unregisterComponent(this);
+      this.el?.remove();
+      this.el = null;
+      this.mounted = false;
+    }
+  };
+
+  // src/template/html.ts
   var VOID_ELEMENTS = /* @__PURE__ */ new Set([
     "area",
     "base",
@@ -209,7 +335,8 @@ var SumeruSWC = (() => {
         tag: parsed.tag,
         attrs: parsed.attrs,
         handlers: { ...handlers },
-        children: []
+        children: [],
+        key: parsed.attrs.key
       };
       appendChild(node);
       if (!selfClosing && !VOID_ELEMENTS.has(parsed.tag.toLowerCase())) {
@@ -338,6 +465,7 @@ var SumeruSWC = (() => {
   }
   function renderVNode(vn) {
     const el = document.createElement(vn.tag);
+    if (vn.key) el.dataset.swcKey = vn.key;
     for (const [k, v] of Object.entries(vn.attrs)) {
       if (k.startsWith("@")) {
         continue;
@@ -369,7 +497,7 @@ var SumeruSWC = (() => {
     return el;
   }
 
-  // src/core/error.ts
+  // src/runtime/error.ts
   var SwcError = class extends Error {
     code;
     details;
@@ -381,7 +509,7 @@ var SumeruSWC = (() => {
     }
   };
 
-  // src/core/app.ts
+  // src/runtime/app.ts
   var ErrorBoundary = class extends SwcComponent {
     template() {
       const { error, retry } = this.props;
@@ -478,7 +606,7 @@ var SumeruSWC = (() => {
     }
   };
 
-  // src/core/env.ts
+  // src/runtime/env.ts
   var SwcEnv = class {
     bootstrap;
     services;
@@ -579,6 +707,9 @@ var SumeruSWC = (() => {
       };
       return this.dispatch(model, "read_group", [spec], { limit });
     }
+    onchange(model, values, field) {
+      return this.dispatch(model, "onchange", [values, field]);
+    }
   };
 
   // src/services/http.ts
@@ -661,7 +792,23 @@ var SumeruSWC = (() => {
 
   // src/services/action.ts
   var ActionService = class {
+    constructor(router) {
+      this.router = router;
+    }
+    router;
     navigate(url) {
+      if (url.startsWith("/web?") && this.router) {
+        const q = new URLSearchParams(url.slice(url.indexOf("?") + 1));
+        this.router.push({
+          actionId: Number(q.get("action") ?? "0"),
+          menuId: q.get("menu_id") ?? "",
+          viewType: q.get("view_type") ?? "",
+          recordId: Number(q.get("id") ?? "0"),
+          formEdit: q.get("edit") === "1",
+          listSearch: q.get("q") ?? ""
+        });
+        return;
+      }
       window.location.assign(url);
     }
     openWindowAction(actionId, menuId, extra) {
@@ -693,7 +840,8 @@ var SumeruSWC = (() => {
         viewType: q.get("view_type") ?? "",
         recordId: Number(q.get("id") ?? "0"),
         formEdit: q.get("edit") === "1",
-        listSearch: q.get("q") ?? ""
+        listSearch: q.get("q") ?? "",
+        shell: q.get("shell") ?? ""
       };
     }
     workspaceUrl(route) {
@@ -706,6 +854,7 @@ var SumeruSWC = (() => {
       if (merged.recordId) params.set("id", String(merged.recordId));
       if (merged.formEdit) params.set("edit", "1");
       if (merged.listSearch) params.set("q", merged.listSearch);
+      if (merged.shell) params.set("shell", merged.shell);
       return `/web?${params.toString()}`;
     }
     push(route) {
@@ -755,6 +904,133 @@ var SumeruSWC = (() => {
       this.ws = null;
     }
   };
+
+  // src/services/dialog.ts
+  var DialogService = class {
+    layer = null;
+    confirm(title, body) {
+      return this.open({
+        title,
+        body,
+        buttons: [
+          { label: "Cancel", value: false },
+          { label: "OK", primary: true, value: true }
+        ]
+      });
+    }
+    alert(title, body) {
+      return this.open({
+        title,
+        body,
+        buttons: [{ label: "OK", primary: true, value: true }]
+      }).then(() => void 0);
+    }
+    open(opts) {
+      this.close();
+      return new Promise((resolve) => {
+        const layer = document.createElement("div");
+        layer.className = "sum-dialog-layer";
+        layer.setAttribute("role", "presentation");
+        const dialog = document.createElement("div");
+        dialog.className = "sum-dialog";
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("aria-labelledby", "sum-dialog-title");
+        const title = document.createElement("h2");
+        title.id = "sum-dialog-title";
+        title.className = "sum-dialog-title";
+        title.textContent = opts.title;
+        const body = document.createElement("p");
+        body.className = "sum-dialog-body";
+        body.textContent = opts.body;
+        const actions = document.createElement("div");
+        actions.className = "sum-dialog-actions";
+        const buttons = opts.buttons ?? [{ label: "Close", primary: true, value: true }];
+        for (const btn of buttons) {
+          const el = document.createElement("button");
+          el.type = "button";
+          el.textContent = btn.label;
+          el.className = "sum-dialog-btn";
+          if (btn.primary) el.classList.add("sum-dialog-btn--primary");
+          if (btn.danger) el.classList.add("sum-dialog-btn--danger");
+          el.addEventListener("click", () => {
+            this.close();
+            resolve(btn.value ?? true);
+          });
+          actions.appendChild(el);
+        }
+        dialog.append(title, body, actions);
+        layer.appendChild(dialog);
+        document.body.appendChild(layer);
+        this.layer = layer;
+        const onKey = (ev) => {
+          if (ev.key === "Escape") {
+            this.close();
+            resolve(false);
+          }
+        };
+        document.addEventListener("keydown", onKey, true);
+        layer.addEventListener(
+          "click",
+          (ev) => {
+            if (ev.target === layer) {
+              this.close();
+              resolve(false);
+            }
+          },
+          true
+        );
+        layer.addEventListener(
+          "remove",
+          () => document.removeEventListener("keydown", onKey, true),
+          { once: true }
+        );
+        actions.querySelector("button")?.focus();
+      });
+    }
+    close() {
+      this.layer?.remove();
+      this.layer = null;
+    }
+  };
+
+  // src/runtime/registry.ts
+  var Registry = class {
+    entries = /* @__PURE__ */ new Map();
+    category(name) {
+      if (!this.entries.has(name)) {
+        this.entries.set(name, /* @__PURE__ */ new Map());
+      }
+      return new CategoryRegistry(this.entries.get(name));
+    }
+    get(category, key) {
+      return this.entries.get(category)?.get(key);
+    }
+  };
+  var CategoryRegistry = class {
+    constructor(map) {
+      this.map = map;
+    }
+    map;
+    add(key, value) {
+      this.map.set(key, value);
+    }
+    get(key) {
+      return this.map.get(key);
+    }
+    keys() {
+      return [...this.map.keys()];
+    }
+  };
+  var registry = new Registry();
+
+  // src/services/service-registry.ts
+  function registerCoreServices(services) {
+    const cat = registry.category("services");
+    for (const [key, svc] of Object.entries(services)) {
+      cat.add(key, svc);
+    }
+  }
 
   // src/shell/AppLauncher.ts
   var AppLauncher = class extends SwcComponent {
@@ -853,7 +1129,7 @@ var SumeruSWC = (() => {
     }
   };
 
-  // src/views/view-toolbar.ts
+  // src/views/shared/view-toolbar.ts
   function linkButton(href, label, className = "sum-btn sum-btn--secondary") {
     const a = document.createElement("a");
     a.className = className;
@@ -936,29 +1212,150 @@ var SumeruSWC = (() => {
     return wrap;
   }
 
-  // src/views/ListView.ts
+  // src/views/list/control-panel.ts
+  function renderControlPanel(opts) {
+    const { payload, state, onSearch, onPage, onBulkDelete } = opts;
+    const rows = payload.records ?? [];
+    const total = payload.listTotal ?? rows.length;
+    const page = Math.floor(state.offset / state.limit) + 1;
+    const pageCount = Math.max(1, Math.ceil(total / state.limit));
+    const showPager = pageCount > 1 || state.offset > 0;
+    return html`
+    <div class="sum-list-control">
+      <div class="sum-list-control-left">
+        <div class="sum-list-search-wrap">
+          <span class="sum-list-search-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3-3" />
+            </svg>
+          </span>
+          <input
+            type="search"
+            class="sum-list-search"
+            placeholder="Search…"
+            value=${state.search}
+            @keydown=${(ev) => ev.key === "Enter" && onSearch()}
+            @input=${(ev) => {
+      state.search = ev.target.value;
+    }}
+          />
+        </div>
+        ${onBulkDelete && state.selectedIds.size > 0 ? html`<button type="button" class="sum-btn sum-btn--danger" @click=${() => onBulkDelete()}>
+              Delete (${state.selectedIds.size})
+            </button>` : ""}
+      </div>
+      ${showPager ? html`<div class="sum-list-pager">
+            <button
+              type="button"
+              class="sum-btn sum-btn--ghost"
+              disabled=${state.offset <= 0 ? "disabled" : void 0}
+              @click=${() => onPage(Math.max(0, state.offset - state.limit))}
+            >
+              Prev
+            </button>
+            <span>${page} / ${pageCount}</span>
+            <button
+              type="button"
+              class="sum-btn sum-btn--ghost"
+              disabled=${state.offset + state.limit >= total ? "disabled" : void 0}
+              @click=${() => onPage(state.offset + state.limit)}
+            >
+              Next
+            </button>
+          </div>` : ""}
+    </div>
+  `;
+  }
+  function renderRowCheckbox(id, selected, onToggle) {
+    return html`<td class="sum-list-select-cell" @click=${(ev) => ev.stopPropagation()}>
+    <input
+      type="checkbox"
+      checked=${selected ? "checked" : void 0}
+      @change=${(ev) => onToggle(id, ev.target.checked)}
+    />
+  </td>`;
+  }
+  function renderSelectAllHeader(allSelected, onToggleAll) {
+    return html`<th class="sum-list-select-head">
+    <input
+      type="checkbox"
+      title="Select all"
+      checked=${allSelected ? "checked" : void 0}
+      @change=${(ev) => onToggleAll(ev.target.checked)}
+    />
+  </th>`;
+  }
+
+  // src/template/helpers.ts
+  function keyedResult(key, result) {
+    return {
+      render() {
+        const el = result.render();
+        el.dataset.swcKey = key;
+        return el;
+      }
+    };
+  }
+  function forEach(items, keyFn, renderFn) {
+    return items.map((item, index) => keyedResult(String(keyFn(item, index)), renderFn(item, index)));
+  }
+
+  // src/views/list/ListView.ts
   var ListView = class extends SwcComponent {
-    search = "";
+    panelState = {
+      search: "",
+      offset: 0,
+      limit: 40,
+      selectedIds: /* @__PURE__ */ new Set()
+    };
     setup() {
-      this.search = this.props.payload.listSearch ?? "";
+      this.panelState.search = this.props.payload.listSearch ?? "";
       const [, bump] = useState(0);
       this.bump = () => bump((n) => n + 1);
+    }
+    onPropsChanged(props) {
+      this.panelState.search = props.payload.listSearch ?? "";
+      this.panelState.offset = 0;
+      this.panelState.selectedIds = /* @__PURE__ */ new Set();
     }
     bump = null;
     columns() {
       return this.props.payload.arch.fields.filter((f) => !f.invisible);
     }
-    rows() {
-      return this.props.payload.records ?? [];
+    allRows() {
+      let rows = [...this.props.payload.records ?? []];
+      const order = this.panelState.order;
+      if (order) {
+        const desc = order.startsWith("-");
+        const field = desc ? order.slice(1) : order;
+        rows.sort((a, b) => {
+          const av = String(a[field] ?? "");
+          const bv = String(b[field] ?? "");
+          return desc ? bv.localeCompare(av) : av.localeCompare(bv);
+        });
+      }
+      return rows;
+    }
+    pageRows() {
+      const rows = this.allRows();
+      const start = this.panelState.offset;
+      return rows.slice(start, start + this.panelState.limit);
     }
     applySearch() {
+      this.panelState.offset = 0;
+      const p = this.props.payload;
       const url = this.env.services.router.workspaceUrl({
-        actionId: this.props.payload.actionId,
-        menuId: this.props.payload.menuId,
+        actionId: p.actionId,
+        menuId: p.menuId,
         viewType: "list",
-        listSearch: this.search
+        listSearch: this.panelState.search
       });
       this.env.services.action.navigate(url);
+    }
+    applyPage(offset) {
+      this.panelState.offset = offset;
+      this.bump?.();
     }
     openRow(row) {
       const id = Number(row.id ?? 0);
@@ -971,59 +1368,128 @@ var SumeruSWC = (() => {
         "form"
       );
     }
+    toggleRow(id, checked) {
+      if (checked) this.panelState.selectedIds.add(id);
+      else this.panelState.selectedIds.delete(id);
+      this.bump?.();
+    }
+    toggleAll(checked, ids) {
+      this.panelState.selectedIds = checked ? new Set(ids) : /* @__PURE__ */ new Set();
+      this.bump?.();
+    }
+    async bulkDelete() {
+      const ids = [...this.panelState.selectedIds];
+      if (ids.length === 0) return;
+      const ok = await this.env.services.dialog.confirm(
+        "Delete records",
+        `Delete ${ids.length} selected record(s)?`
+      );
+      if (!ok) return;
+      await this.env.services.rpc.unlink(this.props.payload.model, ids);
+      this.panelState.selectedIds = /* @__PURE__ */ new Set();
+      this.env.services.notification.show({
+        kind: "success",
+        title: "Deleted",
+        body: `${ids.length} record(s) removed.`
+      });
+      this.applySearch();
+    }
+    patch() {
+      const tbody = this.el?.querySelector("tbody");
+      if (tbody) {
+        const rows = this.pageRows();
+        const cols = this.columns();
+        patchKeyedChildren(
+          tbody,
+          rows.map((row) => ({
+            key: String(row.id ?? 0),
+            render: () => {
+              const id = Number(row.id ?? 0);
+              return html`<tr class="sum-list-row sum-list-row--click" @click=${() => this.openRow(row)}>
+              ${renderRowCheckbox(
+                id,
+                this.panelState.selectedIds.has(id),
+                (rid, checked) => this.toggleRow(rid, checked)
+              )}
+              ${cols.map((c) => {
+                const display = row[`${c.name}_name`] ?? row[c.name];
+                return html`<td class="sum-list-td">${String(display ?? "")}</td>`;
+              })}
+            </tr>`.render();
+            }
+          }))
+        );
+        return;
+      }
+      super.patch();
+    }
     template() {
       const p = this.props.payload;
       const cols = this.columns();
-      const rows = this.rows();
+      const rows = this.pageRows();
+      const allRows = this.allRows();
       const fields = visibleFieldNames(cols);
       const reportActions = renderReportActions(p, fields);
+      const ids = allRows.map((r) => Number(r.id ?? 0)).filter((id) => id > 0);
+      const allSelected = ids.length > 0 && ids.every((id) => this.panelState.selectedIds.has(id));
       return html`
       <div class="sum-list-view">
-        <div class="sum-view-toolbar">
-          <div class="sum-view-toolbar-primary">
+        <div class="sum-list-control">
+          <div class="sum-list-control-left">
             ${renderNewButton(p)}
-            <input
-              type="search"
-              class="sum-input sum-list-search"
-              placeholder="Search…"
-              value=${this.search}
-              @keydown=${(ev) => ev.key === "Enter" && this.applySearch()}
-              @input=${(ev) => {
-        this.search = ev.target.value;
-        this.bump?.();
-      }}
-            />
-            <button type="button" class="sum-btn sum-btn--secondary" @click=${() => this.applySearch()}>Search</button>
+            ${reportActions ?? ""}
           </div>
-          ${reportActions ?? ""}
         </div>
-        <table class="sum-list-table">
-          <thead>
-            <tr>${cols.map((c) => html`<th>${c.string ?? c.name}</th>`)}</tr>
-          </thead>
-          <tbody>
-            ${rows.map(
-        (row) => html`<tr class="sum-list-row" @click=${() => this.openRow(row)}>
-                ${cols.map((c) => {
-          const v = row[c.name];
-          const display = row[`${c.name}_name`] ?? v;
-          return html`<td>${String(display ?? "")}</td>`;
+        ${renderControlPanel({
+        payload: { ...p, records: allRows },
+        state: this.panelState,
+        onSearch: () => this.applySearch(),
+        onPage: (o) => this.applyPage(o),
+        onBulkDelete: () => void this.bulkDelete()
+      })}
+        <div class="sum-list-table-wrap">
+          <table class="sum-list-table">
+            <thead>
+              <tr>
+                ${renderSelectAllHeader(allSelected, (checked) => this.toggleAll(checked, ids))}
+                ${cols.map((c) => html`<th class="sum-list-th">${c.string ?? c.name}</th>`)}
+              </tr>
+            </thead>
+            <tbody>
+              ${forEach(rows, (row) => Number(row.id ?? 0), (row) => {
+        const id = Number(row.id ?? 0);
+        return html`<tr class="sum-list-row sum-list-row--click" @click=${() => this.openRow(row)}>
+                  ${renderRowCheckbox(
+          id,
+          this.panelState.selectedIds.has(id),
+          (rid, checked) => this.toggleRow(rid, checked)
+        )}
+                  ${cols.map((c) => {
+          const display = row[`${c.name}_name`] ?? row[c.name];
+          return html`<td class="sum-list-td">${String(display ?? "")}</td>`;
         })}
-              </tr>`
-      )}
-          </tbody>
-        </table>
+                </tr>`;
+      })}
+            </tbody>
+          </table>
+        </div>
       </div>
     `;
     }
   };
 
-  // src/store/record.ts
+  // src/model/record.ts
   var SwcRecord = class {
     model;
     id;
     data;
     dirty = /* @__PURE__ */ new Set();
+    /** Client-side field domains from onchange (field name → domain). */
+    fieldDomains = /* @__PURE__ */ new Map();
+    /** Dynamic modifier overrides from onchange or eval. */
+    modifierOverrides = /* @__PURE__ */ new Map();
+    /** Optional callback after a field value changes (onchange RPC). */
+    onFieldChange;
     constructor(model, id, data) {
       this.model = model;
       this.id = id;
@@ -1035,6 +1501,10 @@ var SumeruSWC = (() => {
     set(field, value) {
       this.data[field] = value;
       this.dirty.add(field);
+    }
+    /** Notify listeners that a field finished editing (triggers onchange RPC). */
+    notifyFieldChange(field) {
+      this.onFieldChange?.(field);
     }
     isDirty() {
       return this.dirty.size > 0;
@@ -1048,6 +1518,9 @@ var SumeruSWC = (() => {
     }
     clearDirty() {
       this.dirty.clear();
+    }
+    values() {
+      return { ...this.data };
     }
   };
   var RecordStore = class {
@@ -1073,6 +1546,33 @@ var SumeruSWC = (() => {
       if (rec.id <= 0) return;
       await this.rpc.unlink(rec.model, [rec.id]);
     }
+    async duplicate(rec, omit = ["id"]) {
+      const values = {};
+      for (const [k, v] of Object.entries(rec.data)) {
+        if (omit.includes(k)) continue;
+        values[k] = v;
+      }
+      return this.rpc.create(rec.model, values);
+    }
+    async applyOnchange(rec, field) {
+      try {
+        const result = await this.rpc.onchange(rec.model, rec.values(), field);
+        if (result.value) {
+          for (const [k, v] of Object.entries(result.value)) {
+            rec.set(k, v);
+          }
+        }
+        if (result.domain) {
+          for (const [k, domain] of Object.entries(result.domain)) {
+            rec.fieldDomains.set(k, domain);
+          }
+        }
+        return result;
+      } catch (err) {
+        if (err instanceof SwcError && err.code === "rpc_error") return null;
+        throw err;
+      }
+    }
     validate(rec, requiredFields) {
       for (const f of requiredFields) {
         const v = rec.get(f);
@@ -1082,36 +1582,6 @@ var SumeruSWC = (() => {
       }
     }
   };
-
-  // src/core/registry.ts
-  var Registry = class {
-    entries = /* @__PURE__ */ new Map();
-    category(name) {
-      if (!this.entries.has(name)) {
-        this.entries.set(name, /* @__PURE__ */ new Map());
-      }
-      return new CategoryRegistry(this.entries.get(name));
-    }
-    get(category, key) {
-      return this.entries.get(category)?.get(key);
-    }
-  };
-  var CategoryRegistry = class {
-    constructor(map) {
-      this.map = map;
-    }
-    map;
-    add(key, value) {
-      this.map.set(key, value);
-    }
-    get(key) {
-      return this.map.get(key);
-    }
-    keys() {
-      return [...this.map.keys()];
-    }
-  };
-  var registry = new Registry();
 
   // src/widgets/field-shell.ts
   function fieldInputId(field) {
@@ -1232,6 +1702,7 @@ var SumeruSWC = (() => {
         value=${val}
         ${step ? html`step=${step}` : ""}
         @input=${(ev) => record.set(field.name, parseNumericValue(field, ev.target.value))}
+        @change=${() => record.notifyFieldChange(field.name)}
       />`,
         { labelFor: id }
       );
@@ -1270,6 +1741,60 @@ var SumeruSWC = (() => {
     return `#${raw}`;
   }
 
+  // src/model/modifiers.ts
+  function evalModifierExpr(expr, record) {
+    if (!expr || !record) return void 0;
+    const trimmed = expr.trim();
+    if (!trimmed) return void 0;
+    try {
+      const ctx = { ...record.data, record: record.data };
+      const fn = new Function("ctx", `with (ctx) { return !!(${trimmed}); }`);
+      return Boolean(fn(ctx));
+    } catch {
+      return void 0;
+    }
+  }
+  function fieldModifiers(field, record) {
+    const override = record?.modifierOverrides.get(field.name);
+    const dynamicInvisible = evalModifierExpr(field.invisible_expr, record);
+    const dynamicReadonly = evalModifierExpr(field.readonly_expr, record);
+    const dynamicRequired = evalModifierExpr(field.required_expr, record);
+    return {
+      invisible: override?.invisible ?? dynamicInvisible ?? field.invisible ?? false,
+      readonly: override?.readonly ?? dynamicReadonly ?? field.readonly ?? false,
+      required: override?.required ?? dynamicRequired ?? field.required ?? false
+    };
+  }
+  function isFieldVisible(field, record) {
+    return !fieldModifiers(field, record).invisible;
+  }
+  function fieldDomain(field, record) {
+    const fromRecord = record?.fieldDomains.get(field.name);
+    if (fromRecord) return fromRecord;
+    const raw = field.options?.domain;
+    if (!raw) return void 0;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!record) return parsed;
+      return evalDomainPlaceholders(parsed, record);
+    } catch {
+      return void 0;
+    }
+  }
+  function evalDomainPlaceholders(domain, record) {
+    return domain.map((clause) => {
+      if (!Array.isArray(clause)) return clause;
+      return clause.map((part) => {
+        if (typeof part !== "string") return part;
+        if (part.startsWith("$") && part.endsWith("$")) {
+          const key = part.slice(1, -1);
+          return record.get(key);
+        }
+        return part;
+      });
+    });
+  }
+
   // src/widgets/Many2OneField.ts
   var Many2OneField = class extends SwcComponent {
     suggestions = [];
@@ -1282,7 +1807,8 @@ var SumeruSWC = (() => {
       const gen = this.asyncCtrl.begin();
       const comodel = this.props.field.relation ?? this.props.field.options?.relation ?? "";
       if (!comodel) return;
-      const domain = q ? [["name", "ilike", q]] : [];
+      const baseDomain = fieldDomain(this.props.field, this.props.record) ?? [];
+      const domain = q ? [...baseDomain, ["name", "ilike", q]] : baseDomain;
       this.suggestions = await this.env.services.rpc.searchRead(comodel, domain, ["id", "name"], 20);
       this.open = true;
       this.asyncCtrl.finish(gen);
@@ -1316,6 +1842,7 @@ var SumeruSWC = (() => {
                     @click=${() => {
             record.set(field.name, row.id);
             record.set(`${field.name}_name`, row.name);
+            record.notifyFieldChange(field.name);
             this.open = false;
             this.asyncCtrl.refresh();
           }}
@@ -1983,6 +2510,19 @@ var SumeruSWC = (() => {
       }
       this.scheduleWrite(line.id, col, value);
     }
+    async addRowViaDialog() {
+      const cols = columnsForField(this.props.field);
+      if (cols.length === 0) return;
+      const dialog = this.env.services.dialog;
+      if (dialog) {
+        const ok = await dialog.confirm(
+          "Add line",
+          `Add a new line to ${this.props.field.string ?? this.props.field.name}?`
+        );
+        if (!ok) return;
+      }
+      this.addRow();
+    }
     addRow() {
       const id = nextTempId();
       this.lines = [...this.lines, { id, data: {} }];
@@ -2086,7 +2626,7 @@ var SumeruSWC = (() => {
                 </tr>` : this.lines.map((line) => this.renderLineRow(line, cols, canEdit))}
           </tbody>
         </table>
-        ${canEdit && cols.length > 0 ? html`<button type="button" class="sum-o2m-add-row" @click=${() => this.addRow()}>
+        ${canEdit && cols.length > 0 ? html`<button type="button" class="sum-o2m-add-row" @click=${() => void this.addRowViaDialog()}>
               + Add a line
             </button>` : ""}
         ${!canEdit && record.id <= 0 && !this.props.readonly ? html`<p class="sum-o2m-hint">Save the parent record before editing lines.</p>` : ""}
@@ -2239,6 +2779,85 @@ var SumeruSWC = (() => {
     }
   };
 
+  // src/widgets/extra-fields.ts
+  var MonetaryField = class extends DefaultField {
+    template() {
+      const { field, record, readonly } = this.props;
+      const symbol = field.options?.currency_symbol ?? "\xA4";
+      const val = String(record.get(field.name) ?? "");
+      if (readonly || field.readonly) {
+        return renderFieldShell(field, fieldReadonlyValue(val ? `${symbol} ${val}` : ""));
+      }
+      return super.template();
+    }
+  };
+  var HtmlField = class extends DefaultField {
+    template() {
+      const { field, record, readonly } = this.props;
+      const raw = String(record.get(field.name) ?? "");
+      if (readonly || field.readonly) {
+        const text = raw.replace(/<[^>]+>/g, " ").trim();
+        return renderFieldShell(field, fieldReadonlyValue(text));
+      }
+      return super.template();
+    }
+  };
+  var BinaryField = class extends SwcComponent {
+    template() {
+      const { field, record } = this.props;
+      const name = String(record.get(`${field.name}_name`) ?? record.get(field.name) ?? "Download");
+      return renderFieldShell(
+        field,
+        html`<a class="sum-field-link" href="/web/content/${field.name}/${record.id}" download>${name}</a>`
+      );
+    }
+  };
+  var ReferenceField = class extends DefaultField {
+  };
+  var ColorField = class extends DefaultField {
+    template() {
+      const { field, record, readonly } = this.props;
+      const val = Number(record.get(field.name) ?? 0);
+      const swatch = `hsl(${val * 47 % 360} 70% 45%)`;
+      if (readonly || field.readonly) {
+        return renderFieldShell(
+          field,
+          html`<span class="sum-color-swatch" style=${`background:${swatch}`}></span>`
+        );
+      }
+      return super.template();
+    }
+  };
+  var UrlField = class extends DefaultField {
+    template() {
+      const { field, record, readonly } = this.props;
+      const val = String(record.get(field.name) ?? "");
+      if ((readonly || field.readonly) && val) {
+        return renderFieldShell(
+          field,
+          html`<a class="sum-field-link" href=${val} target="_blank" rel="noopener">${val}</a>`
+        );
+      }
+      return super.template();
+    }
+  };
+  var ProgressField = class extends DefaultField {
+    template() {
+      const { field, record, readonly } = this.props;
+      const val = Math.min(100, Math.max(0, Number(record.get(field.name) ?? 0)));
+      if (readonly || field.readonly) {
+        return renderFieldShell(
+          field,
+          html`<div class="sum-progress">
+          <div class="sum-progress-bar" style=${`width:${val}%`}></div>
+          <span>${val}%</span>
+        </div>`
+        );
+      }
+      return super.template();
+    }
+  };
+
   // src/widgets/registry.ts
   function registerDefaultWidgets() {
     const fields = registry.category("fields");
@@ -2265,6 +2884,13 @@ var SumeruSWC = (() => {
     add("boolean_toggle", BooleanToggleField);
     add("many2many_tags", Many2ManyTagsField);
     add("image", ImageField);
+    add("monetary", MonetaryField);
+    add("html", HtmlField);
+    add("binary", BinaryField);
+    add("reference", ReferenceField);
+    add("color", ColorField);
+    add("url", UrlField);
+    add("progress", ProgressField);
   }
   function resolveFieldWidget(field) {
     if (field.widget === "many2many_tags") return "many2many_tags";
@@ -2277,6 +2903,14 @@ var SumeruSWC = (() => {
     if (field.widget === "statusbar") return "statusbar";
     if (field.widget === "priority") return "priority";
     if (field.type === "boolean" && field.widget === "radio") return "radio";
+    if (field.widget === "image") return "image";
+    if (field.widget === "monetary") return "monetary";
+    if (field.widget === "html") return "html";
+    if (field.widget === "binary") return "binary";
+    if (field.widget === "reference") return "reference";
+    if (field.widget === "color") return "color";
+    if (field.widget === "url") return "url";
+    if (field.widget === "progressbar" || field.widget === "progress") return "progress";
     if (field.type === "boolean") return "boolean";
     if (field.type === "text") return "text";
     if (field.type === "many2one") return "many2one";
@@ -2298,7 +2932,7 @@ var SumeruSWC = (() => {
     return comp.render();
   }
 
-  // src/views/form-sheet.ts
+  // src/views/form/form-sheet.ts
   function renderFields(rf, fields, record, readonly) {
     return visibleFields(fields).map((f) => rf(f, record, readonly));
   }
@@ -2448,10 +3082,17 @@ var SumeruSWC = (() => {
     ${h1Fields.length === 0 && contactFields.length === 0 ? renderFields(rf, div.fields ?? [], record, readonly) : ""}
   </div>`;
   }
-  function renderTitleDiv(rf, div, record, readonly, hasImageField) {
+  function renderTitleDiv(rf, div, record, readonly, hasImageField, onStatButton) {
     const cls = div.class ?? "";
-    if (cls.includes("sum_button_box")) {
-      return html`<div class="sum-form-button-box ${cls}"></div>`;
+    if (cls.includes("sum_button_box") || cls.includes("button_box")) {
+      const buttons = div.buttons ?? [];
+      return html`<div class="sum-form-button-box ${cls}">
+      ${buttons.map(
+        (btn) => html`<button type="button" class="sum-stat-button ${btn.class ?? ""}" data-action=${btn.name} @click=${() => onStatButton?.(btn.name)}>
+          ${btn.string || btn.name}
+        </button>`
+      )}
+    </div>`;
     }
     const isTitle = cls.includes("sum_title");
     if (!isTitle) {
@@ -2583,7 +3224,8 @@ var SumeruSWC = (() => {
       hasImageField = false,
       activeNotebookPages,
       onNotebookTab,
-      renderField: renderFieldOpt
+      renderField: renderFieldOpt,
+      onStatButton
     } = opts;
     const rf = renderFieldOpt ?? ((f, r, ro) => renderField(env, f, r, ro));
     if (!sheet) {
@@ -2591,7 +3233,7 @@ var SumeruSWC = (() => {
     }
     const parts = [];
     for (const div of sheet.divs ?? []) {
-      parts.push(renderTitleDiv(rf, div, record, readonly, hasImageField));
+      parts.push(renderTitleDiv(rf, div, record, readonly, hasImageField, onStatButton));
     }
     const topFields = visibleFields(sheet.fields ?? []);
     const groups = sheet.groups ?? [];
@@ -2617,7 +3259,7 @@ var SumeruSWC = (() => {
     return html`<div class="sum-form-sheet">${parts}</div>`;
   }
 
-  // src/views/form-interactions.ts
+  // src/views/form/form-interactions.ts
   function onNotebookKeydown(ev) {
     if (!(ev instanceof KeyboardEvent)) return;
     if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
@@ -2822,7 +3464,125 @@ var SumeruSWC = (() => {
     }
   };
 
-  // src/views/FormView.ts
+  // src/views/chatter/ChatterPanel.ts
+  var ChatterPanel = class extends SwcComponent {
+    messages = [];
+    attachments = [];
+    draft = "";
+    loading = true;
+    posting = false;
+    enabled = true;
+    tab = "messages";
+    setup() {
+      const [, bump] = useState(0);
+      this.bump = () => bump((n) => n + 1);
+      void this.load();
+    }
+    bump = null;
+    async load() {
+      const { model, recordId } = this.props;
+      if (recordId <= 0) {
+        this.loading = false;
+        this.bump?.();
+        return;
+      }
+      this.loading = true;
+      this.bump?.();
+      try {
+        const base = this.env.bootstrap.swcApiBase || "/web/swc";
+        const data = await this.env.services.http.getJSON(
+          `${base}/chatter?model=${encodeURIComponent(model)}&id=${recordId}`
+        );
+        this.messages = data.messages ?? [];
+        this.attachments = data.attachments ?? [];
+        this.enabled = data.enabled !== false;
+      } finally {
+        this.loading = false;
+        this.bump?.();
+      }
+    }
+    async post() {
+      const body = this.draft.trim();
+      if (!body || this.props.recordId <= 0) return;
+      this.posting = true;
+      this.bump?.();
+      try {
+        await this.env.services.http.postForm("/web/chatter/post", {
+          model: this.props.model,
+          res_id: String(this.props.recordId),
+          body,
+          next: window.location.pathname + window.location.search
+        });
+        this.draft = "";
+        await this.load();
+        this.env.services.bus.emit("record.updated", {
+          model: this.props.model,
+          id: this.props.recordId
+        });
+      } finally {
+        this.posting = false;
+        this.bump?.();
+      }
+    }
+    template() {
+      if (this.props.recordId <= 0) {
+        return html`<aside class="sum-chatter sum-chatter--empty">Save the record to post messages.</aside>`;
+      }
+      if (!this.enabled) return html``;
+      if (this.loading) {
+        return html`<aside class="sum-chatter sum-chatter--loading">Loading messages…</aside>`;
+      }
+      return html`
+      <aside class="sum-chatter">
+        <div class="sum-chatter-tabs">
+          <button type="button" class="sum-chatter-tab${this.tab === "messages" ? " sum-chatter-tab--active" : ""}" @click=${() => {
+        this.tab = "messages";
+        this.bump?.();
+      }}>Messages</button>
+          <button type="button" class="sum-chatter-tab${this.tab === "attachments" ? " sum-chatter-tab--active" : ""}" @click=${() => {
+        this.tab = "attachments";
+        this.bump?.();
+      }}>Attachments (${this.attachments.length})</button>
+        </div>
+        ${this.tab === "attachments" ? html`<ul class="sum-chatter-attachments">
+              ${this.attachments.length === 0 ? html`<li class="sum-chatter-empty">No attachments.</li>` : this.attachments.map(
+        (a) => html`<li><a href=${a.url} target="_blank" rel="noopener">${a.name}</a></li>`
+      )}
+            </ul>` : html`
+        <div class="sum-chatter-composer">
+          <textarea
+            class="sum-chatter-input"
+            placeholder="Write a message…"
+            rows="3"
+            value=${this.draft}
+            @input=${(ev) => {
+        this.draft = ev.target.value;
+        this.bump?.();
+      }}
+          ></textarea>
+          <button
+            type="button"
+            class="sum-btn sum-btn--primary sum-chatter-send"
+            disabled=${this.posting ? "disabled" : void 0}
+            @click=${() => void this.post()}
+          >
+            Post
+          </button>
+        </div>
+        <ul class="sum-chatter-messages">
+          ${this.messages.length === 0 ? html`<li class="sum-chatter-empty">No messages yet.</li>` : this.messages.map(
+        (m) => html`<li class="sum-chatter-message">
+                  <div class="sum-chatter-meta">${m.author} · ${m.createDate}</div>
+                  <div class="sum-chatter-body">${m.body}</div>
+                </li>`
+      )}
+        </ul>`}
+      </aside>
+    `;
+    }
+  };
+
+  // src/views/form/FormView.ts
   var FormView = class extends SwcComponent {
     recordStore;
     record;
@@ -2834,16 +3594,38 @@ var SumeruSWC = (() => {
     activeNotebookPages = {};
     teardownInteractions = null;
     fieldHost;
+    chatterPanel;
     setup() {
+      this.recordStore = new RecordStore(this.env.services.rpc);
+      this.fieldHost = new FieldHost(this.env);
+      this.initRecordState(this.props.payload);
       this.bump = () => {
         if (this.el?.isConnected) this.patch();
       };
-      this.recordStore = new RecordStore(this.env.services.rpc);
-      this.fieldHost = new FieldHost(this.env);
-      const p = this.props.payload;
+      this.chatterPanel = new ChatterPanel(
+        {
+          model: this.props.payload.model,
+          recordId: this.props.payload.recordId,
+          csrfToken: this.props.payload.csrfToken
+        },
+        this.env
+      );
+      this.chatterPanel.setup?.();
+    }
+    onPropsChanged(props) {
+      this.initRecordState(props.payload);
+      this.chatterPanel.updateProps({
+        model: props.payload.model,
+        recordId: props.payload.recordId,
+        csrfToken: props.payload.csrfToken
+      });
+      this.fieldHost.clear();
+    }
+    initRecordState(p) {
       this.editing = p.formEdit || p.recordId <= 0;
       this.snapshot = { ...p.record ?? {} };
       this.record = this.recordStore.fromPayload(p.model, p.recordId, this.snapshot);
+      this.record.onFieldChange = (field) => void this.handleFieldChange(field);
     }
     bump = null;
     onMount() {
@@ -2853,13 +3635,15 @@ var SumeruSWC = (() => {
       this.teardownInteractions?.();
       this.teardownInteractions = null;
       this.fieldHost.clear();
+      this.chatterPanel.destroy();
     }
     patch() {
       this.teardownInteractions?.();
       if (!this.el?.parentElement) return;
       const parent = this.el.parentElement;
+      const oldEl = this.el;
       const next = this.template().render();
-      parent.replaceChild(next, this.el);
+      parent.replaceChild(next, oldEl);
       this.el = next;
       this.bindFormInteractions();
     }
@@ -2868,7 +3652,27 @@ var SumeruSWC = (() => {
         this.teardownInteractions = initFormInteractions(this.el);
       }
     }
-    renderFieldCached = (field, record, readonly) => this.fieldHost.render(field, record, readonly);
+    async handleFieldChange(field) {
+      if (this.isReadonly()) return;
+      const result = await this.recordStore.applyOnchange(this.record, field);
+      if (result?.warning) {
+        this.env.services.notification.show({
+          kind: "warning",
+          title: result.warning.title,
+          body: result.warning.message
+        });
+      }
+      this.fieldHost.clear();
+      this.bump?.();
+    }
+    renderFieldCached = (field, record, readonly) => {
+      if (!isFieldVisible(field, record)) {
+        const el = document.createElement("div");
+        el.hidden = true;
+        return el;
+      }
+      return this.fieldHost.render(field, record, readonly);
+    };
     isReadonly() {
       return !this.editing;
     }
@@ -2901,6 +3705,7 @@ var SumeruSWC = (() => {
         return;
       }
       this.record = this.recordStore.fromPayload(p.model, p.recordId, { ...this.snapshot });
+      this.record.onFieldChange = (field) => void this.handleFieldChange(field);
       this.editing = false;
       this.error = "";
       this.bump?.();
@@ -2913,6 +3718,7 @@ var SumeruSWC = (() => {
       if (!rows[0]) return;
       this.snapshot = { ...rows[0] };
       this.record = this.recordStore.fromPayload(p.model, p.recordId, this.snapshot);
+      this.record.onFieldChange = (field) => void this.handleFieldChange(field);
       this.bump?.();
     }
     async save() {
@@ -2942,6 +3748,28 @@ var SumeruSWC = (() => {
         this.saving = false;
         this.bump?.();
       }
+    }
+    async deleteRecord() {
+      const p = this.props.payload;
+      if (p.recordId <= 0) return;
+      const ok = await this.env.services.dialog.confirm("Delete record", "This cannot be undone.");
+      if (!ok) return;
+      await this.recordStore.unlink(this.record);
+      this.env.services.notification.show({ kind: "success", title: "Deleted", body: "Record deleted." });
+      this.env.services.action.navigate(
+        this.env.services.router.workspaceUrl({
+          actionId: p.actionId,
+          menuId: p.menuId,
+          viewType: "list",
+          recordId: 0
+        })
+      );
+    }
+    async duplicateRecord() {
+      const p = this.props.payload;
+      if (p.recordId <= 0) return;
+      const newId = await this.recordStore.duplicate(this.record);
+      this.env.services.action.openRecord(p.model, p.actionId, p.menuId, newId, "form");
     }
     async runObjectButton(btn) {
       const p = this.props.payload;
@@ -2975,10 +3803,12 @@ var SumeruSWC = (() => {
       if (p.recordId > 0 && this.isReadonly()) {
         items.push(renderNewButton(p));
         items.push(headerButton("Edit", void 0, () => this.startEdit(), busy));
-      } else {
+        items.push(headerButton("Duplicate", void 0, () => void this.duplicateRecord(), busy));
         items.push(
-          headerButton("Save", "sum_highlight", () => void this.save(), busy)
+          headerButton("Delete", "sum-btn--danger", () => void this.deleteRecord(), busy)
         );
+      } else {
+        items.push(headerButton("Save", "sum_highlight", () => void this.save(), busy));
         items.push(headerButton("Cancel", void 0, () => this.cancelEdit(), busy || this.saving));
       }
       for (const btn of this.headerButtons()) {
@@ -3008,9 +3838,11 @@ var SumeruSWC = (() => {
           this.activeNotebookPages = { ...this.activeNotebookPages, [notebookIndex]: pageIndex };
           this.bump?.();
         },
-        renderField: this.renderFieldCached
+        renderField: this.renderFieldCached,
+        onStatButton: (name) => void this.runObjectButton({ name, string: name, type: "object" })
       });
       const footerButtons = p.arch.footer?.buttons ?? [];
+      const showChatter = p.arch.hasChatter && p.recordId > 0;
       return html`
       <div class="sum-form-view sum-form-view--workspace-chrome${readonly ? " sum-form-view--readonly" : ""}">
         <div class="sum-ws-record-toolbar sum-view-toolbar sum-form-toolbar">
@@ -3021,10 +3853,11 @@ var SumeruSWC = (() => {
           ${reportActions ?? ""}
         </div>
         ${this.error ? html`<div class="sum-flash sum-flash--error">${this.error}</div>` : ""}
-        <div class="sum-form-sheet-bg">
-          ${sheet}
-          ${footerButtons.length > 0 ? html`<div class="sum-form-footer">
-                ${footerButtons.map(
+        <div class="sum-form-layout${showChatter ? " sum-form-layout--with-chatter" : ""}">
+          <div class="sum-form-sheet-bg">
+            ${sheet}
+            ${footerButtons.length > 0 ? html`<div class="sum-form-footer">
+                  ${footerButtons.map(
         (btn) => headerButton(
           btn.string || btn.name,
           btn.class,
@@ -3032,14 +3865,16 @@ var SumeruSWC = (() => {
           busy
         )
       )}
-              </div>` : ""}
+                </div>` : ""}
+          </div>
+          ${showChatter ? this.chatterPanel.render() : ""}
         </div>
       </div>
     `;
     }
   };
 
-  // src/views/kanban-card.ts
+  // src/views/kanban/kanban-card.ts
   function isKanbanImageField(field) {
     const name = field.name.toLowerCase();
     return name === "image" || name.startsWith("image_") || field.widget === "image" || field.widget === "circle";
@@ -3120,7 +3955,7 @@ var SumeruSWC = (() => {
     return html`${titleEl}${subEls}${priorityEl}`;
   }
 
-  // src/views/KanbanView.ts
+  // src/views/kanban/KanbanView.ts
   var KanbanView = class extends SwcComponent {
     cardFields() {
       return this.props.payload.arch.fields.filter((f) => !f.invisible);
@@ -3137,7 +3972,10 @@ var SumeruSWC = (() => {
       await this.env.services.rpc.write(this.props.payload.model, [recordId], {
         [groupField]: columnValue || false
       });
-      window.location.reload();
+      this.env.services.bus.emit("record.updated", {
+        model: this.props.payload.model,
+        id: recordId
+      });
     }
     toolbar() {
       const p = this.props.payload;
@@ -3214,7 +4052,7 @@ var SumeruSWC = (() => {
     }
   };
 
-  // src/views/PivotView.ts
+  // src/views/pivot/PivotView.ts
   var PivotView = class extends SwcComponent {
     template() {
       const pivot = this.props.payload.arch.pivot;
@@ -3248,7 +4086,7 @@ var SumeruSWC = (() => {
     }
   };
 
-  // src/views/GraphView.ts
+  // src/views/graph/GraphView.ts
   var GraphView = class extends SwcComponent {
     groups = [];
     measureField = "id";
@@ -3286,11 +4124,247 @@ var SumeruSWC = (() => {
     }
   };
 
-  // src/views/WorkspaceRouter.ts
+  // src/views/calendar/CalendarView.ts
+  var CalendarView = class extends SwcComponent {
+    dateField = "date_deadline";
+    setup() {
+      const fields = this.props.payload.arch.fields;
+      const dateField = fields.find((f) => f.type === "date" || f.type === "datetime");
+      if (dateField) this.dateField = dateField.name;
+    }
+    groupByDate() {
+      const map = /* @__PURE__ */ new Map();
+      for (const row of this.props.payload.records ?? []) {
+        const raw = String(row[this.dateField] ?? "").slice(0, 10);
+        const key = raw || "Unscheduled";
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(row);
+      }
+      return map;
+    }
+    openRecord(row) {
+      const id = Number(row.id ?? 0);
+      if (id <= 0) return;
+      const p = this.props.payload;
+      this.env.services.action.openRecord(p.model, p.actionId, p.menuId, id, "form");
+    }
+    template() {
+      const buckets = [...this.groupByDate().entries()].sort(([a], [b]) => a.localeCompare(b));
+      return html`
+      <div class="sum-calendar-view">
+        <h2 class="sum-calendar-title">${this.props.payload.arch.title ?? "Calendar"}</h2>
+        <div class="sum-calendar-columns">
+          ${buckets.map(
+        ([day, rows]) => html`<section class="sum-calendar-day">
+              <h3 class="sum-calendar-day-title">${day}</h3>
+              <ul class="sum-calendar-events">
+                ${rows.map(
+          (row) => html`<li class="sum-calendar-event" @click=${() => this.openRecord(row)}>
+                    ${String(row.name ?? row.display_name ?? `#${row.id}`)}
+                  </li>`
+        )}
+              </ul>
+            </section>`
+      )}
+        </div>
+      </div>
+    `;
+    }
+  };
+
+  // src/views/advanced/stub-view.ts
+  function renderStubView(title, payload) {
+    const rows = payload.records ?? [];
+    return html`
+    <div class="sum-advanced-view">
+      <h2>${title}</h2>
+      <p class="sum-advanced-view-hint">${rows.length} record(s) loaded.</p>
+      <ul>
+        ${rows.slice(0, 20).map(
+      (row) => html`<li>${String(row.name ?? row.display_name ?? row.id ?? "")}</li>`
+    )}
+      </ul>
+    </div>
+  `;
+  }
+
+  // src/views/advanced/GanttView.ts
+  var GanttView = class extends SwcComponent {
+    template() {
+      return renderStubView(this.props.payload.arch.title ?? "Gantt", this.props.payload);
+    }
+  };
+
+  // src/views/advanced/MapView.ts
+  var MapView = class extends SwcComponent {
+    template() {
+      return renderStubView(this.props.payload.arch.title ?? "Map", this.props.payload);
+    }
+  };
+
+  // src/views/advanced/CohortView.ts
+  var CohortView = class extends SwcComponent {
+    template() {
+      return renderStubView(this.props.payload.arch.title ?? "Cohort", this.props.payload);
+    }
+  };
+
+  // src/devtools/profiler.ts
+  var events = [];
+  var MAX = 500;
+  function logRenderEvent(kind, component, durationMs) {
+    events.push({ ts: Date.now(), kind, component, durationMs });
+    if (events.length > MAX) events.shift();
+  }
+
+  // src/devtools/panel.ts
+  var panelEl = null;
+  var selectedId = null;
+  function mountDevtoolsPanel() {
+    if (typeof window === "undefined") return;
+    if (!window.__SWC_DEVTOOLS__) return;
+    if (document.getElementById("swc-vision-panel")) return;
+    panelEl = document.createElement("aside");
+    panelEl.id = "swc-vision-panel";
+    panelEl.className = "sum-devtools-panel";
+    panelEl.innerHTML = `
+    <header class="sum-devtools-header">
+      <strong>SWC Vision</strong>
+      <button type="button" id="swc-vision-close">\xD7</button>
+    </header>
+    <section class="sum-devtools-tree" id="swc-vision-tree"></section>
+    <section class="sum-devtools-template" id="swc-vision-template"></section>
+  `;
+    document.body.appendChild(panelEl);
+    panelEl.querySelector("#swc-vision-close")?.addEventListener("click", () => {
+      panelEl?.remove();
+      panelEl = null;
+    });
+    refreshTree();
+    setInterval(refreshTree, 1e3);
+  }
+  function refreshTree() {
+    if (!panelEl) return;
+    const tree = panelEl.querySelector("#swc-vision-tree");
+    const templateView = panelEl.querySelector("#swc-vision-template");
+    if (!tree) return;
+    const comps = window.__SWC_DEVTOOLS__?.components ?? [];
+    tree.innerHTML = comps.map(
+      (c) => `<button type="button" class="sum-devtools-node${selectedId === c.id ? " sum-devtools-node--active" : ""}" data-id="${c.id}">${c.name} #${c.id}</button>`
+    ).join("");
+    tree.querySelectorAll("[data-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedId = Number(btn.dataset.id);
+        showTemplate(comps.find((c) => c.id === selectedId) ?? null, templateView);
+        refreshTree();
+      });
+    });
+  }
+  function showTemplate(comp, el) {
+    if (!el || !comp) {
+      if (el) el.textContent = "Select a component";
+      return;
+    }
+    const meta = getTemplateSource(comp);
+    if (!meta) {
+      el.innerHTML = `<p>No template metadata for <code>${comp.name}</code></p>`;
+      return;
+    }
+    el.innerHTML = `
+    <h4>${meta.component}</h4>
+    <p class="sum-devtools-file">${meta.file}${meta.line ? `:${meta.line}` : ""}</p>
+    <pre class="sum-devtools-snippet">${meta.snippet ?? ""}</pre>
+  `;
+  }
+  function enablePicker() {
+    document.body.addEventListener(
+      "click",
+      (ev) => {
+        if (!(ev.target instanceof Element)) return;
+        if (!ev.altKey) return;
+        ev.preventDefault();
+        const rec = window.__SWC_DEVTOOLS__?.getComponentForElement(ev.target);
+        if (rec) {
+          selectedId = rec.id;
+          logRenderEvent("pick", rec.name);
+          mountDevtoolsPanel();
+        }
+      },
+      true
+    );
+  }
+
+  // src/devtools/debug.ts
+  function isDebugMode() {
+    return new URLSearchParams(window.location.search).get("debug") === "1";
+  }
+  function mountDebugPanel() {
+    initDevtoolsBridge();
+    if (!isDebugMode()) return;
+    if (document.getElementById("sum-debug-panel")) return;
+    const el = document.createElement("aside");
+    el.id = "sum-debug-panel";
+    el.className = "sum-debug-panel";
+    el.innerHTML = `<h4>SWC Debug</h4><p>Arch and RPC logging enabled. Alt+click to inspect components.</p>
+    <button type="button" id="sum-debug-open-vision">Open SWC Vision</button>`;
+    document.body.appendChild(el);
+    el.querySelector("#sum-debug-open-vision")?.addEventListener("click", () => mountDevtoolsPanel());
+    enablePicker();
+  }
+  function logWorkspacePayload(label, payload) {
+    if (!isDebugMode()) return;
+    console.debug(`[SWC ${label}]`, payload);
+  }
+  function logViewArch(arch) {
+    if (!isDebugMode()) return;
+    console.debug("[SWC arch]", arch);
+  }
+
+  // src/shell/ShellPageView.ts
+  function appHref(action) {
+    const id = action.replace(/\D/g, "") || action;
+    return `/web?action=${encodeURIComponent(id)}`;
+  }
+  var ShellPageView = class extends SwcComponent {
+    template() {
+      const { boot, page } = this.props;
+      if (page === "apps") {
+        return html`<div class="sum-shell-page sum-shell-apps">
+        <h1>Applications</h1>
+        <div class="sum-shell-app-grid">
+          ${boot.apps.map(
+          (app) => html`<a class="sum-shell-app-tile" href=${appHref(app.action)}>
+              <span class="sum-shell-app-name">${app.name}</span>
+            </a>`
+        )}
+        </div>
+      </div>`;
+      }
+      if (page === "settings") {
+        return html`<div class="sum-shell-page sum-shell-settings">
+        <h1>Settings</h1>
+        <p>Company and user preferences (SPA shell route).</p>
+      </div>`;
+      }
+      return html`<div class="sum-shell-page sum-shell-home">
+      <h1>Home</h1>
+      <p>Welcome, ${boot.user.name}.</p>
+      <div class="sum-shell-app-grid">
+        ${boot.apps.slice(0, 6).map(
+        (app) => html`<a class="sum-shell-app-tile" href=${appHref(app.action)}>${app.name}</a>`
+      )}
+      </div>
+    </div>`;
+    }
+  };
+
+  // src/views/workspace/WorkspaceRouter.ts
   var WorkspaceRouter = class extends SwcComponent {
     payload = null;
     loading = true;
     error = "";
+    activeView = null;
+    activeViewType = "";
     setup() {
       const [, bump] = useState(0);
       this.bump = () => bump((n) => n + 1);
@@ -3300,6 +4374,9 @@ var SumeruSWC = (() => {
         this.bump?.();
         try {
           this.payload = await this.fetchWorkspace();
+          logWorkspacePayload("workspace", this.payload);
+          logViewArch(this.payload.arch);
+          this.syncView();
         } catch (err) {
           this.error = err instanceof SwcError ? err.message : String(err);
         } finally {
@@ -3312,6 +4389,15 @@ var SumeruSWC = (() => {
         const onNav = () => void load();
         window.addEventListener("popstate", onNav);
         return () => window.removeEventListener("popstate", onNav);
+      });
+      useEffect(() => {
+        return this.env.services.bus.subscribe("record.updated", (payload) => {
+          const msg = payload;
+          if (!this.payload || !msg.model) return;
+          if (msg.model !== this.payload.model) return;
+          if (msg.id && this.payload.recordId && msg.id !== this.payload.recordId) return;
+          void load();
+        });
       });
     }
     bump = null;
@@ -3327,35 +4413,58 @@ var SumeruSWC = (() => {
       const base = this.env.bootstrap.swcApiBase || "/web/swc";
       return this.env.services.http.getJSON(`${base}/workspace?${params.toString()}`);
     }
-    mountView(view) {
+    createView(type, payload) {
+      const views = registry.category("views");
+      const Ctor = views.get(type) ?? (type === "form" ? FormView : type === "kanban" ? KanbanView : type === "pivot" ? PivotView : type === "graph" ? GraphView : type === "calendar" ? CalendarView : type === "gantt" ? GanttView : type === "map" ? MapView : type === "cohort" ? CohortView : ListView);
+      const view = new Ctor({ payload }, this.env);
       view.setup?.();
-      return view.render();
+      return view;
+    }
+    syncView() {
+      if (!this.payload) return;
+      const type = this.payload.viewType || this.payload.arch.type;
+      if (this.activeView && this.activeViewType === type) {
+        this.activeView.updateProps({ payload: this.payload });
+        return;
+      }
+      this.activeView?.destroy();
+      this.activeView = this.createView(type, this.payload);
+      this.activeViewType = type;
     }
     renderView() {
-      if (!this.payload) return document.createElement("div");
-      const type = this.payload.viewType || this.payload.arch.type;
-      const p = this.payload;
-      switch (type) {
-        case "form":
-          return this.mountView(new FormView({ payload: p }, this.env));
-        case "kanban":
-          return this.mountView(new KanbanView({ payload: p }, this.env));
-        case "pivot":
-          return this.mountView(new PivotView({ payload: p }, this.env));
-        case "graph":
-          return this.mountView(new GraphView({ payload: p }, this.env));
-        default:
-          return this.mountView(new ListView({ payload: p }, this.env));
+      if (!this.payload || !this.activeView) return document.createElement("div");
+      if (this.activeView.el?.isConnected) {
+        this.activeView.patch();
+        return this.activeView.el;
       }
+      return this.activeView.render();
+    }
+    /** Reload workspace payload (e.g. after bus event). */
+    reload() {
+      void this.fetchWorkspace().then((payload) => {
+        this.payload = payload;
+        this.syncView();
+        this.patch();
+      }).catch((err) => {
+        this.error = err instanceof SwcError ? err.message : String(err);
+        this.patch();
+      });
     }
     template() {
+      const route = this.env.services.router.parse();
+      if (route.shell === "home" || route.shell === "apps" || route.shell === "settings") {
+        const page = route.shell;
+        const shellView = new ShellPageView({ boot: this.env.bootstrap, page }, this.env);
+        return html`<div class="sum-workspace-root sum-workspace-root--shell">${shellView.render()}</div>`;
+      }
       if (this.loading) {
         return html`<div class="sum-workspace-loading">Loading workspace…</div>`;
       }
       if (this.error) {
         return html`<div class="sum-flash sum-flash--error">${this.error}</div>`;
       }
-      return html`<div class="sum-workspace-view">${this.renderView()}</div>`;
+      if (!this.payload) return html`<div></div>`;
+      return html`<div class="sum-workspace-root sum-workspace-view">${this.renderView()}</div>`;
     }
   };
 
@@ -3750,6 +4859,33 @@ var SumeruSWC = (() => {
     });
   }
 
+  // src/shell/company-switcher.ts
+  function initCompanySwitcher(boot, http) {
+    if (!boot.showCompanySwitcher || boot.companies.length <= 1) return;
+    const host = document.getElementById("sum-company-switcher");
+    if (!host) return;
+    const select = document.createElement("select");
+    select.className = "sum-company-switcher-select";
+    select.setAttribute("aria-label", "Company");
+    for (const company of boot.companies) {
+      const opt = document.createElement("option");
+      opt.value = String(company.id);
+      opt.textContent = company.name;
+      if (company.id === boot.activeCompanyId) opt.selected = true;
+      select.appendChild(opt);
+    }
+    select.addEventListener("change", () => {
+      void http.postForm("/web/company/switch", {
+        company_id: select.value,
+        next: window.location.pathname + window.location.search
+      }).then(() => {
+        document.dispatchEvent(new CustomEvent("swc:company-changed"));
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      });
+    });
+    host.replaceChildren(select);
+  }
+
   // src/shell/shell-chrome.ts
   function initShellChrome(boot, http) {
     const shell = document.getElementById("sum-shell");
@@ -3760,6 +4896,7 @@ var SumeruSWC = (() => {
     }
     initPinnedApps(http, boot.pinnedApps ?? []);
     initHomeDashboard(http);
+    initCompanySwitcher(boot, http);
     new NotificationService().bootstrap(boot.toasts);
   }
 
@@ -3785,6 +4922,16 @@ var SumeruSWC = (() => {
     }
   };
 
+  // src/i18n/translate.ts
+  var translations = /* @__PURE__ */ new Map();
+  function loadTranslations(source) {
+    translations.clear();
+    if (!source) return;
+    for (const [k, v] of Object.entries(source)) {
+      translations.set(k, v);
+    }
+  }
+
   // src/main.ts
   function registerCore() {
     registerDefaultWidgets();
@@ -3794,18 +4941,25 @@ var SumeruSWC = (() => {
     views.add("kanban", KanbanView);
     views.add("pivot", PivotView);
     views.add("graph", GraphView);
+    views.add("calendar", CalendarView);
+    views.add("gantt", GanttView);
+    views.add("map", MapView);
+    views.add("cohort", CohortView);
     const main = registry.category("main_components");
     main.add("shell", ShellLayout);
   }
   function buildEnv(boot) {
+    const router = new RouterService();
     const services = {
       rpc: new RpcService(boot.rpcUrl, boot.csrfToken),
       http: new HttpService(boot.csrfToken),
       notification: new NotificationService(),
-      action: new ActionService(),
-      router: new RouterService(),
-      bus: new BusService()
+      action: new ActionService(router),
+      router,
+      bus: new BusService(),
+      dialog: new DialogService()
     };
+    registerCoreServices(services);
     return new SwcEnv(boot, services);
   }
   function bootstrap() {
@@ -3818,6 +4972,9 @@ var SumeruSWC = (() => {
       return;
     }
     const env = buildEnv(boot);
+    loadTranslations(boot.translations);
+    initDevtoolsBridge();
+    mountDebugPanel();
     initShellChrome(boot, env.services.http);
     const mountEl = document.getElementById("swc-workspace");
     if (mountEl) {
