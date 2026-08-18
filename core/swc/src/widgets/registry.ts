@@ -12,6 +12,7 @@ import { BooleanRadioField } from "./BooleanRadioField.js";
 import { BooleanToggleField } from "./BooleanToggleField.js";
 import { Many2ManyTagsField } from "./Many2ManyTagsField.js";
 import { One2ManyField } from "./One2ManyField.js";
+import { DateField, DateTimeField } from "./DateField.js";
 import { ImageField } from "./ImageField.js";
 
 export function registerDefaultWidgets(): void {
@@ -24,8 +25,8 @@ export function registerDefaultWidgets(): void {
   add("integer", DefaultField);
   add("float", DefaultField);
   add("numeric", DefaultField);
-  add("date", DefaultField);
-  add("datetime", DefaultField);
+  add("date", DateField);
+  add("datetime", DateTimeField);
   add("json", TextareaField);
   add("many2one", Many2OneField);
   add("one2many", One2ManyField);

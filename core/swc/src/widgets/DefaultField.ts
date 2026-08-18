@@ -4,6 +4,7 @@ import type { SwcArchField } from "../types/workspace.js";
 import type { SwcRecord } from "../store/record.js";
 import {
   fieldInputId,
+  fieldPlaceholder,
   fieldReadonlyInput,
   fieldReadonlyValue,
   renderFieldShell,
@@ -40,7 +41,7 @@ export class DefaultField extends SwcComponent<FieldProps> {
   template() {
     const { field, record, readonly } = this.props;
     const val = String(record.get(field.name) ?? "");
-    const placeholder = field.placeholder ?? field.string ?? field.name;
+    const placeholder = fieldPlaceholder(field);
     const inputType = inputTypeForField(field);
     const step = stepForField(field);
     const id = fieldInputId(field);
@@ -50,7 +51,7 @@ export class DefaultField extends SwcComponent<FieldProps> {
         field,
         field.type === "integer" || field.type === "float" || field.type === "numeric"
           ? fieldReadonlyInput(field, val, "text")
-          : fieldReadonlyValue(val),
+          : fieldReadonlyValue(val, placeholder),
       );
     }
 

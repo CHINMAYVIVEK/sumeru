@@ -4,6 +4,7 @@ import type { SwcArchField } from "../types/workspace.js";
 import type { SwcRecord } from "../store/record.js";
 import {
   fieldInputId,
+  fieldPlaceholder,
   fieldReadonlyValue,
   renderFieldShell,
 } from "./field-shell.js";
@@ -83,8 +84,10 @@ export class SelectionField extends SwcComponent<FieldProps> {
     const currentVal = current == null || current === "" ? "" : String(current);
     const id = fieldInputId(field);
 
+    const placeholder = fieldPlaceholder(field);
+
     if (readonly || field.readonly) {
-      return renderFieldShell(field, fieldReadonlyValue(this.displayValue()));
+      return renderFieldShell(field, fieldReadonlyValue(this.displayValue(), placeholder));
     }
 
     return renderFieldShell(
@@ -101,7 +104,7 @@ export class SelectionField extends SwcComponent<FieldProps> {
           this.asyncCtrl.refresh();
         }}
       >
-        <option value="" selected=${currentVal === "" ? "selected" : ""}></option>
+        <option value="" disabled=${currentVal !== "" ? "disabled" : false} selected=${currentVal === "" ? "selected" : false}>${placeholder}</option>
         ${this.options.map(
           (opt) =>
             html`<option value=${opt.value} selected=${opt.value === currentVal ? "selected" : ""}>

@@ -4,6 +4,7 @@ import type { SwcArchField } from "../types/workspace.js";
 import type { SwcRecord } from "../store/record.js";
 import {
   fieldInputId,
+  fieldPlaceholder,
   fieldReadonlyValue,
   renderFieldShell,
 } from "./field-shell.js";
@@ -39,8 +40,10 @@ export class Many2OneField extends SwcComponent<FieldProps> {
     const display = record.get(`${field.name}_name`) ?? (record.get(field.name) ? `#${record.get(field.name)}` : "");
     const id = fieldInputId(field);
 
+    const placeholder = fieldPlaceholder(field);
+
     if (readonly || field.readonly) {
-      return renderFieldShell(field, fieldReadonlyValue(String(display)));
+      return renderFieldShell(field, fieldReadonlyValue(String(display), placeholder));
     }
 
     return renderFieldShell(
@@ -50,6 +53,7 @@ export class Many2OneField extends SwcComponent<FieldProps> {
           id=${id}
           class="sum-field-input"
           name=${field.name}
+          placeholder=${placeholder}
           value=${String(display)}
           autocomplete="off"
           @input=${(ev: Event) => void this.search((ev.target as HTMLInputElement).value)}

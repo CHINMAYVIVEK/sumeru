@@ -4,6 +4,7 @@ import type { SwcArchField } from "../types/workspace.js";
 import type { SwcRecord } from "../store/record.js";
 import {
   fieldInputId,
+  fieldPlaceholder,
   fieldReadonlyValue,
   renderFieldShell,
 } from "./field-shell.js";
@@ -18,11 +19,11 @@ export class TextareaField extends SwcComponent<FieldProps> {
   template() {
     const { field, record, readonly } = this.props;
     const val = String(record.get(field.name) ?? "");
-    const placeholder = field.placeholder ?? field.string ?? field.name;
+    const placeholder = fieldPlaceholder(field);
     const id = fieldInputId(field);
 
     if (readonly || field.readonly) {
-      return renderFieldShell(field, fieldReadonlyValue(val));
+      return renderFieldShell(field, fieldReadonlyValue(val, placeholder));
     }
 
     return renderFieldShell(
@@ -32,11 +33,9 @@ export class TextareaField extends SwcComponent<FieldProps> {
         class="sum-field-textarea"
         name=${field.name}
         placeholder=${placeholder}
-        rows="4"
+        rows="5"
         @input=${(ev: Event) => record.set(field.name, (ev.target as HTMLTextAreaElement).value)}
-      >
-${val}</textarea
-      >`,
+      >${val}</textarea>`,
       { labelFor: id },
     );
   }
