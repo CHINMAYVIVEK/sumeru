@@ -151,6 +151,9 @@ var SumeruSWC = (() => {
     if (!attr) return partial;
     return partial.slice(0, partial.length - attr.length - 1);
   }
+  function isAttrWhitespace(ch) {
+    return ch === " " || ch === "\n" || ch === "\r" || ch === "	";
+  }
   function parseTagAttributes(raw) {
     const s = raw.trim();
     const tagMatch = s.match(/^([^\s/]+)/);
@@ -159,10 +162,10 @@ var SumeruSWC = (() => {
     const attrs = {};
     let i = 0;
     while (i < rest.length) {
-      while (i < rest.length && rest[i] === " ") i++;
+      while (i < rest.length && isAttrWhitespace(rest[i])) i++;
       if (i >= rest.length) break;
       const keyStart = i;
-      while (i < rest.length && rest[i] !== "=" && rest[i] !== " ") i++;
+      while (i < rest.length && rest[i] !== "=" && !isAttrWhitespace(rest[i])) i++;
       const key = rest.slice(keyStart, i).trim();
       if (!key) break;
       if (i >= rest.length || rest[i] !== "=") {
@@ -183,7 +186,7 @@ var SumeruSWC = (() => {
         continue;
       }
       let val = "";
-      while (i < rest.length && rest[i] !== " ") val += rest[i++];
+      while (i < rest.length && !isAttrWhitespace(rest[i])) val += rest[i++];
       attrs[key] = val;
     }
     return { tag, attrs };
@@ -281,7 +284,8 @@ var SumeruSWC = (() => {
           return;
         }
         const text = String(value);
-        if (text.includes(" ") && attr && !attr.startsWith("@")) {
+        const needsQuotes = attr && !attr.startsWith("@") && (text === "" || text.includes(" ") || text.includes("\n") || text.includes("	") || text.includes(".") || text.includes("=") || text.includes("<") || text.includes(">"));
+        if (needsQuotes) {
           partial += `"${text.replace(/"/g, "&quot;")}"`;
         } else {
           partial += text;
@@ -323,6 +327,15 @@ var SumeruSWC = (() => {
       }
     };
   }
+  function applyStyle(el, raw) {
+    for (const part of raw.split(";")) {
+      const idx = part.indexOf(":");
+      if (idx === -1) continue;
+      const prop = part.slice(0, idx).trim();
+      const val = part.slice(idx + 1).trim();
+      if (prop) el.style.setProperty(prop, val);
+    }
+  }
   function renderVNode(vn) {
     const el = document.createElement(vn.tag);
     for (const [k, v] of Object.entries(vn.attrs)) {
@@ -335,7 +348,9 @@ var SumeruSWC = (() => {
         for (const c of v.split(/\s+/)) {
           if (c) el.classList.add(c);
         }
-      } else if (k.startsWith("data-") || k === "id" || k === "href" || k === "type" || k === "name" || k === "value" || k === "placeholder" || k === "title" || k === "role" || k === "aria-selected" || k === "checked" || k === "src" || k === "alt" || k === "rows" || k === "selected" || k === "method" || k === "action" || k === "enctype" || k === "accept" || k === "open" || k === "hidden" || k === "disabled") {
+      } else if (k === "style" && v) {
+        applyStyle(el, v);
+      } else if (k.startsWith("data-") || k === "id" || k === "for" || k === "href" || k === "type" || k === "name" || k === "value" || k === "placeholder" || k === "aria-label" || k === "title" || k === "role" || k === "aria-selected" || k === "checked" || k === "src" || k === "alt" || k === "rows" || k === "selected" || k === "method" || k === "action" || k === "enctype" || k === "accept" || k === "open" || k === "hidden" || k === "disabled") {
         el.setAttribute(k, v);
       }
     }
@@ -1102,9 +1117,15 @@ var SumeruSWC = (() => {
   function fieldInputId(field) {
     return `f-${field.name}`;
   }
+  function isFullWidthField(field) {
+    if (field.type === "text" || field.widget === "text") return true;
+    if (field.type === "one2many" || field.widget === "one2many") return true;
+    if (field.widget === "image") return true;
+    return false;
+  }
   function fieldWidgetClass(field, extra = []) {
     const parts = ["sum-field-widget"];
-    if (field.type === "text" || field.widget === "text") {
+    if (isFullWidthField(field)) {
       parts.push("sum-field-widget--full");
     }
     if (field.type === "many2one" || field.widget === "many2one") {
@@ -1115,22 +1136,35 @@ var SumeruSWC = (() => {
     }
     return parts.join(" ");
   }
-  function fieldLabel(field, forId) {
+  function fieldLabel(field, forId, row = false) {
     const label = field.string ?? field.name;
+    const cls = row ? "sum-field-label sum-field-label--row" : "sum-field-label";
     if (forId) {
-      return html`<label class="sum-field-label" for=${forId}>${label}</label>`;
+      return html`<label class=${cls} for=${forId}>${label}</label>`;
     }
-    return html`<label class="sum-field-label">${label}</label>`;
+    return html`<label class=${cls}>${label}</label>`;
   }
-  function fieldReadonlyValue(val) {
-    return html`<div class="sum-field-value">${val}</div>`;
+  function fieldControl(body, compact = false) {
+    const cls = compact ? "sum-field-control sum-field-control--compact" : "sum-field-control";
+    return html`<div class=${cls}>${body}</div>`;
+  }
+  function fieldPlaceholder(field) {
+    return field.placeholder ?? field.string ?? field.name;
+  }
+  function fieldReadonlyValue(val, placeholder = "") {
+    const hasValue = val.trim() !== "";
+    const text = hasValue ? val : placeholder;
+    const cls = hasValue ? "sum-field-value" : "sum-field-value sum-field-value--placeholder";
+    return html`<div class=${cls}>${text}</div>`;
   }
   function fieldReadonlyInput(field, val, inputType = "text") {
+    const placeholder = fieldPlaceholder(field);
     return html`<input
     type=${inputType}
     class="sum-field-input"
     name=${field.name}
     value=${val}
+    placeholder=${placeholder}
     readonly
     tabindex="-1"
   />`;
@@ -1138,9 +1172,19 @@ var SumeruSWC = (() => {
   function renderFieldShell(field, body, options = {}) {
     const showLabel = options.showLabel !== false;
     const labelFor = options.labelFor ?? fieldInputId(field);
-    return html`<div class=${fieldWidgetClass(field, options.modifiers ?? [])}>
+    const useRow = options.layout === "row" || options.layout !== "stack" && !isFullWidthField(field) && !options.compact;
+    const modifiers = [...options.modifiers ?? []];
+    if (useRow) modifiers.push("sum-field-widget--row");
+    const wrappedBody = fieldControl(body, options.compact === true);
+    if (useRow) {
+      return html`<div class=${fieldWidgetClass(field, modifiers)}>
+      ${showLabel ? fieldLabel(field, labelFor, true) : ""}
+      ${wrappedBody}
+    </div>`;
+    }
+    return html`<div class=${fieldWidgetClass(field, modifiers)}>
     ${showLabel ? fieldLabel(field, labelFor) : ""}
-    ${body}
+    ${wrappedBody}
   </div>`;
   }
 
@@ -1167,14 +1211,14 @@ var SumeruSWC = (() => {
     template() {
       const { field, record, readonly } = this.props;
       const val = String(record.get(field.name) ?? "");
-      const placeholder = field.placeholder ?? field.string ?? field.name;
+      const placeholder = fieldPlaceholder(field);
       const inputType = inputTypeForField(field);
       const step = stepForField(field);
       const id = fieldInputId(field);
       if (readonly || field.readonly) {
         return renderFieldShell(
           field,
-          field.type === "integer" || field.type === "float" || field.type === "numeric" ? fieldReadonlyInput(field, val, "text") : fieldReadonlyValue(val)
+          field.type === "integer" || field.type === "float" || field.type === "numeric" ? fieldReadonlyInput(field, val, "text") : fieldReadonlyValue(val, placeholder)
         );
       }
       return renderFieldShell(
@@ -1247,8 +1291,9 @@ var SumeruSWC = (() => {
       const { field, record, readonly } = this.props;
       const display = record.get(`${field.name}_name`) ?? (record.get(field.name) ? `#${record.get(field.name)}` : "");
       const id = fieldInputId(field);
+      const placeholder = fieldPlaceholder(field);
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(String(display)));
+        return renderFieldShell(field, fieldReadonlyValue(String(display), placeholder));
       }
       return renderFieldShell(
         field,
@@ -1257,6 +1302,7 @@ var SumeruSWC = (() => {
           id=${id}
           class="sum-field-input"
           name=${field.name}
+          placeholder=${placeholder}
           value=${String(display)}
           autocomplete="off"
           @input=${(ev) => void this.search(ev.target.value)}
@@ -1355,30 +1401,102 @@ var SumeruSWC = (() => {
   };
 
   // src/widgets/PriorityField.ts
+  function priorityMode(field) {
+    const mode = (field.options?.mode ?? field.options?.display ?? "stars").toLowerCase();
+    return mode === "select" || mode === "dropdown" ? "select" : "stars";
+  }
+  function selectionOptions(field) {
+    if (!field.selection?.length) {
+      return [
+        { value: "0", label: "Low" },
+        { value: "1", label: "Medium" },
+        { value: "2", label: "High" }
+      ];
+    }
+    return field.selection.map(([value, label]) => ({ value, label }));
+  }
+  function currentValue(field, record) {
+    const raw = record.get(field.name);
+    if (raw == null || raw === "") return selectionOptions(field)[0]?.value ?? "0";
+    return String(raw);
+  }
+  function numericLevel(value) {
+    const n = Number.parseInt(value, 10);
+    return Number.isNaN(n) ? 0 : Math.max(0, n);
+  }
+  function starCount(field) {
+    const fromOpt = Number(field.options?.stars ?? field.options?.max ?? 0);
+    if (fromOpt > 0) return Math.min(Math.max(fromOpt, 1), 5);
+    const maxLevel = selectionOptions(field).length - 1;
+    return Math.max(Math.min(maxLevel, 4), 3);
+  }
   var PriorityField = class extends SwcComponent {
     template() {
       const { field, record, readonly } = this.props;
-      const label = field.string ?? field.name;
-      const stars = 3;
-      const current = Number(record.get(field.name) ?? 0);
+      const options = selectionOptions(field);
+      const value = currentValue(field, record);
+      const mode = priorityMode(field);
+      if (readonly || field.readonly) {
+        const label = options.find((o) => o.value === value)?.label ?? value;
+        if (mode === "select") {
+          return renderFieldShell(field, fieldReadonlyValue(label));
+        }
+        return renderFieldShell(field, this.renderStars(numericLevel(value), true));
+      }
+      if (mode === "select") {
+        const id = fieldInputId(field);
+        return renderFieldShell(
+          field,
+          html`<select
+          id=${id}
+          class="sum-field-select sum-priority-select"
+          name=${field.name}
+          @change=${(ev) => record.set(field.name, ev.target.value)}
+        >
+          ${options.map(
+            (opt) => html`<option value=${opt.value} selected=${value === opt.value ? "selected" : ""}>
+                ${opt.label}
+              </option>`
+          )}
+        </select>`,
+          { labelFor: id }
+        );
+      }
       return renderFieldShell(
         field,
-        html`<div class="sum-priority-stars" role="group" aria-label=${label}>
-        ${Array.from({ length: stars }, (_, i) => i + 1).map((n) => {
-          const starClass = n <= current ? "sum-priority-star sum-priority-star--on" : "sum-priority-star";
-          return html`<button
-            type="button"
-            class=${starClass}
-            disabled=${readonly ? "disabled" : void 0}
-            aria-label=${`Priority ${n}`}
-            @click=${() => !readonly && record.set(field.name, n)}
-          >
-            ★
-          </button>`;
-        })}
-      </div>`,
-        { showLabel: true }
+        this.renderStars(numericLevel(value), false, (level) => {
+          record.set(field.name, String(level));
+        })
       );
+    }
+    starButtons(level, disabled, onPick) {
+      const { field } = this.props;
+      const options = selectionOptions(field);
+      const count = starCount(field);
+      const capped = Math.min(level, count);
+      const out = [];
+      for (let i = 0; i < count; i += 1) {
+        const starIndex = i + 1;
+        const filled = starIndex <= capped;
+        const opt = options[Math.min(starIndex, options.length - 1)];
+        const click = () => {
+          if (disabled) return;
+          const next = capped === starIndex ? starIndex - 1 : starIndex;
+          onPick?.(Math.max(0, next));
+        };
+        if (filled) {
+          out.push(html`<button type="button" class="sum-priority-star sum-priority-star--on" disabled=${disabled ? "disabled" : void 0} title=${opt?.label ?? `Level ${starIndex}`} aria-label=${opt?.label ?? `Priority ${starIndex}`} @click=${click}>★</button>`);
+        } else {
+          out.push(html`<button type="button" class="sum-priority-star" disabled=${disabled ? "disabled" : void 0} title=${opt?.label ?? `Level ${starIndex}`} aria-label=${opt?.label ?? `Priority ${starIndex}`} @click=${click}>★</button>`);
+        }
+      }
+      return out;
+    }
+    renderStars(level, disabled, onPick) {
+      const { field } = this.props;
+      return html`<div class="sum-priority-stars" role="group" aria-label=${field.string ?? field.name}>
+      ${this.starButtons(level, disabled, onPick)}
+    </div>`;
     }
   };
 
@@ -1414,10 +1532,10 @@ var SumeruSWC = (() => {
     template() {
       const { field, record, readonly } = this.props;
       const val = String(record.get(field.name) ?? "");
-      const placeholder = field.placeholder ?? field.string ?? field.name;
+      const placeholder = fieldPlaceholder(field);
       const id = fieldInputId(field);
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(val));
+        return renderFieldShell(field, fieldReadonlyValue(val, placeholder));
       }
       return renderFieldShell(
         field,
@@ -1426,11 +1544,9 @@ var SumeruSWC = (() => {
         class="sum-field-textarea"
         name=${field.name}
         placeholder=${placeholder}
-        rows="4"
+        rows="5"
         @input=${(ev) => record.set(field.name, ev.target.value)}
-      >
-${val}</textarea
-      >`,
+      >${val}</textarea>`,
         { labelFor: id }
       );
     }
@@ -1490,8 +1606,9 @@ ${val}</textarea
       const current = record.get(field.name);
       const currentVal = current == null || current === "" ? "" : String(current);
       const id = fieldInputId(field);
+      const placeholder = fieldPlaceholder(field);
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(this.displayValue()));
+        return renderFieldShell(field, fieldReadonlyValue(this.displayValue(), placeholder));
       }
       return renderFieldShell(
         field,
@@ -1507,7 +1624,7 @@ ${val}</textarea
           this.asyncCtrl.refresh();
         }}
       >
-        <option value="" selected=${currentVal === "" ? "selected" : ""}></option>
+        <option value="" disabled=${currentVal !== "" ? "disabled" : false} selected=${currentVal === "" ? "selected" : false}>${placeholder}</option>
         ${this.options.map(
           (opt) => html`<option value=${opt.value} selected=${opt.value === currentVal ? "selected" : ""}>
               ${opt.label}
@@ -1525,10 +1642,10 @@ ${val}</textarea
     template() {
       const { field, record, readonly } = this.props;
       const val = String(record.get(field.name) ?? "");
-      const placeholder = field.placeholder ?? field.string ?? field.name;
+      const placeholder = fieldPlaceholder(field);
       const id = fieldInputId(field);
       if (readonly || field.readonly) {
-        return renderFieldShell(field, fieldReadonlyValue(val));
+        return renderFieldShell(field, fieldReadonlyValue(val, placeholder));
       }
       return renderFieldShell(
         field,
@@ -1720,67 +1837,377 @@ ${val}</textarea
   };
 
   // src/widgets/One2ManyField.ts
+  var tempLineId = -1;
+  function nextTempId() {
+    tempLineId -= 1;
+    return tempLineId;
+  }
   function inverseFieldName(parentModel) {
     const part = parentModel.split(".").pop() ?? "parent";
     return `${part}_id`;
   }
+  function columnsForField(field) {
+    return field.subview?.fields ?? [];
+  }
+  function columnNames(cols) {
+    return cols.map((c) => c.name);
+  }
+  function parseCellValue(col, raw) {
+    if (raw === "") return null;
+    if (col.type === "integer") return Number.parseInt(raw, 10);
+    if (col.type === "float" || col.type === "numeric") return Number.parseFloat(raw);
+    if (col.type === "boolean") return raw === "true" || raw === "1";
+    return raw;
+  }
+  function displayCellValue(col, line) {
+    const raw = line[col.name];
+    if (raw == null) return "";
+    const named = line[`${col.name}_name`];
+    if (named != null && String(named) !== "") return String(named);
+    if (col.type === "boolean") {
+      return raw === true || raw === 1 || raw === "1" || raw === "true" ? "Yes" : "No";
+    }
+    return String(raw);
+  }
   var One2ManyField = class extends SwcComponent {
     lines = [];
     loaded = false;
+    saving = false;
     asyncCtrl = new AsyncFieldController(this);
+    writeTimers = /* @__PURE__ */ new Map();
     setup() {
       void this.loadLines();
     }
     onWillUnmount() {
       this.asyncCtrl.cancel();
+      for (const t of this.writeTimers.values()) clearTimeout(t);
+      this.writeTimers.clear();
+    }
+    comodel() {
+      const { field } = this.props;
+      return field.relation ?? field.options?.relation ?? "";
+    }
+    inverse() {
+      const { field, record } = this.props;
+      return field.options?.inverse ?? inverseFieldName(record.model);
+    }
+    editable() {
+      const { field, record, readonly } = this.props;
+      if (readonly || field.readonly) return false;
+      if (record.id <= 0) return false;
+      const mode = field.subview?.editable ?? "bottom";
+      return mode === "bottom" || mode === "top";
     }
     async loadLines() {
       const gen = this.asyncCtrl.begin();
       const { field, record } = this.props;
-      const comodel = field.relation ?? field.options?.relation ?? "";
-      if (!comodel || record.id <= 0) {
+      const comodel = this.comodel();
+      const cols = columnsForField(field);
+      if (!comodel || record.id <= 0 || cols.length === 0) {
         this.loaded = true;
         this.asyncCtrl.finish(gen);
         return;
       }
-      const inv = field.options?.inverse ?? inverseFieldName(record.model);
-      this.lines = await this.env.services.rpc.searchRead(
+      const inv = this.inverse();
+      const names = ["id", ...columnNames(cols)];
+      const rows = await this.env.services.rpc.searchRead(
         comodel,
         [[inv, "=", record.id]],
-        ["name", "quantity", "unit_price", "note"],
+        names,
         200
       );
+      this.lines = (rows ?? []).map((row) => ({
+        id: Number(row.id ?? 0),
+        data: { ...row }
+      }));
       this.loaded = true;
       this.asyncCtrl.finish(gen);
     }
+    lineById(id) {
+      return this.lines.find((l) => l.id === id);
+    }
+    scheduleWrite(lineId, col, value) {
+      const key = `${lineId}:${col.name}`;
+      const prev = this.writeTimers.get(key);
+      if (prev) clearTimeout(prev);
+      this.writeTimers.set(
+        key,
+        setTimeout(() => {
+          this.writeTimers.delete(key);
+          void this.persistCell(lineId, col, value);
+        }, 350)
+      );
+    }
+    async persistCell(lineId, col, value) {
+      if (lineId <= 0) return;
+      const comodel = this.comodel();
+      if (!comodel) return;
+      this.saving = true;
+      this.asyncCtrl.refresh();
+      try {
+        await this.env.services.rpc.write(comodel, [lineId], { [col.name]: value });
+        const line = this.lineById(lineId);
+        if (line) line.data[col.name] = value;
+      } finally {
+        this.saving = false;
+        this.asyncCtrl.refresh();
+      }
+    }
+    async createLine(lineId, col, value) {
+      const { record } = this.props;
+      const comodel = this.comodel();
+      const line = this.lineById(lineId);
+      if (!comodel || !line || line.id > 0) return;
+      line.data[col.name] = value;
+      this.saving = true;
+      this.asyncCtrl.refresh();
+      try {
+        const vals = { ...line.data, [this.inverse()]: record.id };
+        delete vals.id;
+        const newId = await this.env.services.rpc.create(comodel, vals);
+        line.id = newId;
+        line.data.id = newId;
+      } finally {
+        this.saving = false;
+        this.asyncCtrl.refresh();
+      }
+    }
+    onCellInput(lineId, col, raw) {
+      const value = typeof raw === "boolean" ? raw : parseCellValue(col, String(raw ?? ""));
+      const line = this.lineById(lineId);
+      if (!line) return;
+      line.data[col.name] = value;
+      if (line.id <= 0) {
+        void this.createLine(lineId, col, value);
+        return;
+      }
+      this.scheduleWrite(line.id, col, value);
+    }
+    addRow() {
+      const id = nextTempId();
+      this.lines = [...this.lines, { id, data: {} }];
+      this.asyncCtrl.refresh();
+    }
+    async deleteRow(lineId) {
+      const comodel = this.comodel();
+      const line = this.lineById(lineId);
+      if (!line) return;
+      if (line.id > 0 && comodel) {
+        this.saving = true;
+        this.asyncCtrl.refresh();
+        try {
+          await this.env.services.rpc.unlink(comodel, [line.id]);
+        } finally {
+          this.saving = false;
+        }
+      }
+      this.lines = this.lines.filter((l) => l.id !== lineId);
+      this.asyncCtrl.refresh();
+    }
+    renderCellEditor(col, line) {
+      const val = String(line.data[col.name] ?? "");
+      const readonly = !this.editable();
+      if (readonly) {
+        return html`<span>${displayCellValue(col, line.data)}</span>`;
+      }
+      if (col.type === "boolean") {
+        const checked = line.data[col.name] === true || line.data[col.name] === 1;
+        return fieldControl(
+          html`<input
+          type="checkbox"
+          class="sum-field-input"
+          checked=${checked ? "checked" : ""}
+          @change=${(ev) => this.onCellInput(line.id, col, ev.target.checked)}
+        />`,
+          true
+        );
+      }
+      if (col.selection?.length) {
+        return fieldControl(
+          html`<select
+          class="sum-field-select"
+          @change=${(ev) => this.onCellInput(line.id, col, ev.target.value)}
+        >
+          <option value="">—</option>
+          ${col.selection.map(
+            ([v, label]) => html`<option value=${v} selected=${val === v ? "selected" : ""}>${label}</option>`
+          )}
+        </select>`,
+          true
+        );
+      }
+      const inputType = col.type === "integer" || col.type === "float" || col.type === "numeric" ? "number" : col.type === "date" ? "date" : "text";
+      return fieldControl(
+        html`<input
+        type=${inputType}
+        class="sum-field-input"
+        value=${val}
+        @input=${(ev) => this.onCellInput(line.id, col, ev.target.value)}
+      />`,
+        true
+      );
+    }
+    renderLineRow(line, cols, canEdit) {
+      const cells = cols.map(
+        (col) => html`<td>${this.renderCellEditor(col, line)}</td>`
+      );
+      if (canEdit) {
+        cells.push(html`<td class="sum-o2m-col-actions"><button type="button" .sum-o2m-delete-btn data-line-id=${String(line.id)} title="Remove line">×</button></td>`);
+      }
+      return html`<tr class="sum-o2m-row">${cells}</tr>`;
+    }
+    onTableClick(ev) {
+      const btn = ev.target.closest(".sum-o2m-delete-btn");
+      if (!btn) return;
+      const id = Number(btn.getAttribute("data-line-id"));
+      if (!Number.isFinite(id)) return;
+      void this.deleteRow(id);
+    }
     template() {
-      const { field } = this.props;
+      const { field, record } = this.props;
       const label = field.string ?? field.name;
+      const cols = columnsForField(field);
+      const canEdit = this.editable();
+      const emptyMsg = !this.loaded ? "Loading\u2026" : record.id <= 0 ? "Save the record before adding lines." : cols.length === 0 ? "No columns configured." : "No lines";
       return renderFieldShell(
         field,
         html`<div class="sum-o2m-table-wrap">
-        <div class="sum-o2m-title">${label}</div>
+        <div class="sum-o2m-title">${label}${this.saving ? " (saving\u2026)" : ""}</div>
         <table class="sum-o2m-table">
           <thead>
             <tr>
-              <th>Description</th>
-              <th>Qty</th>
-              <th>Unit price</th>
-              <th>Note</th>
+              ${cols.map((col) => html`<th>${col.string ?? col.name}</th>`)}
+              ${canEdit ? html`<th class="sum-o2m-col-actions"></th>` : ""}
             </tr>
           </thead>
-          <tbody>
-            ${this.lines.length === 0 ? html`<tr><td colspan="4">${this.loaded ? "No lines" : "Loading\u2026"}</td></tr>` : this.lines.map(
-          (line) => html`<tr>
-                    <td>${String(line.name ?? "")}</td>
-                    <td>${String(line.quantity ?? "")}</td>
-                    <td>${String(line.unit_price ?? "")}</td>
-                    <td>${String(line.note ?? "")}</td>
-                  </tr>`
-        )}
+          <tbody @click=${(ev) => this.onTableClick(ev)}>
+            ${this.lines.length === 0 ? html`<tr>
+                  <td colspan=${String(cols.length + (canEdit ? 1 : 0))}>${emptyMsg}</td>
+                </tr>` : this.lines.map((line) => this.renderLineRow(line, cols, canEdit))}
           </tbody>
         </table>
-      </div>`
+        ${canEdit && cols.length > 0 ? html`<button type="button" class="sum-o2m-add-row" @click=${() => this.addRow()}>
+              + Add a line
+            </button>` : ""}
+        ${!canEdit && record.id <= 0 && !this.props.readonly ? html`<p class="sum-o2m-hint">Save the parent record before editing lines.</p>` : ""}
+      </div>`,
+        { layout: "stack", showLabel: false }
+      );
+    }
+  };
+
+  // src/widgets/DateField.ts
+  function isDateTime(field) {
+    return field.type === "datetime" || field.widget === "datetime";
+  }
+  function toNativeValue(field, raw) {
+    const text = String(raw ?? "").trim();
+    if (!text) return "";
+    if (isDateTime(field)) {
+      const d = new Date(text);
+      if (Number.isNaN(d.getTime())) return text.slice(0, 16);
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    return text.slice(0, 10);
+  }
+  function formatDisplay(field, raw) {
+    const native = toNativeValue(field, raw);
+    if (!native) return "";
+    if (isDateTime(field)) {
+      const d2 = new Date(native);
+      if (Number.isNaN(d2.getTime())) return native;
+      return d2.toLocaleString(void 0, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+    const d = /* @__PURE__ */ new Date(`${native}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return native;
+    return d.toLocaleDateString(void 0, { year: "numeric", month: "short", day: "numeric" });
+  }
+  function todayNative(field) {
+    const d = /* @__PURE__ */ new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    if (isDateTime(field)) {
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function closeDetails(ev) {
+    const details = ev.currentTarget?.closest("details.sum-date-field");
+    if (details instanceof HTMLDetailsElement) details.open = false;
+  }
+  var DateField = class extends SwcComponent {
+    template() {
+      const { field, record, readonly } = this.props;
+      const raw = record.get(field.name);
+      const native = toNativeValue(field, raw);
+      const display = formatDisplay(field, raw);
+      const placeholder = fieldPlaceholder(field);
+      const id = fieldInputId(field);
+      const inputType = isDateTime(field) ? "datetime-local" : "date";
+      if (readonly || field.readonly) {
+        return renderFieldShell(field, fieldReadonlyValue(display, placeholder));
+      }
+      return renderFieldShell(
+        field,
+        html`<details class="sum-date-field">
+        <summary class="sum-date-field-trigger">
+          <span class=${display ? "sum-date-field-value" : "sum-date-field-value sum-date-field-value--placeholder"}>
+            ${display || placeholder}
+          </span>
+          <span class="sum-date-field-icon" aria-hidden="true">📅</span>
+        </summary>
+        <input type="hidden" id=${id} name=${field.name} value=${native} />
+        <div class="sum-date-popover" role="dialog" aria-label=${placeholder}>
+          <div class="sum-date-popover-header">${field.string ?? field.name}</div>
+          <input
+            type=${inputType}
+            class="sum-date-popover-input"
+            value=${native}
+            @input=${(ev) => {
+          record.set(field.name, ev.target.value || null);
+          this.patch();
+        }}
+            @change=${(ev) => {
+          record.set(field.name, ev.target.value || null);
+          this.patch();
+        }}
+          />
+          <div class="sum-date-popover-actions">
+            <button
+              type="button"
+              class="sum-date-popover-btn"
+              @click=${(ev) => {
+          record.set(field.name, todayNative(field));
+          this.patch();
+          closeDetails(ev);
+        }}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              class="sum-date-popover-btn"
+              @click=${(ev) => {
+          record.set(field.name, null);
+          this.patch();
+          closeDetails(ev);
+        }}
+            >
+              Clear
+            </button>
+            <button type="button" class="sum-date-popover-btn sum-date-popover-btn--primary" @click=${closeDetails}>
+              Done
+            </button>
+          </div>
+        </div>
+      </details>`,
+        { labelFor: id }
       );
     }
   };
@@ -1822,8 +2249,8 @@ ${val}</textarea
     add("integer", DefaultField);
     add("float", DefaultField);
     add("numeric", DefaultField);
-    add("date", DefaultField);
-    add("datetime", DefaultField);
+    add("date", DateField);
+    add("datetime", DateField);
     add("json", TextareaField);
     add("many2one", Many2OneField);
     add("one2many", One2ManyField);
@@ -1920,7 +2347,13 @@ ${val}</textarea
   }
   function renderLabels(labels = []) {
     if (labels.length === 0) return html``;
-    return html`${labels.map((lab) => html`<div class="sum-label--notebook">${lab.string ?? ""}</div>`)}`;
+    return html`${labels.map((lab) => {
+      const text = lab.string ?? "";
+      if (lab.for) {
+        return html`<label class="sum-form-label sum-form-label--hint" for=${`f-${lab.for}`}>${text}</label>`;
+      }
+      return html`<div class="sum-form-label sum-form-label--hint">${text}</div>`;
+    })}`;
   }
   function initialsFromName(name) {
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -1930,9 +2363,12 @@ ${val}</textarea
   }
   function renderHeroField(field, record, readonly) {
     const val = String(record.get(field.name) ?? "");
-    const placeholder = field.placeholder ?? field.string ?? field.name;
+    const placeholder = fieldPlaceholder(field);
+    const hasValue = val.trim() !== "";
     if (readonly || field.readonly) {
-      return html`<h1><div class="sum-form-hero-input sum-form-hero-input--bold">${val}</div></h1>`;
+      const text = hasValue ? val : placeholder;
+      const cls = hasValue ? "sum-form-hero-input sum-form-hero-input--bold" : "sum-form-hero-input sum-form-hero-input--bold sum-form-hero-input--placeholder";
+      return html`<h1><div class=${cls}>${text}</div></h1>`;
     }
     return html`<h1>
     <input
@@ -1940,6 +2376,7 @@ ${val}</textarea
       name=${field.name}
       placeholder=${placeholder}
       value=${val}
+      aria-label=${placeholder}
       @input=${(ev) => record.set(field.name, ev.target.value)}
     />
   </h1>`;
@@ -1947,11 +2384,14 @@ ${val}</textarea
   function renderContactItem(field, record, readonly) {
     const val = String(record.get(field.name) ?? "");
     const label = field.string ?? field.name;
+    const placeholder = fieldPlaceholder(field);
     const inputType = field.widget === "email" ? "email" : "text";
     if (readonly || field.readonly) {
+      const text = val.trim() !== "" ? val : placeholder;
+      const cls = val.trim() !== "" ? "sum-form-inline-input" : "sum-form-inline-input sum-form-inline-input--placeholder";
       return html`<div class="sum-form-contact-item">
       <label class="sum-field-label">${label}</label>
-      <div class="sum-form-inline-input">${val}</div>
+      <div class=${cls}>${text}</div>
     </div>`;
     }
     return html`<div class="sum-form-contact-item">
@@ -1960,7 +2400,7 @@ ${val}</textarea
       type=${inputType}
       class="sum-form-inline-input"
       name=${field.name}
-      placeholder=${label}
+      placeholder=${placeholder}
       value=${val}
       @input=${(ev) => record.set(field.name, ev.target.value)}
     />
@@ -2035,23 +2475,80 @@ ${val}</textarea
     ${renderTitleBody(rf, div, record, readonly)}
   </div>`;
   }
-  function renderGroup(rf, group, record, readonly, plain = false) {
+  function outerGroupMaxCols(group, childCount) {
+    if (group.col && group.col > 0) return group.col;
+    return Math.max(childCount, 1);
+  }
+  function childGroupColspan(group) {
+    return group.colspan && group.colspan > 0 ? group.colspan : 1;
+  }
+  function gridSpan12(maxCols, colspan) {
+    const cols = Math.max(maxCols, 1);
+    const span = Math.max(colspan, 1);
+    return Math.min(12, Math.max(1, Math.round(span * 12 / cols)));
+  }
+  function packGroupRows(parent, nested) {
+    const maxCols = outerGroupMaxCols(parent, nested.length);
+    const rows = [];
+    let current = [];
+    let used = 0;
+    for (const child of nested) {
+      const colspan = childGroupColspan(child);
+      if (used + colspan > maxCols && current.length > 0) {
+        rows.push(current);
+        current = [];
+        used = 0;
+      }
+      current.push({ group: child, gridSpan: gridSpan12(maxCols, colspan) });
+      used += colspan;
+    }
+    if (current.length > 0) rows.push(current);
+    return rows;
+  }
+  function groupClassNames(group, ctx, plain) {
+    const parts = ["sum-form-group"];
+    if (plain || !group.string) {
+      parts.push("sum-form-group--plain");
+    } else if (ctx === "row" || ctx === "inner") {
+      parts.push("sum-form-group--col");
+    } else {
+      parts.push("sum-form-group--full");
+    }
+    if ((group.fields ?? []).length > 0) {
+      parts.push("sum-form-group--row-layout");
+    }
+    return parts.join(" ");
+  }
+  function renderGroup(rf, group, record, readonly, ctx = "sheet", plain = false) {
     const nested = group.groups ?? [];
     const fields = group.fields ?? [];
     const hasNested = nested.length > 0;
-    const groupModifier = plain || !group.string ? "sum-form-group--plain" : "sum-form-group--full";
     if (hasNested && fields.length === 0) {
-      return html`<div class="sum-form-edit-grid sum-field-region--sheet">
-      ${nested.map((g) => renderGroup(rf, g, record, readonly))}
+      const rows = packGroupRows(group, nested);
+      return html`<div class="sum-form-group-outer sum-field-region--sheet">
+      ${rows.map(
+        (row) => html`<div class="sum-form-group-row">
+          ${row.map(
+          (item) => html`<div class="sum-form-group-span" style=${`--sum-group-span:${item.gridSpan}`}>
+              ${renderGroup(rf, item.group, record, readonly, "row")}
+            </div>`
+        )}
+        </div>`
+      )}
     </div>`;
     }
-    return html`<div .sum-form-group class=${groupModifier}>
+    const innerCols = group.col && group.col > 0 ? group.col : 0;
+    const innerColsClass = innerCols > 0 ? " sum-form-group--inner-cols" : "";
+    return html`<div
+    class=${groupClassNames(group, ctx, plain) + innerColsClass}
+    style=${innerCols ? `--sum-inner-cols:${innerCols}` : false}
+  >
     ${group.string ? html`<div class="sum-form-group-title">${group.string}</div>` : ""}
     <div class="sum-form-group-grid">
       ${renderFields(rf, fields, record, readonly)}
       ${renderSeparators(group.separators)}
       ${renderLabels(group.labels)}
-      ${nested.map((g) => renderGroup(rf, g, record, readonly, true))}
+      ${nested.map((g) => renderGroup(rf, g, record, readonly, "inner", true))}
     </div>
   </div>`;
   }
@@ -2068,7 +2565,7 @@ ${val}</textarea
     })}
     </div>
     <div class="sum-notebook-page sum-notebook-page--sheet" role="tabpanel">
-      <div class="sum-form-page-grid">
+      <div class="sum-form-sheet-stack sum-notebook-page-body">
         ${renderFields(rf, page.fields ?? [], record, readonly)}
         ${(page.groups ?? []).map((g) => renderGroup(rf, g, record, readonly))}
         ${renderSeparators(page.separators)}
@@ -2100,7 +2597,7 @@ ${val}</textarea
     const groups = sheet.groups ?? [];
     if (topFields.length > 0 || groups.length > 0) {
       parts.push(
-        html`<div class="sum-form-edit-grid sum-field-region--sheet">
+        html`<div class="sum-form-sheet-stack sum-field-region--sheet">
         ${renderFields(rf, topFields, record, readonly)}
         ${groups.map((g) => renderGroup(rf, g, record, readonly))}
       </div>`
@@ -2270,6 +2767,18 @@ ${val}</textarea
     root.addEventListener("change", onChange);
     return () => root.removeEventListener("change", onChange);
   }
+  function bindDateDismiss(root) {
+    const onDocClick = (ev) => {
+      const target = ev.target;
+      if (!(target instanceof Node)) return;
+      for (const details of root.querySelectorAll("details.sum-date-field[open]")) {
+        if (details.contains(target)) continue;
+        details.open = false;
+      }
+    };
+    document.addEventListener("click", onDocClick, true);
+    return () => document.removeEventListener("click", onDocClick, true);
+  }
   function initFormInteractions(root) {
     const cleanups = [];
     for (const tabs of root.querySelectorAll(".sum-notebook-tabs")) {
@@ -2278,6 +2787,7 @@ ${val}</textarea
     }
     cleanups.push(bindMany2OneDismiss(root));
     cleanups.push(bindAvatarUpload(root));
+    cleanups.push(bindDateDismiss(root));
     return () => {
       for (const fn of cleanups) fn();
     };
@@ -2325,8 +2835,9 @@ ${val}</textarea
     teardownInteractions = null;
     fieldHost;
     setup() {
-      const [, bump] = useState(0);
-      this.bump = () => bump((n) => n + 1);
+      this.bump = () => {
+        if (this.el?.isConnected) this.patch();
+      };
       this.recordStore = new RecordStore(this.env.services.rpc);
       this.fieldHost = new FieldHost(this.env);
       const p = this.props.payload;
@@ -2336,15 +2847,26 @@ ${val}</textarea
     }
     bump = null;
     onMount() {
-      if (this.el) {
-        this.teardownInteractions?.();
-        this.teardownInteractions = initFormInteractions(this.el);
-      }
+      this.bindFormInteractions();
     }
     onWillUnmount() {
       this.teardownInteractions?.();
       this.teardownInteractions = null;
       this.fieldHost.clear();
+    }
+    patch() {
+      this.teardownInteractions?.();
+      if (!this.el?.parentElement) return;
+      const parent = this.el.parentElement;
+      const next = this.template().render();
+      parent.replaceChild(next, this.el);
+      this.el = next;
+      this.bindFormInteractions();
+    }
+    bindFormInteractions() {
+      if (this.el) {
+        this.teardownInteractions = initFormInteractions(this.el);
+      }
     }
     renderFieldCached = (field, record, readonly) => this.fieldHost.render(field, record, readonly);
     isReadonly() {
