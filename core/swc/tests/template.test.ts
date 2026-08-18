@@ -59,6 +59,37 @@ describe("html template", () => {
     expect(el.className).toBe("sum-notebook-tab sum-notebook-tab--active");
   });
 
+  it("quotes placeholder values with trailing dots", () => {
+    const ph = "Opportunity...";
+    const el = html`<input class="sum-form-hero-input" placeholder=${ph} value="" />`.render();
+    expect(el.getAttribute("placeholder")).toBe("Opportunity...");
+  });
+
+  it("quotes empty interpolated attribute values", () => {
+    const val = "";
+    const el = html`<input class="sum-field-input" placeholder="Name" value=${val} />`.render();
+    expect(el.getAttribute("value")).toBe("");
+    expect(el.getAttribute("placeholder")).toBe("Name");
+  });
+
+  it("quotes hero title input attributes across lines", () => {
+    const name = "name";
+    const placeholder = "Opportunity...";
+    const val = "";
+    const el = html`<h1>
+      <input
+        class="sum-form-hero-input sum-form-hero-input--bold"
+        name=${name}
+        placeholder=${placeholder}
+        value=${val}
+        aria-label=${placeholder}
+      />
+    </h1>`.render();
+    const input = el.querySelector(".sum-form-hero-input") as HTMLInputElement;
+    expect(input?.getAttribute("placeholder")).toBe("Opportunity...");
+    expect(input?.getAttribute("value")).toBe("");
+  });
+
   it("omits optional attributes when interpolation is undefined", () => {
     const el = html`<button type="button" disabled=${undefined}>Save</button>`.render();
     expect(el.hasAttribute("disabled")).toBe(false);

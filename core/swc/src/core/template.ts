@@ -84,6 +84,10 @@ function stripAwaitingAttr(partial: string): string {
   return partial.slice(0, partial.length - attr.length - 1);
 }
 
+function isAttrWhitespace(ch: string): boolean {
+  return ch === " " || ch === "\n" || ch === "\r" || ch === "\t";
+}
+
 function parseTagAttributes(raw: string): { tag: string; attrs: Record<string, string> } {
   const s = raw.trim();
   const tagMatch = s.match(/^([^\s/]+)/);
@@ -92,11 +96,11 @@ function parseTagAttributes(raw: string): { tag: string; attrs: Record<string, s
   const attrs: Record<string, string> = {};
   let i = 0;
   while (i < rest.length) {
-    while (i < rest.length && rest[i] === " ") i++;
+    while (i < rest.length && isAttrWhitespace(rest[i])) i++;
     if (i >= rest.length) break;
 
     const keyStart = i;
-    while (i < rest.length && rest[i] !== "=" && rest[i] !== " ") i++;
+    while (i < rest.length && rest[i] !== "=" && !isAttrWhitespace(rest[i])) i++;
     const key = rest.slice(keyStart, i).trim();
     if (!key) break;
 
@@ -121,7 +125,7 @@ function parseTagAttributes(raw: string): { tag: string; attrs: Record<string, s
     }
 
     let val = "";
-    while (i < rest.length && rest[i] !== " ") val += rest[i++];
+    while (i < rest.length && !isAttrWhitespace(rest[i])) val += rest[i++];
     attrs[key] = val;
   }
   return { tag, attrs };
@@ -232,7 +236,18 @@ function buildTree(strings: TemplateStringsArray, values: TemplateValue[]): VNod
         return;
       }
       const text = String(value);
-      if (text.includes(" ") && attr && !attr.startsWith("@")) {
+      const needsQuotes =
+        attr &&
+        !attr.startsWith("@") &&
+        (text === "" ||
+          text.includes(" ") ||
+          text.includes("\n") ||
+          text.includes("\t") ||
+          text.includes(".") ||
+          text.includes("=") ||
+          text.includes("<") ||
+          text.includes(">"));
+      if (needsQuotes) {
         partial += `"${text.replace(/"/g, "&quot;")}"`;
       } else {
         partial += text;
@@ -280,6 +295,16 @@ export function html(strings: TemplateStringsArray, ...values: TemplateValue[]):
   };
 }
 
+function applyStyle(el: HTMLElement, raw: string): void {
+  for (const part of raw.split(";")) {
+    const idx = part.indexOf(":");
+    if (idx === -1) continue;
+    const prop = part.slice(0, idx).trim();
+    const val = part.slice(idx + 1).trim();
+    if (prop) el.style.setProperty(prop, val);
+  }
+}
+
 function renderVNode(vn: VNode): HTMLElement {
   const el = document.createElement(vn.tag);
   for (const [k, v] of Object.entries(vn.attrs)) {
@@ -292,14 +317,18 @@ function renderVNode(vn: VNode): HTMLElement {
       for (const c of v.split(/\s+/)) {
         if (c) el.classList.add(c);
       }
+    } else if (k === "style" && v) {
+      applyStyle(el, v);
     } else if (
       k.startsWith("data-") ||
       k === "id" ||
+      k === "for" ||
       k === "href" ||
       k === "type" ||
       k === "name" ||
       k === "value" ||
       k === "placeholder" ||
+      k === "aria-label" ||
       k === "title" ||
       k === "role" ||
       k === "aria-selected" ||
