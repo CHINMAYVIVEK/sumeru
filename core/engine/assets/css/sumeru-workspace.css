@@ -63,6 +63,11 @@
   flex-shrink: 0;
 }
 
+.sum-list-control-left .sum-view-toolbar-actions,
+.sum-list-control-left .sum-btn {
+  flex-shrink: 0;
+}
+
 .sum-web-table-wrap.sum-list-table-wrap,
 .sum-list-table-wrap {
   flex: 1;
@@ -85,7 +90,27 @@
 }
 
 .sum-form-view {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sum-form-layout {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sum-workspace-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
 }
