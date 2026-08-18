@@ -21,10 +21,9 @@ func LoginStylesheetURLs() []string {
 	return append(urls, "/static/css/sumeru-login.css")
 }
 
-// AppLogsStylesheetURLs extends the core stack for the settings app logs page.
+// AppLogsStylesheetURLs extends workspace styles with pages layout for app logs.
 func AppLogsStylesheetURLs() []string {
-	urls := DefaultStylesheetURLs()
-	return append(urls, "/static/css/sumeru-pages.css")
+	return []string{"/static/css/sumeru-workspace.css", "/static/css/sumeru-pages.css"}
 }
 
 // AIStylesheetURL is the optional AI assistant stylesheet path.

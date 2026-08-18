@@ -17,6 +17,7 @@ type Manifest struct {
 	Data        []string `json:"data"`        // XML files to load
 	Application *bool    `json:"application"` // nil = true (show in Apps)
 	AutoImport  *bool    `json:"auto_import"` // nil = true; false = omit from generated zimports blank imports
+	SwcEntry    string   `json:"swc_entry"`   // optional SWC addon entry module URL
 }
 
 func (manifest *Manifest) IsAutoImport() bool {

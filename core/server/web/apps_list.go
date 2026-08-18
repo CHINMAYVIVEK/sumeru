@@ -81,12 +81,11 @@ func AppsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page := render.PageData{
-		Title:              appsPageTitle,
-		ViewBreadcrumb:     breadcrumb,
-		ModuleName:         appsPageTitle,
-		ViewStylesheetURLs: []string{appsStylesheetURL},
-		AppsNavActive:      true,
-		SuppressSidebar:    true,
+		Title:           appsPageTitle,
+		ViewBreadcrumb:  breadcrumb,
+		ModuleName:      appsPageTitle,
+		AppsNavActive:   true,
+		SuppressSidebar: true,
 		ViewTabs: render.AppsViewTabs(
 			browse.Layout,
 			browse.Message,

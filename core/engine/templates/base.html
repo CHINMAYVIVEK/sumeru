@@ -343,10 +343,11 @@
         </div>
     </dialog>
     <div id="sum-toast-stack" class="sum-toast-stack" aria-live="polite"></div>
-    <script type="application/json" id="sum-app-launcher-data">{{.AppLauncherJSON}}</script>
-    <script type="application/json" id="sum-pinned-apps-data">{{.PinnedAppsJSON}}</script>
-    {{if .ToastMessagesJSON}}<script type="application/json" id="sum-toast-data">{{.ToastMessagesJSON}}</script>{{end}}
-    <script type="module" src="/static/js/core.js"></script>
+    {{if .SWCBootstrapJSON}}
+    <script>window.__SWC_BOOTSTRAP__ = {{.SWCBootstrapJSON}};</script>
+    {{if .SwcAddonEntriesJSON}}<script>window.__SWC_ADDON_ENTRIES__ = {{.SwcAddonEntriesJSON}};</script>{{end}}
+    <script type="module" src="/static/swc/swc.js"></script>
+    {{end}}
 </body>
 
 </html>

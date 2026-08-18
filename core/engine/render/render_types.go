@@ -110,6 +110,11 @@ type PageData struct {
 	ActivityContextRecordID int64
 	ActivityPanelChatter    bool
 	ActivityChatterHTML     template.HTML
+
+	// SWC bootstrap JSON injected as window.__SWC_BOOTSTRAP__
+	SWCBootstrapJSON template.JS
+	SWCEnabled         bool
+	SwcAddonEntriesJSON template.JS
 }
 
 type ActivityItem struct {
@@ -124,6 +129,25 @@ type FlashMessage struct {
 	Body      string
 	Details   string
 	ToastOnly bool
+}
+
+// ViewSwitchTab is a workspace view mode link in the breadcrumb toolbar.
+type ViewSwitchTab struct {
+	Label  string
+	Href   string
+	Mode   string
+	Active bool
+}
+
+// KanbanColumn is one grouped kanban lane (e.g. a pipeline stage).
+type KanbanColumn struct {
+	Value    int64
+	Label    string
+	Sequence int
+	Color    int
+	Tooltip  string
+	Fold     bool
+	Records  []map[string]interface{}
 }
 
 // SidebarMenu is a sidebar group with child menu links.
@@ -152,7 +176,6 @@ type ViewRecordData struct {
 	RecordID       int    // 0 = create form
 	FormEditing    bool   // true when URL contains edit=1
 	FormBaseQuery  string // query string for /web without leading "?" and without edit= (action, menu_id, view_type, id)
-	FormSaveAction string // POST URL; default "/web/record/save"
 	CSRFToken      string // per-session CSRF hidden field value
 	FlashMessages  []FlashMessage
 

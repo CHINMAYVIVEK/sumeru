@@ -1,8 +1,11 @@
 package web
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"html/template"
+	"net"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -101,6 +104,20 @@ type statusRecorder struct {
 func (recorder *statusRecorder) WriteHeader(statusCode int) {
 	recorder.status = statusCode
 	recorder.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (recorder *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := recorder.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, errors.New("web: ResponseWriter does not support hijacking")
+	}
+	return hj.Hijack()
+}
+
+func (recorder *statusRecorder) Flush() {
+	if f, ok := recorder.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 // requireLogin redirects anonymous browser requests to the login page with a safe return URL.

@@ -86,7 +86,7 @@ func EnrichShellPageData(ctx context.Context, d *PageData) {
 			if name != "" {
 				d.ShellUser = name
 			}
-			if img := strings.TrimSpace(orm.AsString(u["image"])); imageSrcOK(img) {
+			if img := strings.TrimSpace(orm.AsString(u["image"])); SafeImageSrc(img) {
 				d.ShellUserImage = template.URL(img)
 				cropRaw := strings.TrimSpace(orm.AsString(u["image_crop"]))
 				if crop, ok := ParseImageCrop(cropRaw); ok {
