@@ -336,7 +336,7 @@ Styles are **plain CSS** under `core/engine/assets/css/` (layout uses `sum-*` cl
 | `sumeru-settings-hub.css` | `/web/settings` (per-page)                                   |
 | `sumeru-workspace.css`    | `/web` workspace extras                                      |
 
-Per-addon optional `static/css/theme-overrides.css` is served as `/static/addon-css/<module>.css`. Optional `brand_css` loads after those. Workspace HTML lives under `core/engine/render/`; templates under `core/engine/templates/`; client entry `core/engine/assets/js/core.js`.
+Per-addon optional `static/css/theme-overrides.css` is served as `/static/addon-css/<module>.css`. Optional `brand_css` loads after those. **Workspace UI** is **SWC** (`core/swc/` → `core/engine/assets/swc/swc.js`); shell templates live under `core/engine/templates/`; shell/page assembly under `core/engine/render/`.
 
 ---
 

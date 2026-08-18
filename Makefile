@@ -1,4 +1,4 @@
-.PHONY: help build css run generate bp check-sql check-logs db-check i18n-export i18n-import migrate module shell test-db test-integration
+.PHONY: help build css run generate bp check-sql check-logs db-check i18n-export i18n-import migrate module shell test-db test-integration swc swc-check swc-test
 
 # Extra flags for `make run`, e.g. `make run EXTRA_RUN_FLAGS='-p 9090 -d sumeru_staging'`
 EXTRA_RUN_FLAGS ?=
@@ -29,6 +29,17 @@ bp:
 # Plain CSS only — edit core/engine/assets/css/ (no Sass pipeline).
 css:
 	@echo "No CSS build step — edit core/engine/assets/css/*.css"
+
+SWC_DIR := core/swc
+
+swc:
+	cd $(SWC_DIR) && npm install && npm run build
+
+swc-check:
+	cd $(SWC_DIR) && npm install && npm run check
+
+swc-test:
+	cd $(SWC_DIR) && npm install && npm run test
 
 db-check:
 	go run ./cmd/sumeru-db-check -- -c sumeru.conf
@@ -62,6 +73,9 @@ help:
 	@echo "  make run      - generate then go run ./cmd/sumeru -- -c sumeru.conf (optional EXTRA_RUN_FLAGS)"
 	@echo "  make build    - generate then go build -o sumeru ./cmd/sumeru (binary ./sumeru)"
 	@echo "  make css     - reminder: styles are plain CSS (no compile step)"
+	@echo "  make swc     - build SWC bundle to core/engine/assets/swc/swc.js"
+	@echo "  make swc-check - TypeScript 7 strict check (tsc --noEmit)"
+	@echo "  make swc-test  - vitest unit tests for SWC"
 	@echo "  make check-sql - static SQL injection pattern guard"
 	@echo "  make check-logs - forbid stdlib log and operational fmt.Printf in server paths"
 	@echo "  make db-check  - validate sumeru.conf and PostgreSQL connectivity"

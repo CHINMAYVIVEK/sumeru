@@ -1,0 +1,40 @@
+import { SwcComponent } from "../core/component.js";
+import { html } from "../core/template.js";
+import type { SwcArchField } from "../types/workspace.js";
+import type { SwcRecord } from "../store/record.js";
+import { fieldInputId, renderFieldShell } from "./field-shell.js";
+
+interface FieldProps {
+  field: SwcArchField;
+  record: SwcRecord;
+  readonly: boolean;
+}
+
+function isChecked(val: unknown): boolean {
+  return val === true || val === 1 || val === "1" || val === "true";
+}
+
+export class BooleanToggleField extends SwcComponent<FieldProps> {
+  template() {
+    const { field, record, readonly } = this.props;
+    const checked = isChecked(record.get(field.name));
+    const id = fieldInputId(field);
+
+    return renderFieldShell(
+      field,
+      html`<label class="sum-field-toggle" for=${id}>
+        <input
+          id=${id}
+          type="checkbox"
+          class="sum-field-input"
+          name=${field.name}
+          checked=${checked ? "checked" : ""}
+          disabled=${readonly || field.readonly ? "disabled" : undefined}
+          @change=${(ev: Event) => record.set(field.name, (ev.target as HTMLInputElement).checked)}
+        />
+        <span>${checked ? "On" : "Off"}</span>
+      </label>`,
+      { showLabel: true, labelFor: id },
+    );
+  }
+}
