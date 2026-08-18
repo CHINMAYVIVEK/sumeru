@@ -399,7 +399,11 @@
 }
 
 .sum-list-row--click:hover .sum-list-td {
-  background: var(--sum-row-hover-bg);
+  background: var(--sum-list-row-hover-bg);
+}
+
+.sum-list-row--click:hover .sum-list-td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--sum-header) 40%, transparent);
 }
 
 .sum-list-row--click:focus-within .sum-list-td {

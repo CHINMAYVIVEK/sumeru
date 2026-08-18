@@ -82,7 +82,11 @@
 }
 
 .sum-list-view table tr:hover td {
-  background-color: var(--sum-row-hover-bg);
+  background-color: var(--sum-list-row-hover-bg);
+}
+
+.sum-list-view table tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--sum-header) 40%, transparent);
 }
 
 .sum-notebook {
