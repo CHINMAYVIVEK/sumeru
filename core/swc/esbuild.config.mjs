@@ -1,12 +1,29 @@
 import * as esbuild from "esbuild";
-import { mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { mkdirSync, readFileSync } from "node:fs";
+import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
+import { compileSumXml } from "./sum-compile.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outFile = join(__dirname, "../engine/assets/swc/swc.js");
 
 mkdirSync(dirname(outFile), { recursive: true });
+
+const sumXmlPlugin = {
+  name: "sum-xml",
+  setup(build) {
+    build.onResolve({ filter: /\.sum\.xml$/ }, (args) => ({
+      path: join(args.resolveDir, args.path),
+      namespace: "sum-xml",
+    }));
+    build.onLoad({ filter: /.*/, namespace: "sum-xml" }, (args) => {
+      const source = readFileSync(args.path, "utf8");
+      const name = basename(args.path, ".sum.xml");
+      const { code } = compileSumXml(source, name, args.path);
+      return { contents: code, loader: "js" };
+    });
+  },
+};
 
 await esbuild.build({
   entryPoints: [join(__dirname, "src/main.ts")],
@@ -20,6 +37,7 @@ await esbuild.build({
   define: {
     "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV ?? "development"),
   },
+  plugins: [sumXmlPlugin],
 });
 
 console.log(`SWC bundle → ${outFile}`);
