@@ -29,25 +29,25 @@ func Search(ctx context.Context, in SearchInput) ([]map[string]interface{}, erro
 
 // CreateInput inserts one row for the given model.
 type CreateInput struct {
-	Model  Model
-	Values map[string]interface{}
+	ModelName string
+	Values    map[string]interface{}
 }
 
 // Create delegates to the ORM.
 func Create(ctx context.Context, in CreateInput) (int, error) {
-	return orm.Create(ctx, in.Model, in.Values)
+	return orm.Create(ctx, orm.RegistryModel(in.ModelName), in.Values)
 }
 
 // UpsertInput upserts on a unique conflict column.
 type UpsertInput struct {
-	Model       Model
+	ModelName   string
 	Values      map[string]interface{}
 	ConflictCol string
 }
 
 // Upsert delegates to the ORM.
 func Upsert(ctx context.Context, in UpsertInput) (int, error) {
-	return orm.Upsert(ctx, in.Model, in.Values, in.ConflictCol)
+	return orm.Upsert(ctx, orm.RegistryModel(in.ModelName), in.Values, in.ConflictCol)
 }
 
 // ResolveXmlIdInput resolves module.xml_id to database id and model name.
