@@ -26,10 +26,11 @@ function basePayload(overrides: Partial<SwcWorkspacePayload> = {}): SwcWorkspace
 
 describe("view-toolbar", () => {
   it("newRecordUrl includes action, menu_id, and view_type=form", () => {
-    const url = newRecordUrl(basePayload());
+    const url = newRecordUrl(basePayload({ recordId: 99 }));
     expect(url).toContain("action=12");
     expect(url).toContain("menu_id=5");
     expect(url).toContain("view_type=form");
+    expect(url).not.toContain("id=99");
   });
 
   it("exportQuery includes model, action, fields, and optional id", () => {

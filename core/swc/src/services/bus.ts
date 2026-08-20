@@ -1,3 +1,5 @@
+import { SWC_API_BASE } from "../constants/routes.js";
+
 type BusHandler = (payload: unknown) => void;
 
 /** Client event bus with optional WebSocket live updates from /web/swc/bus. */
@@ -20,7 +22,7 @@ export class BusService {
   }
 
   /** Connect to /web/swc/bus when bootstrap.busEnabled is true. */
-  connect(url = "/web/swc/bus"): void {
+  connect(url = `${SWC_API_BASE}/bus`): void {
     if (this.ws) return;
     try {
       const proto = window.location.protocol === "https:" ? "wss:" : "ws:";

@@ -228,21 +228,6 @@
   }
 }
 
-.sum-form-sheet-bg > .sum-form-statusbar {
-  max-width: 72rem;
-  width: 100%;
-  margin: 0.75rem auto 0;
-  box-sizing: border-box;
-}
-
-.sum-form-sheet-bg > .sum-form-statusbar + .sum-form-sheet {
-  margin-top: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-  border-top: 1px solid var(--sum-line);
-  box-shadow: var(--sum-shadow-md), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
-}
-
 .sum-form-sheet-bg > .sum-form-sheet {
   max-width: 72rem;
   width: 100%;
@@ -689,20 +674,7 @@
   border-bottom-color: var(--sum-header);
 }
 
-/* —— Classic sheet form: status bar, title, fields, groups —— */
-.sum-form-statusbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.45rem 0.65rem;
-  border-radius: var(--sum-radius-sm) var(--sum-radius-sm) 0 0;
-  border: 1px solid var(--sum-line);
-  border-bottom: none;
-  background: linear-gradient(180deg, var(--sum-surface-alt) 0%, var(--sum-surface) 100%);
-}
-
+/* —— Classic sheet form: title, fields, groups —— */
 .sum-statusbar-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -1501,23 +1473,6 @@ label.sum-form-label--hint {
   background: var(--sum-surface);
 }
 
-.sum-form-statusbar .sum-statusbar-status {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.35rem;
-  width: 100%;
-}
-
-.sum-form-statusbar .sum-statusbar-stage {
-  cursor: pointer;
-}
-
-.sum-form-view--readonly .sum-form-statusbar .sum-statusbar-stage {
-  cursor: default;
-  pointer-events: none;
-}
-
 .sum-m2o-suggest {
   position: absolute;
   z-index: 30;
@@ -1590,6 +1545,23 @@ label.sum-form-label--hint {
 
 .sum-field-input:hover {
   border-color: color-mix(in srgb, var(--sum-header) 28%, var(--sum-line-strong));
+}
+
+.sum-field-hint {
+  margin: 0.35rem 0 0;
+  font-size: var(--sum-font-size-sm);
+  line-height: 1.4;
+  color: var(--sum-muted);
+}
+
+.sum-field-hint--error {
+  color: var(--sum-danger);
+  font-weight: var(--sum-font-weight-medium);
+}
+
+.sum-field-input.sum-input-invalid {
+  border-color: var(--sum-danger);
+  background: var(--sum-danger-bg-soft);
 }
 
 .sum-field-input:focus {
@@ -1792,10 +1764,6 @@ label.sum-form-label--hint {
   border-top: 3px solid color-mix(in srgb, var(--sum-header) 55%, var(--sum-line));
 }
 
-.sum-form-sheet-bg > .sum-form-statusbar + .sum-form-sheet {
-  border-top: 1px solid var(--sum-line);
-}
-
 .sum-form-view--readonly .sum-form-sheet {
   border-top-color: color-mix(in srgb, var(--sum-header) 40%, var(--sum-line));
 }
@@ -1982,10 +1950,6 @@ label.sum-form-label--hint {
 }
 
 /* Workspace chrome (SWC no longer duplicates server breadcrumb / view tabs) */
-.sum-workspace-chrome {
-  display: none;
-}
-
 .sum-breadcrumbs {
   display: flex;
   flex-wrap: wrap;
@@ -2013,12 +1977,6 @@ label.sum-form-label--hint {
   text-decoration: none;
   color: var(--sum-ink-muted);
   border: 1px solid transparent;
-}
-
-.sum-view-tab--active {
-  border-color: var(--sum-line);
-  background: var(--sum-surface-alt);
-  color: var(--sum-ink);
 }
 
 /* Legacy control panel (replaced by sum-list-control in list view) */

@@ -1,18 +1,36 @@
-import type { RouterService } from "./router.js";
+import {
+  Q_ACTION,
+  Q_EDIT,
+  Q_MENU_ID,
+  Q_RECORD_ID,
+  Q_SEARCH,
+  Q_VIEW_TYPE,
+  VIEW_FORM,
+  WEB_ROUTE,
+  EDIT_ENABLED,
+} from "../constants/routes.js";
+import { RouterService } from "./router.js";
+
+export type OpenRecordOpts = {
+  actionId: number;
+  menuId: string;
+  recordId: number;
+  viewType?: string;
+};
 
 export class ActionService {
   constructor(private readonly router?: RouterService) {}
 
   navigate(url: string): void {
-    if (url.startsWith("/web?") && this.router) {
+    if (url.startsWith(`${WEB_ROUTE}?`) && this.router) {
       const q = new URLSearchParams(url.slice(url.indexOf("?") + 1));
       this.router.push({
-        actionId: Number(q.get("action") ?? "0"),
-        menuId: q.get("menu_id") ?? "",
-        viewType: q.get("view_type") ?? "",
-        recordId: Number(q.get("id") ?? "0"),
-        formEdit: q.get("edit") === "1",
-        listSearch: q.get("q") ?? "",
+        actionId: Number(q.get(Q_ACTION) ?? "0"),
+        menuId: q.get(Q_MENU_ID) ?? "",
+        viewType: q.get(Q_VIEW_TYPE) ?? "",
+        recordId: Number(q.get(Q_RECORD_ID) ?? "0"),
+        formEdit: q.get(Q_EDIT) === EDIT_ENABLED,
+        listSearch: q.get(Q_SEARCH) ?? "",
       });
       return;
     }
@@ -20,21 +38,27 @@ export class ActionService {
   }
 
   openWindowAction(actionId: number, menuId?: string, extra?: Record<string, string>): void {
-    const params = new URLSearchParams({ action: String(actionId) });
-    if (menuId) params.set("menu_id", menuId);
+    const params = new URLSearchParams({ [Q_ACTION]: String(actionId) });
+    if (menuId) params.set(Q_MENU_ID, menuId);
     for (const [k, v] of Object.entries(extra ?? {})) {
       if (v) params.set(k, v);
     }
-    this.navigate(`/web?${params.toString()}`);
+    this.navigate(`${WEB_ROUTE}?${params.toString()}`);
   }
 
-  openRecord(_model: string, actionId: number, menuId: string, recordId: number, viewType = "form"): void {
-    const params = new URLSearchParams({
-      action: String(actionId),
-      menu_id: menuId,
-      view_type: viewType,
-      id: String(recordId),
-    });
-    this.navigate(`/web?${params.toString()}`);
+  openRecord({ actionId, menuId, recordId, viewType = VIEW_FORM }: OpenRecordOpts): void {
+    const route = {
+      actionId,
+      menuId,
+      recordId,
+      viewType,
+      formEdit: false,
+      listSearch: "",
+    };
+    if (this.router) {
+      this.router.push(route);
+      return;
+    }
+    this.navigate(RouterService.buildUrl(route));
   }
 }

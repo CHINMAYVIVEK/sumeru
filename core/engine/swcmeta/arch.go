@@ -114,6 +114,12 @@ func enrichField(model string, f ArchField) ArchField {
 	if fd.Required {
 		f.Required = true
 	}
+	if f.Widget == "" && fd.Widget != "" {
+		f.Widget = fd.Widget
+	}
+	if f.Options == nil && fd.Domain != "" {
+		f.Options = map[string]string{"domain": fd.Domain}
+	}
 	if f.Options == nil && fd.Relation != "" {
 		f.Options = map[string]string{"relation": fd.Relation}
 	}
@@ -301,9 +307,9 @@ func serializeFields(fields []parser.Field) []ArchField {
 			Placeholder: strings.TrimSpace(f.Placeholder),
 			PivotType:   strings.TrimSpace(f.PivotType),
 			Options:     parseFieldOptions(f.Options),
-			Readonly:    parseBoolAttr(f.Readonly),
-			Required:    parseBoolAttr(f.Required),
-			Invisible:   parseBoolAttr(f.Invisible),
+			Readonly:    parser.IsTruthyAttr(f.Readonly),
+			Required:    parser.IsTruthyAttr(f.Required),
+			Invisible:   parser.IsTruthyAttr(f.Invisible),
 		}
 		sub := f.List
 		if sub == nil {
@@ -346,11 +352,6 @@ func parseFieldOptions(raw string) map[string]string {
 		return nil
 	}
 	return out
-}
-
-func parseBoolAttr(raw string) bool {
-	s := strings.ToLower(strings.TrimSpace(raw))
-	return s == "1" || s == "true" || s == "yes" || s == "on"
 }
 
 func serializeSeparators(items []parser.Separator) []ArchSeparator {

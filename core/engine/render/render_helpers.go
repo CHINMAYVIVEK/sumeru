@@ -2,8 +2,6 @@ package render
 
 import (
 	"context"
-	"fmt"
-	"net/url"
 	"strings"
 
 	"sumeru/core/orm"
@@ -50,19 +48,6 @@ func isTruthyDB(v interface{}) bool {
 	}
 }
 
-func rowOpenURL(actionID int, menuID string, rowID int64) string {
-	q := url.Values{}
-	if actionID > 0 {
-		q.Set("action", fmt.Sprintf("%d", actionID))
-	}
-	if strings.TrimSpace(menuID) != "" {
-		q.Set("menu_id", strings.TrimSpace(menuID))
-	}
-	q.Set("view_type", "form")
-	q.Set("id", fmt.Sprintf("%d", rowID))
-	return "/web?" + q.Encode()
-}
-
 func formFieldReadonly(vr *ViewRecordData) bool {
 	if vr == nil || strings.TrimSpace(vr.ResModel) == "" {
 		return true
@@ -75,18 +60,6 @@ func formFieldReadonly(vr *ViewRecordData) bool {
 
 func workspaceFormChrome(vr *ViewRecordData) bool {
 	return vr != nil && strings.TrimSpace(vr.ResModel) != ""
-}
-
-func formNewRecordURL(actionID int, menuID string) string {
-	q := url.Values{}
-	if actionID > 0 {
-		q.Set("action", fmt.Sprintf("%d", actionID))
-	}
-	if strings.TrimSpace(menuID) != "" {
-		q.Set("menu_id", strings.TrimSpace(menuID))
-	}
-	q.Set("view_type", "form")
-	return "/web?" + q.Encode()
 }
 
 func rawField(record map[string]interface{}, name string) (interface{}, bool) {

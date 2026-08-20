@@ -2,20 +2,14 @@ import { SwcComponent } from "../../runtime/component.js";
 import { html } from "../../template/html.js";
 import type { SwcWorkspacePayload } from "../../types/workspace.js";
 import { ListView } from "../list/ListView.js";
-import { FormView } from "../form/FormView.js";
-import { KanbanView } from "../kanban/KanbanView.js";
-import { PivotView } from "../pivot/PivotView.js";
-import { GraphView } from "../graph/GraphView.js";
-import { CalendarView } from "../calendar/CalendarView.js";
-import { GanttView } from "../advanced/GanttView.js";
-import { MapView } from "../advanced/MapView.js";
-import { CohortView } from "../advanced/CohortView.js";
 import { useState, useEffect } from "../../runtime/hooks.js";
 import { SwcError } from "../../runtime/error.js";
 import { registry } from "../../runtime/registry.js";
 import { logWorkspacePayload, logViewArch } from "../../devtools/debug.js";
 import { ShellPageView } from "../../shell/ShellPageView.js";
 import { syncWorkspaceViewTabs } from "../../shell/view-tab-sync.js";
+import { RECORD_UPDATED, SWC_API_BASE } from "../../constants/routes.js";
+import { RouterService } from "../../services/router.js";
 
 type ViewInstance = SwcComponent & { setup?: () => void; render(): HTMLElement };
 
@@ -56,7 +50,7 @@ export class WorkspaceRouter extends SwcComponent {
     });
 
     useEffect(() => {
-      return this.env.services.bus.subscribe("record.updated", (payload) => {
+      return this.env.services.bus.subscribe(RECORD_UPDATED, (payload) => {
         const msg = payload as { model?: string; id?: number };
         if (!this.payload || !msg.model) return;
         if (msg.model !== this.payload.model) return;
@@ -69,40 +63,14 @@ export class WorkspaceRouter extends SwcComponent {
   private bump: (() => void) | null = null;
 
   private async fetchWorkspace(): Promise<SwcWorkspacePayload> {
-    const route = this.env.services.router.parse();
-    const params = new URLSearchParams();
-    if (route.actionId) params.set("action", String(route.actionId));
-    if (route.menuId) params.set("menu_id", route.menuId);
-    if (route.viewType) params.set("view_type", route.viewType);
-    if (route.recordId) params.set("id", String(route.recordId));
-    if (route.formEdit) params.set("edit", "1");
-    if (route.listSearch) params.set("q", route.listSearch);
-    const base = this.env.bootstrap.swcApiBase || "/web/swc";
+    const params = RouterService.searchParams(this.env.services.router.parse());
+    const base = this.env.bootstrap.swcApiBase || SWC_API_BASE;
     return this.env.services.http.getJSON(`${base}/workspace?${params.toString()}`);
   }
 
   private createView(type: string, payload: SwcWorkspacePayload): ViewInstance {
-    const views = registry.category("views");
-    const Ctor =
-      (views.get(type) as typeof ListView | undefined) ??
-      (type === "form"
-        ? FormView
-        : type === "kanban"
-          ? KanbanView
-          : type === "pivot"
-            ? PivotView
-            : type === "graph"
-              ? GraphView
-              : type === "calendar"
-                ? CalendarView
-                : type === "gantt"
-                  ? GanttView
-                  : type === "map"
-                    ? MapView
-                    : type === "cohort"
-                      ? CohortView
-                      : ListView);
-    const view = new (Ctor as unknown as typeof ListView)({ payload }, this.env) as unknown as ViewInstance;
+    const Ctor = (registry.category("views").get(type) as typeof ListView | undefined) ?? ListView;
+    const view = new Ctor({ payload }, this.env) as unknown as ViewInstance;
     view.setup?.();
     return view;
   }

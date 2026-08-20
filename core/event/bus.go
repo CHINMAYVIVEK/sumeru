@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// Event is a bus message.
 type Event struct {
 	EventID   string
 	Name      string

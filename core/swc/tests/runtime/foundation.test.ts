@@ -5,6 +5,7 @@ import { RouterService } from "../../src/services/router.js";
 import { registry } from "../../src/runtime/registry.js";
 import { registerCoreServices } from "../../src/services/service-registry.js";
 import { BusService } from "../../src/services/bus.js";
+import { RECORD_UPDATED } from "../../src/constants/routes.js";
 
 describe("DialogService", () => {
   afterEach(() => {
@@ -30,6 +31,21 @@ describe("ActionService SPA navigation", () => {
     action.navigate("/web?action=1&menu_id=m&view_type=list");
     expect(push).toHaveBeenCalled();
   });
+
+  it("openRecord pushes viewType, recordId, actionId, and menuId", () => {
+    const router = new RouterService();
+    const push = vi.spyOn(router, "push");
+    const action = new ActionService(router);
+    action.openRecord({ actionId: 9, menuId: "4", recordId: 15, viewType: "form" });
+    expect(push).toHaveBeenCalledWith({
+      actionId: 9,
+      menuId: "4",
+      recordId: 15,
+      viewType: "form",
+      formEdit: false,
+      listSearch: "",
+    });
+  });
 });
 
 describe("service registry", () => {
@@ -52,8 +68,8 @@ describe("BusService record.updated", () => {
   it("notifies subscribers", () => {
     const bus = new BusService();
     const fn = vi.fn();
-    bus.subscribe("record.updated", fn);
-    bus.emit("record.updated", { model: "crm.lead", id: 1 });
+    bus.subscribe(RECORD_UPDATED, fn);
+    bus.emit(RECORD_UPDATED, { model: "crm.lead", id: 1 });
     expect(fn).toHaveBeenCalledWith({ model: "crm.lead", id: 1 });
   });
 });

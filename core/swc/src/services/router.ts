@@ -1,3 +1,15 @@
+import {
+  EDIT_ENABLED,
+  Q_ACTION,
+  Q_EDIT,
+  Q_MENU_ID,
+  Q_RECORD_ID,
+  Q_SEARCH,
+  Q_SHELL,
+  Q_VIEW_TYPE,
+  WEB_ROUTE,
+} from "../constants/routes.js";
+
 export interface WorkspaceRoute {
   actionId: number;
   menuId: string;
@@ -10,31 +22,37 @@ export interface WorkspaceRoute {
 }
 
 export class RouterService {
+  static searchParams(route: Partial<WorkspaceRoute>): URLSearchParams {
+    const params = new URLSearchParams();
+    if (route.actionId) params.set(Q_ACTION, String(route.actionId));
+    if (route.menuId) params.set(Q_MENU_ID, route.menuId);
+    if (route.viewType) params.set(Q_VIEW_TYPE, route.viewType);
+    if (route.recordId) params.set(Q_RECORD_ID, String(route.recordId));
+    if (route.formEdit) params.set(Q_EDIT, EDIT_ENABLED);
+    if (route.listSearch) params.set(Q_SEARCH, route.listSearch);
+    if (route.shell) params.set(Q_SHELL, route.shell);
+    return params;
+  }
+
+  static buildUrl(route: Partial<WorkspaceRoute>): string {
+    return `${WEB_ROUTE}?${RouterService.searchParams(route).toString()}`;
+  }
+
   parse(location: Location = window.location): WorkspaceRoute {
     const q = new URLSearchParams(location.search);
     return {
-      actionId: Number(q.get("action") ?? "0"),
-      menuId: q.get("menu_id") ?? "",
-      viewType: q.get("view_type") ?? "",
-      recordId: Number(q.get("id") ?? "0"),
-      formEdit: q.get("edit") === "1",
-      listSearch: q.get("q") ?? "",
-      shell: q.get("shell") ?? "",
+      actionId: Number(q.get(Q_ACTION) ?? "0"),
+      menuId: q.get(Q_MENU_ID) ?? "",
+      viewType: q.get(Q_VIEW_TYPE) ?? "",
+      recordId: Number(q.get(Q_RECORD_ID) ?? "0"),
+      formEdit: q.get(Q_EDIT) === EDIT_ENABLED,
+      listSearch: q.get(Q_SEARCH) ?? "",
+      shell: q.get(Q_SHELL) ?? "",
     };
   }
 
   workspaceUrl(route: Partial<WorkspaceRoute>): string {
-    const current = this.parse();
-    const merged = { ...current, ...route };
-    const params = new URLSearchParams();
-    if (merged.actionId) params.set("action", String(merged.actionId));
-    if (merged.menuId) params.set("menu_id", merged.menuId);
-    if (merged.viewType) params.set("view_type", merged.viewType);
-    if (merged.recordId) params.set("id", String(merged.recordId));
-    if (merged.formEdit) params.set("edit", "1");
-    if (merged.listSearch) params.set("q", merged.listSearch);
-    if (merged.shell) params.set("shell", merged.shell);
-    return `/web?${params.toString()}`;
+    return RouterService.buildUrl({ ...this.parse(), ...route });
   }
 
   push(route: Partial<WorkspaceRoute>): void {

@@ -11,9 +11,11 @@ import {
 } from "../shared/view-toolbar.js";
 import { collectFormFields, renderFormSheet } from "./form-sheet.js";
 import { initFormInteractions } from "./form-interactions.js";
+import { validatePasswordMatchGroups } from "../../login/password-match.js";
 import { FieldHost } from "../../widgets/field-host.js";
 import { ChatterPanel } from "../chatter/ChatterPanel.js";
 import { isFieldVisible } from "../../model/modifiers.js";
+import { VIEW_FORM, VIEW_LIST } from "../../constants/routes.js";
 
 interface FormViewProps {
   payload: SwcWorkspacePayload;
@@ -153,7 +155,7 @@ export class FormView extends SwcComponent<FormViewProps> {
       const url = this.env.services.router.workspaceUrl({
         actionId: p.actionId,
         menuId: p.menuId,
-        viewType: "list",
+        viewType: VIEW_LIST,
         recordId: 0,
         formEdit: false,
       });
@@ -180,6 +182,11 @@ export class FormView extends SwcComponent<FormViewProps> {
   }
 
   private async save(): Promise<void> {
+    if (this.el && !validatePasswordMatchGroups(this.el)) {
+      this.error = "Passwords do not match.";
+      this.bump?.();
+      return;
+    }
     this.saving = true;
     this.error = "";
     this.bump?.();
@@ -194,7 +201,12 @@ export class FormView extends SwcComponent<FormViewProps> {
       });
       const p = this.props.payload;
       if (p.recordId <= 0 && id > 0) {
-        this.env.services.action.openRecord(p.model, p.actionId, p.menuId, id, "form");
+        this.env.services.action.openRecord({
+          actionId: p.actionId,
+          menuId: p.menuId,
+          recordId: id,
+          viewType: VIEW_FORM,
+        });
         return;
       }
       this.snapshot = { ...this.record.data };
@@ -219,7 +231,7 @@ export class FormView extends SwcComponent<FormViewProps> {
       this.env.services.router.workspaceUrl({
         actionId: p.actionId,
         menuId: p.menuId,
-        viewType: "list",
+        viewType: VIEW_LIST,
         recordId: 0,
       }),
     );
@@ -229,7 +241,12 @@ export class FormView extends SwcComponent<FormViewProps> {
     const p = this.props.payload;
     if (p.recordId <= 0) return;
     const newId = await this.recordStore.duplicate(this.record);
-    this.env.services.action.openRecord(p.model, p.actionId, p.menuId, newId, "form");
+    this.env.services.action.openRecord({
+      actionId: p.actionId,
+      menuId: p.menuId,
+      recordId: newId,
+      viewType: VIEW_FORM,
+    });
   }
 
   private async runObjectButton(btn: SwcArchButton): Promise<void> {

@@ -2,8 +2,6 @@ package render
 
 import (
 	"context"
-	"fmt"
-	"net/url"
 	"strings"
 
 	"sumeru/core/orm"
@@ -15,9 +13,9 @@ func WorkspaceViewTabs(ctx context.Context, resModel string, actionID int, menuI
 		mode  string
 		label string
 	}{
-		{"kanban", "Kanban"},
-		{"list", "List"},
-		{"form", "Form"},
+		{ViewModeKanban, "Kanban"},
+		{ViewModeList, "List"},
+		{ViewModeForm, "Form"},
 	}
 	sel := strings.ToLower(strings.TrimSpace(selectedMode))
 	menuID = strings.TrimSpace(menuID)
@@ -28,19 +26,13 @@ func WorkspaceViewTabs(ctx context.Context, resModel string, actionID int, menuI
 		if _, err := orm.FindUIDefaultView(ctx, resModel, o.mode); err != nil {
 			continue
 		}
-		q := url.Values{}
-		q.Set("action", fmt.Sprintf("%d", actionID))
-		if menuID != "" {
-			q.Set("menu_id", menuID)
+		q := WorkspaceQuery{ActionID: actionID, MenuID: menuID, ViewType: o.mode}
+		if o.mode == ViewModeForm && recID != "" {
+			q.RecordID = recID
 		}
-		q.Set("view_type", o.mode)
-		if o.mode == "form" && recID != "" {
-			q.Set("id", recID)
-		}
-		href := "/web?" + q.Encode()
 		out = append(out, ViewSwitchTab{
 			Label:  o.label,
-			Href:   href,
+			Href:   WorkspaceURL(q),
 			Mode:   o.mode,
 			Active: sel == o.mode,
 		})

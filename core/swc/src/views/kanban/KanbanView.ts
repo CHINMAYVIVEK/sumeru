@@ -1,8 +1,9 @@
 import { SwcComponent } from "../../runtime/component.js";
 import { html } from "../../template/html.js";
 import type { SwcArchField, SwcWorkspacePayload } from "../../types/workspace.js";
-import { renderNewButton, renderReportActions, renderSearchField, visibleFieldNames } from "../shared/view-toolbar.js";
+import { renderCollectionToolbar } from "../shared/view-toolbar.js";
 import { renderKanbanCardInner } from "./kanban-card.js";
+import { RECORD_UPDATED, VIEW_FORM, VIEW_KANBAN } from "../../constants/routes.js";
 
 interface KanbanViewProps {
   payload: SwcWorkspacePayload;
@@ -29,7 +30,7 @@ export class KanbanView extends SwcComponent<KanbanViewProps> {
       this.env.services.router.workspaceUrl({
         actionId: p.actionId,
         menuId: p.menuId,
-        viewType: "kanban",
+        viewType: VIEW_KANBAN,
         listSearch: this.search,
       }),
     );
@@ -39,7 +40,12 @@ export class KanbanView extends SwcComponent<KanbanViewProps> {
     const id = Number(row.id ?? 0);
     if (id <= 0) return;
     const p = this.props.payload;
-    this.env.services.action.openRecord(p.model, p.actionId, p.menuId, id, "form");
+    this.env.services.action.openRecord({
+      actionId: p.actionId,
+      menuId: p.menuId,
+      recordId: id,
+      viewType: VIEW_FORM,
+    });
   }
 
   private async moveCard(recordId: number, columnValue: number): Promise<void> {
@@ -48,40 +54,45 @@ export class KanbanView extends SwcComponent<KanbanViewProps> {
     await this.env.services.rpc.write(this.props.payload.model, [recordId], {
       [groupField]: columnValue || false,
     });
-    this.env.services.bus.emit("record.updated", {
+    this.env.services.bus.emit(RECORD_UPDATED, {
       model: this.props.payload.model,
       id: recordId,
     });
   }
 
   private toolbar() {
-    const p = this.props.payload;
-    const fields = visibleFieldNames(this.cardFields());
-    const reportActions = renderReportActions(p, fields);
-    return html`
-      <div class="sum-view-toolbar sum-kanban-report-bar">
-        <div class="sum-view-toolbar-primary">
-          ${renderNewButton(p)}
-          ${renderSearchField(
-            this.search,
-            () => this.applySearch(),
-            (next) => {
-              this.search = next;
-            },
-          )}
-        </div>
-        ${reportActions ?? ""}
-      </div>
-    `;
+    return renderCollectionToolbar({
+      payload: this.props.payload,
+      viewType: VIEW_KANBAN,
+      search: this.search,
+      onSearch: () => this.applySearch(),
+      onInput: (next) => {
+        this.search = next;
+      },
+    });
   }
 
-  private renderCard(row: Record<string, unknown>, fields: SwcArchField[], draggable = false) {
+  private renderCard(
+    row: Record<string, unknown>,
+    fields: SwcArchField[],
+    opts: { draggable?: boolean; dropValue?: number } = {},
+  ) {
+    const draggable = Boolean(opts.draggable);
+    const dropValue = opts.dropValue;
     return html`<div
       class="sum-kanban-card"
       draggable=${draggable ? "true" : undefined}
       @click=${() => this.openCard(row)}
       @dragstart=${draggable
         ? (ev: Event) => (ev as DragEvent).dataTransfer?.setData("text/plain", String(row.id))
+        : undefined}
+      @dragover=${dropValue !== undefined ? (ev: Event) => ev.preventDefault() : undefined}
+      @drop=${dropValue !== undefined
+        ? (ev: Event) => {
+            ev.preventDefault();
+            const id = Number((ev as DragEvent).dataTransfer?.getData("text/plain"));
+            if (id) void this.moveCard(id, dropValue);
+          }
         : undefined}
     >
       ${renderKanbanCardInner(row, fields)}
@@ -118,21 +129,7 @@ export class KanbanView extends SwcComponent<KanbanViewProps> {
                 </div>
                 <div class="sum-kanban-cards">
                   ${col.records.map((row) =>
-                    html`<div
-                      class="sum-kanban-card"
-                      draggable=${kanban.draggable ? "true" : undefined}
-                      @click=${() => this.openCard(row)}
-                      @dragstart=${(ev: Event) => (ev as DragEvent).dataTransfer?.setData("text/plain", String(row.id))}
-                      @dragover=${(ev: Event) => ev.preventDefault()}
-                      @drop=${(ev: Event) => {
-                        ev.preventDefault();
-                        const de = ev as DragEvent;
-                        const id = Number(de.dataTransfer?.getData("text/plain"));
-                        if (id) void this.moveCard(id, col.value);
-                      }}
-                    >
-                      ${renderKanbanCardInner(row, fields)}
-                    </div>`,
+                    this.renderCard(row, fields, { draggable: kanban.draggable, dropValue: col.value }),
                   )}
                 </div>
               </div>`,

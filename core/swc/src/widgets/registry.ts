@@ -1,5 +1,7 @@
 import { registry, type RegistryEntry } from "../runtime/registry.js";
 import type { SwcArchField } from "../types/workspace.js";
+import type { SwcEnv } from "../runtime/env.js";
+import type { SwcRecord } from "../model/record.js";
 import { DefaultField } from "./DefaultField.js";
 import { Many2OneField } from "./Many2OneField.js";
 import { StatusbarField } from "./StatusbarField.js";
@@ -59,52 +61,70 @@ export function registerDefaultWidgets(): void {
   add("progress", ProgressField);
 }
 
+const WIDGET_MAP: Record<string, string> = {
+  many2many_tags: "many2many_tags",
+  boolean_toggle: "boolean_toggle",
+  radio: "radio",
+  phone: "phone",
+  image: "image",
+  selection: "selection",
+  email: "email",
+  statusbar: "statusbar",
+  priority: "priority",
+  monetary: "monetary",
+  html: "html",
+  binary: "binary",
+  reference: "reference",
+  color: "color",
+  url: "url",
+  progressbar: "progress",
+  progress: "progress",
+};
+
+const TYPE_MAP: Record<string, string> = {
+  boolean: "boolean",
+  text: "text",
+  many2one: "many2one",
+  one2many: "one2many",
+  many2many: "many2many_tags",
+  selection: "selection",
+  date: "date",
+  datetime: "datetime",
+  integer: "integer",
+  float: "float",
+  numeric: "numeric",
+};
+
 export function resolveFieldWidget(field: SwcArchField): string {
-  if (field.widget === "many2many_tags") return "many2many_tags";
-  if (field.widget === "boolean_toggle") return "boolean_toggle";
-  if (field.widget === "radio") return "radio";
-  if (field.widget === "phone") return "phone";
-  if (field.widget === "image") return "image";
-  if (field.widget === "selection") return "selection";
-  if (field.widget === "email") return "email";
-  if (field.widget === "statusbar") return "statusbar";
-  if (field.widget === "priority") return "priority";
-  if (field.type === "boolean" && field.widget === "radio") return "radio";
-  if (field.widget === "image") return "image";
-  if (field.widget === "monetary") return "monetary";
-  if (field.widget === "html") return "html";
-  if (field.widget === "binary") return "binary";
-  if (field.widget === "reference") return "reference";
-  if (field.widget === "color") return "color";
-  if (field.widget === "url") return "url";
-  if (field.widget === "progressbar" || field.widget === "progress") return "progress";
-  if (field.type === "boolean") return "boolean";
-  if (field.type === "text") return "text";
-  if (field.type === "many2one") return "many2one";
-  if (field.type === "one2many") return "one2many";
-  if (field.type === "many2many") return "many2many_tags";
-  if (field.type === "selection") return "selection";
-  if (field.type === "date") return "date";
-  if (field.type === "datetime") return "datetime";
-  if (field.type === "integer" || field.type === "float" || field.type === "numeric") {
-    return field.type;
-  }
+  if (field.widget && WIDGET_MAP[field.widget]) return WIDGET_MAP[field.widget];
+  if (field.type && TYPE_MAP[field.type]) return TYPE_MAP[field.type];
   return field.widget ?? field.type ?? "default";
 }
 
-export function renderField(
-  env: import("../runtime/env.js").SwcEnv,
+export type FieldWidgetInstance = {
+  render(): HTMLElement;
+  destroy(): void;
+  setup?(): void;
+};
+
+export function instantiateFieldWidget(
+  env: SwcEnv,
   field: SwcArchField,
-  record: import("../model/record.js").SwcRecord,
+  record: SwcRecord,
   readonly: boolean,
-): HTMLElement {
+): FieldWidgetInstance {
   const key = resolveFieldWidget(field);
   const Ctor = (registry.get("fields", key) ?? registry.get("fields", "default")) as unknown as typeof DefaultField;
   const comp = new Ctor({ field, record, readonly }, env);
   comp.setup?.();
-  return comp.render();
+  return comp;
 }
 
-export class FieldRegistry {
-  static render = renderField;
+export function renderField(
+  env: SwcEnv,
+  field: SwcArchField,
+  record: SwcRecord,
+  readonly: boolean,
+): HTMLElement {
+  return instantiateFieldWidget(env, field, record, readonly).render();
 }

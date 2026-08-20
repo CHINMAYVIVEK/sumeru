@@ -1,6 +1,7 @@
 import { SwcComponent } from "../../runtime/component.js";
 import { html } from "../../template/html.js";
 import type { SwcWorkspacePayload } from "../../types/workspace.js";
+import { VIEW_FORM } from "../../constants/routes.js";
 
 interface CalendarViewProps {
   payload: SwcWorkspacePayload;
@@ -30,7 +31,12 @@ export class CalendarView extends SwcComponent<CalendarViewProps> {
     const id = Number(row.id ?? 0);
     if (id <= 0) return;
     const p = this.props.payload;
-    this.env.services.action.openRecord(p.model, p.actionId, p.menuId, id, "form");
+    this.env.services.action.openRecord({
+      actionId: p.actionId,
+      menuId: p.menuId,
+      recordId: id,
+      viewType: VIEW_FORM,
+    });
   }
 
   template() {

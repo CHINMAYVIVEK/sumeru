@@ -3,15 +3,14 @@ package web
 import (
 	"context"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 
 	"sumeru/core/engine/parser"
+	"sumeru/core/engine/render"
 	"sumeru/core/orm"
 )
 
-const workspaceListSearchParam = "q"
+const workspaceListSearchParam = render.WorkspaceSearchParam
 
 func listSearchQuery(r *http.Request) string {
 	return strings.TrimSpace(r.URL.Query().Get(workspaceListSearchParam))
@@ -40,20 +39,10 @@ func workspaceListDomain(ctx context.Context, actionData map[string]interface{},
 }
 
 func workspaceListSearchURL(actionID int, menuID, searchQuery string) string {
-	vals := url.Values{}
-	if actionID > 0 {
-		vals.Set(workspaceActionParam, strconv.Itoa(actionID))
-	}
-	if menuID = strings.TrimSpace(menuID); menuID != "" {
-		vals.Set(workspaceMenuIDParam, menuID)
-	}
-	vals.Set(workspaceViewTypeParam, workspaceViewModeList)
-	if searchQuery = strings.TrimSpace(searchQuery); searchQuery != "" {
-		vals.Set(workspaceListSearchParam, searchQuery)
-	}
-	encoded := vals.Encode()
-	if encoded == "" {
-		return workspaceRoute
-	}
-	return workspaceRoute + "?" + encoded
+	return render.WorkspaceURL(render.WorkspaceQuery{
+		ActionID: actionID,
+		MenuID:   menuID,
+		ViewType: workspaceViewModeList,
+		Search:   searchQuery,
+	})
 }

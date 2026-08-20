@@ -286,7 +286,7 @@ func ParseAppsBrowseStateFromForm(r *http.Request) AppsBrowseState {
 }
 
 func AppsDetailRedirectURL(msg string, browse AppsBrowseState) string {
-	return appsDetailRedirectURL(msg, browse)
+	return appsRedirectURL(msg, browse)
 }
 
 func ParseModuleActionForm(r *http.Request) moduleActionForm { return parseModuleActionForm(r) }

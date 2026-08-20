@@ -1,4 +1,5 @@
 import type { SwcViewTab } from "../types/workspace.js";
+import { WEB_ROUTE } from "../constants/routes.js";
 
 /** Keep server-rendered breadcrumb view tabs in sync after SPA navigation. */
 export function syncWorkspaceViewTabs(viewTabs: SwcViewTab[]): void {
@@ -29,7 +30,7 @@ export function initViewTabNavigation(): void {
     const tab = (ev.target as Element).closest<HTMLAnchorElement>(
       ".sum-breadcrumb-right .sum-view-tab[href]",
     );
-    if (!tab?.href.includes("/web?")) return;
+    if (!tab?.href.includes(`${WEB_ROUTE}?`)) return;
 
     ev.preventDefault();
     const url = new URL(tab.href, window.location.origin);

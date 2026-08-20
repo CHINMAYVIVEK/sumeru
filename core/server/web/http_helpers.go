@@ -2,9 +2,9 @@ package web
 
 import (
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
+
+	"sumeru/core/engine/render"
 )
 
 func splitViewModes(viewMode string) []string {
@@ -28,24 +28,12 @@ func normalizeViewMode(viewMode string) string {
 
 // formBaseQueryValues builds a stable /web query string (no leading "?") for form Edit/Cancel/Save redirects.
 func formBaseQueryValues(actionID int, menuID, viewType, recordID string) string {
-	query := url.Values{}
-	setWorkspaceQueryInt(query, workspaceActionParam, actionID)
-	setWorkspaceQueryString(query, workspaceMenuIDParam, menuID)
-	setWorkspaceQueryString(query, workspaceViewTypeParam, viewType)
-	setWorkspaceQueryString(query, workspaceRecordIDParam, recordID)
-	return query.Encode()
-}
-
-func setWorkspaceQueryString(query url.Values, param, value string) {
-	if trimmed := strings.TrimSpace(value); trimmed != "" {
-		query.Set(param, trimmed)
-	}
-}
-
-func setWorkspaceQueryInt(query url.Values, param string, value int) {
-	if value > 0 {
-		query.Set(param, strconv.Itoa(value))
-	}
+	return render.WorkspaceQueryString(render.WorkspaceQuery{
+		ActionID: actionID,
+		MenuID:   menuID,
+		ViewType: viewType,
+		RecordID: recordID,
+	})
 }
 
 func formOrQueryValue(r *http.Request, field string) string {
@@ -57,12 +45,5 @@ func formOrQueryValue(r *http.Request, field string) string {
 
 // workspaceListURL builds a /web list redirect after delete (action + menu_id only).
 func workspaceListURL(actionID, menuID string) string {
-	query := url.Values{}
-	setWorkspaceQueryString(query, workspaceActionParam, actionID)
-	setWorkspaceQueryString(query, workspaceMenuIDParam, menuID)
-	encoded := query.Encode()
-	if encoded == "" {
-		return workspaceRoute
-	}
-	return workspaceRoute + "?" + encoded
+	return render.WorkspaceURL(render.WorkspaceQuery{Action: actionID, MenuID: menuID})
 }

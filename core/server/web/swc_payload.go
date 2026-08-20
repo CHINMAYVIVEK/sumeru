@@ -15,7 +15,14 @@ func buildSwcWorkspacePayload(
 	viewRecord *render.ViewRecordData,
 ) swcmeta.WorkspacePayload {
 	viewBC := render.HumanViewBreadcrumb(resolved.view.Model, resolved.selectedMode)
-	crumbs := render.BuildWorkspaceBreadcrumbs(ctx, req.menuID, resolved.selectedMode, viewBC, viewRecord.FormBaseQuery, viewRecord.Record, viewRecord.RecordID)
+	crumbs := render.BuildWorkspaceBreadcrumbs(ctx, render.BreadcrumbInput{
+		ActiveMenuID:  req.menuID,
+		ViewType:      resolved.selectedMode,
+		Title:         viewBC,
+		FormBaseQuery: viewRecord.FormBaseQuery,
+		Record:        viewRecord.Record,
+		RecordID:      viewRecord.RecordID,
+	})
 	tabs := render.WorkspaceViewTabs(ctx, viewRecord.ResModel, viewRecord.ActionID, req.menuID, resolved.selectedMode, recordIDStr(viewRecord.RecordID))
 
 	input := swcmeta.ViewRecordInput{

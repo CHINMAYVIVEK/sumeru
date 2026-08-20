@@ -1,5 +1,14 @@
-import { html, type TemplateResult } from "../../template/html.js";
+import { html, type TemplateResult, type TemplateValue } from "../../template/html.js";
 import type { SwcArchField, SwcWorkspacePayload } from "../../types/workspace.js";
+import {
+  BULK_TEMPLATE_ROUTE,
+  BULK_UPLOAD_ROUTE,
+  EXPORT_CSV_ROUTE,
+  EXPORT_PDF_ROUTE,
+  VIEW_FORM,
+  VIEW_KANBAN,
+} from "../../constants/routes.js";
+import { RouterService } from "../../services/router.js";
 
 function linkButton(href: string, label: string, className = "sum-btn sum-btn--secondary"): HTMLElement {
   const a = document.createElement("a");
@@ -17,24 +26,11 @@ export function visibleFieldNames(fields: SwcArchField[]): string {
 }
 
 export function newRecordUrl(payload: SwcWorkspacePayload): string {
-  const params = new URLSearchParams();
-  if (payload.actionId > 0) params.set("action", String(payload.actionId));
-  if (payload.menuId) params.set("menu_id", payload.menuId);
-  params.set("view_type", "form");
-  return `/web?${params.toString()}`;
-}
-
-export function editRecordUrl(payload: SwcWorkspacePayload): string {
-  if (payload.formBaseQuery) {
-    return `/web?${payload.formBaseQuery}&edit=1`;
-  }
-  const params = new URLSearchParams();
-  if (payload.actionId > 0) params.set("action", String(payload.actionId));
-  if (payload.menuId) params.set("menu_id", payload.menuId);
-  params.set("view_type", "form");
-  if (payload.recordId > 0) params.set("id", String(payload.recordId));
-  params.set("edit", "1");
-  return `/web?${params.toString()}`;
+  return RouterService.buildUrl({
+    actionId: payload.actionId,
+    menuId: payload.menuId,
+    viewType: VIEW_FORM,
+  });
 }
 
 export function exportQuery(
@@ -77,6 +73,29 @@ export function renderSearchField(
 
 export function renderNewButton(payload: SwcWorkspacePayload): HTMLElement {
   return linkButton(newRecordUrl(payload), "New", "sum-btn sum-list-btn-new");
+}
+
+export function renderCollectionToolbar(opts: {
+  payload: SwcWorkspacePayload;
+  viewType: string;
+  search: string;
+  onSearch: () => void;
+  onInput: (next: string) => void;
+  extraPrimary?: TemplateValue;
+}): TemplateResult {
+  const fields = visibleFieldNames((opts.payload.arch.fields ?? []).filter((f) => !f.invisible));
+  const reportActions = renderReportActions(opts.payload, fields);
+  const toolbarClass = opts.viewType === VIEW_KANBAN ? "sum-kanban-report-bar" : "sum-list-toolbar";
+  return html`
+    <div class="sum-view-toolbar ${toolbarClass}">
+      <div class="sum-view-toolbar-primary">
+        ${renderNewButton(opts.payload)}
+        ${renderSearchField(opts.search, opts.onSearch, opts.onInput)}
+        ${opts.extraPrimary ?? ""}
+      </div>
+      ${reportActions ?? ""}
+    </div>
+  `;
 }
 
 export function toolbarButton(
@@ -127,14 +146,14 @@ export function renderReportActions(
   const items: Array<HTMLElement | TemplateResult> = [];
 
   if (report.download) {
-    items.push(linkButton(`/web/export/csv?${exportParams.toString()}`, "Export CSV"));
-    items.push(linkButton(`/web/export/pdf?${exportParams.toString()}`, "Export PDF"));
+    items.push(linkButton(`${EXPORT_CSV_ROUTE}?${exportParams.toString()}`, "Export CSV"));
+    items.push(linkButton(`${EXPORT_PDF_ROUTE}?${exportParams.toString()}`, "Export PDF"));
   }
   if (report.upload && fields) {
     const templateParams = new URLSearchParams(exportParams);
-    items.push(linkButton(`/web/bulk/template?${templateParams.toString()}`, "Download template"));
+    items.push(linkButton(`${BULK_TEMPLATE_ROUTE}?${templateParams.toString()}`, "Download template"));
     items.push(
-      html`<form class="sum-list-upload-form" method="post" enctype="multipart/form-data" action="/web/bulk/upload">
+      html`<form class="sum-list-upload-form" method="post" enctype="multipart/form-data" action=${BULK_UPLOAD_ROUTE}>
         <input type="hidden" name="csrf_token" value=${payload.csrfToken} />
         <input type="hidden" name="model" value=${payload.model} />
         ${payload.actionId > 0 ? html`<input type="hidden" name="action" value=${String(payload.actionId)} />` : ""}

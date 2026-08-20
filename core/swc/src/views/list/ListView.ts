@@ -2,7 +2,7 @@ import { SwcComponent } from "../../runtime/component.js";
 import { html } from "../../template/html.js";
 import type { SwcWorkspacePayload } from "../../types/workspace.js";
 import { useState } from "../../runtime/hooks.js";
-import { renderNewButton, renderReportActions, renderSearchField, visibleFieldNames } from "../shared/view-toolbar.js";
+import { renderCollectionToolbar } from "../shared/view-toolbar.js";
 import {
   renderControlPanel,
   renderRowCheckbox,
@@ -11,6 +11,7 @@ import {
 } from "./control-panel.js";
 import { forEach } from "../../template/helpers.js";
 import { patchKeyedChildren } from "../../runtime/patch/keyed.js";
+import { VIEW_FORM, VIEW_LIST } from "../../constants/routes.js";
 
 interface ListViewProps {
   payload: SwcWorkspacePayload;
@@ -69,7 +70,7 @@ export class ListView extends SwcComponent<ListViewProps> {
     const url = this.env.services.router.workspaceUrl({
       actionId: p.actionId,
       menuId: p.menuId,
-      viewType: "list",
+      viewType: VIEW_LIST,
       listSearch: this.panelState.search,
     });
     this.env.services.action.navigate(url);
@@ -83,13 +84,12 @@ export class ListView extends SwcComponent<ListViewProps> {
   private openRow(row: Record<string, unknown>): void {
     const id = Number(row.id ?? 0);
     if (id <= 0) return;
-    this.env.services.action.openRecord(
-      this.props.payload.model,
-      this.props.payload.actionId,
-      this.props.payload.menuId,
-      id,
-      "form",
-    );
+    this.env.services.action.openRecord({
+      actionId: this.props.payload.actionId,
+      menuId: this.props.payload.menuId,
+      recordId: id,
+      viewType: VIEW_FORM,
+    });
   }
 
   private toggleRow(id: number, checked: boolean): void {
@@ -121,27 +121,29 @@ export class ListView extends SwcComponent<ListViewProps> {
     this.applySearch();
   }
 
+  private renderRow(row: Record<string, unknown>) {
+    const id = Number(row.id ?? 0);
+    const cols = this.columns();
+    return html`<tr class="sum-list-row sum-list-row--click" @click=${() => this.openRow(row)}>
+      ${renderRowCheckbox(id, this.panelState.selectedIds.has(id), (rid, checked) =>
+        this.toggleRow(rid, checked),
+      )}
+      ${cols.map((c) => {
+        const display = row[`${c.name}_name`] ?? row[c.name];
+        return html`<td class="sum-list-td">${String(display ?? "")}</td>`;
+      })}
+    </tr>`;
+  }
+
   patch(): void {
     const tbody = this.el?.querySelector("tbody");
     if (tbody) {
       const rows = this.pageRows();
-      const cols = this.columns();
       patchKeyedChildren(
         tbody,
         rows.map((row) => ({
           key: String(row.id ?? 0),
-          render: () => {
-            const id = Number(row.id ?? 0);
-            return html`<tr class="sum-list-row sum-list-row--click" @click=${() => this.openRow(row)}>
-              ${renderRowCheckbox(id, this.panelState.selectedIds.has(id), (rid, checked) =>
-                this.toggleRow(rid, checked),
-              )}
-              ${cols.map((c) => {
-                const display = row[`${c.name}_name`] ?? row[c.name];
-                return html`<td class="sum-list-td">${String(display ?? "")}</td>`;
-              })}
-            </tr>`.render();
-          },
+          render: () => this.renderRow(row).render(),
         })),
       );
       return;
@@ -154,31 +156,26 @@ export class ListView extends SwcComponent<ListViewProps> {
     const cols = this.columns();
     const rows = this.pageRows();
     const allRows = this.allRows();
-    const fields = visibleFieldNames(cols);
-    const reportActions = renderReportActions(p, fields);
     const ids = allRows.map((r) => Number(r.id ?? 0)).filter((id) => id > 0);
     const allSelected = ids.length > 0 && ids.every((id) => this.panelState.selectedIds.has(id));
 
     return html`
       <div class="sum-list-view">
-        <div class="sum-view-toolbar sum-list-toolbar">
-          <div class="sum-view-toolbar-primary">
-            ${renderNewButton(p)}
-            ${renderSearchField(
-              this.panelState.search,
-              () => this.applySearch(),
-              (next) => {
-                this.panelState.search = next;
-              },
-            )}
-            ${this.panelState.selectedIds.size > 0
+        ${renderCollectionToolbar({
+          payload: p,
+          viewType: VIEW_LIST,
+          search: this.panelState.search,
+          onSearch: () => this.applySearch(),
+          onInput: (next) => {
+            this.panelState.search = next;
+          },
+          extraPrimary:
+            this.panelState.selectedIds.size > 0
               ? html`<button type="button" class="sum-btn sum-btn--danger" @click=${() => void this.bulkDelete()}>
                   Delete (${this.panelState.selectedIds.size})
                 </button>`
-              : ""}
-          </div>
-          ${reportActions ?? ""}
-        </div>
+              : "",
+        })}
         ${renderControlPanel({
           payload: { ...p, records: allRows },
           state: this.panelState,
@@ -193,18 +190,7 @@ export class ListView extends SwcComponent<ListViewProps> {
               </tr>
             </thead>
             <tbody>
-              ${forEach(rows, (row) => Number(row.id ?? 0), (row) => {
-                const id = Number(row.id ?? 0);
-                return html`<tr class="sum-list-row sum-list-row--click" @click=${() => this.openRow(row)}>
-                  ${renderRowCheckbox(id, this.panelState.selectedIds.has(id), (rid, checked) =>
-                    this.toggleRow(rid, checked),
-                  )}
-                  ${cols.map((c) => {
-                    const display = row[`${c.name}_name`] ?? row[c.name];
-                    return html`<td class="sum-list-td">${String(display ?? "")}</td>`;
-                  })}
-                </tr>`;
-              })}
+              ${forEach(rows, (row) => Number(row.id ?? 0), (row) => this.renderRow(row))}
             </tbody>
           </table>
         </div>

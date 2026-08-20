@@ -21,9 +21,7 @@ import { KanbanView } from "./views/kanban/KanbanView.js";
 import { PivotView } from "./views/pivot/PivotView.js";
 import { GraphView } from "./views/graph/GraphView.js";
 import { CalendarView } from "./views/calendar/CalendarView.js";
-import { GanttView } from "./views/advanced/GanttView.js";
-import { MapView } from "./views/advanced/MapView.js";
-import { CohortView } from "./views/advanced/CohortView.js";
+import { StubView } from "./views/advanced/stub-view.js";
 import { loadTranslations } from "./i18n/translate.js";
 import { mountDebugPanel } from "./devtools/debug.js";
 import { initDevtoolsBridge } from "./devtools/bridge.js";
@@ -37,9 +35,9 @@ function registerCore(): void {
   views.add("pivot", PivotView as unknown as RegistryEntry);
   views.add("graph", GraphView as unknown as RegistryEntry);
   views.add("calendar", CalendarView as unknown as RegistryEntry);
-  views.add("gantt", GanttView as unknown as RegistryEntry);
-  views.add("map", MapView as unknown as RegistryEntry);
-  views.add("cohort", CohortView as unknown as RegistryEntry);
+  views.add("gantt", StubView as unknown as RegistryEntry);
+  views.add("map", StubView as unknown as RegistryEntry);
+  views.add("cohort", StubView as unknown as RegistryEntry);
   const main = registry.category("main_components");
   main.add("shell", ShellLayout as unknown as RegistryEntry);
 }

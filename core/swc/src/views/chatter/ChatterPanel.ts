@@ -1,6 +1,7 @@
 import { SwcComponent } from "../../runtime/component.js";
 import { html } from "../../template/html.js";
 import { useState } from "../../runtime/hooks.js";
+import { RECORD_UPDATED, SWC_API_BASE } from "../../constants/routes.js";
 
 interface ChatterMessage {
   body: string;
@@ -56,7 +57,7 @@ export class ChatterPanel extends SwcComponent<ChatterPanelProps> {
     this.loading = true;
     this.bump?.();
     try {
-      const base = this.env.bootstrap.swcApiBase || "/web/swc";
+      const base = this.env.bootstrap.swcApiBase || SWC_API_BASE;
       const data = await this.env.services.http.getJSON<ChatterPayload>(
         `${base}/chatter?model=${encodeURIComponent(model)}&id=${recordId}`,
       );
@@ -83,7 +84,7 @@ export class ChatterPanel extends SwcComponent<ChatterPanelProps> {
       });
       this.draft = "";
       await this.load();
-      this.env.services.bus.emit("record.updated", {
+      this.env.services.bus.emit(RECORD_UPDATED, {
         model: this.props.model,
         id: this.props.recordId,
       });

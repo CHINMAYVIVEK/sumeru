@@ -1,5 +1,7 @@
 package web
 
+import "sumeru/core/engine/render"
+
 // Shared routes used across web handlers.
 const (
 	rootRoute           = "/"
@@ -189,21 +191,21 @@ const companyIDFormField = "company_id"
 
 // Workspace URL query parameters (/web?action=&menu_id=&view_type=&id=).
 const (
-	workspaceRoute           = "/web"
-	workspaceActionParam     = "action"
-	workspaceMenuIDParam     = "menu_id"
-	workspaceViewTypeParam   = "view_type"
-	workspaceRecordIDParam   = "id"
-	workspaceEditParam       = "edit"
+	workspaceRoute            = render.WorkspaceRoute
+	workspaceActionParam      = render.WorkspaceActionParam
+	workspaceMenuIDParam      = render.WorkspaceMenuIDParam
+	workspaceViewTypeParam    = render.WorkspaceViewTypeParam
+	workspaceRecordIDParam    = render.WorkspaceRecordIDParam
+	workspaceEditParam        = render.WorkspaceEditParam
 	workspaceEditEnabledValue = "1"
 )
 
 // Workspace view modes and row limits.
 const (
-	workspaceViewModeList   = "list"
-	workspaceViewModeForm   = "form"
-	workspaceViewModeKanban = "kanban"
-	workspaceViewModePivot  = "pivot"
+	workspaceViewModeList   = render.ViewModeList
+	workspaceViewModeForm   = render.ViewModeForm
+	workspaceViewModeKanban = render.ViewModeKanban
+	workspaceViewModePivot  = render.ViewModePivot
 	maxWorkspaceListRows    = 500
 	maxWorkspaceKanbanRows  = 200
 )

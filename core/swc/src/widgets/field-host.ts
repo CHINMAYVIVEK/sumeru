@@ -1,16 +1,10 @@
 import type { SwcEnv } from "../runtime/env.js";
 import type { SwcArchField } from "../types/workspace.js";
 import type { SwcRecord } from "../model/record.js";
-import { registry } from "../runtime/registry.js";
-import { resolveFieldWidget } from "./registry.js";
-import { DefaultField } from "./DefaultField.js";
+import { instantiateFieldWidget, resolveFieldWidget, type FieldWidgetInstance } from "./registry.js";
 
 interface FieldEntry {
-  comp: {
-    render(): HTMLElement;
-    destroy(): void;
-    setup?(): void;
-  };
+  comp: FieldWidgetInstance;
   readonly: boolean;
   widget: string;
 }
@@ -34,9 +28,7 @@ export class FieldHost {
     }
 
     prev?.comp.destroy();
-    const Ctor = (registry.get("fields", widget) ?? registry.get("fields", "default")) as unknown as typeof DefaultField;
-    const comp = new Ctor({ field, record, readonly }, this.env);
-    comp.setup?.();
+    const comp = instantiateFieldWidget(this.env, field, record, readonly);
     this.entries.set(key, { comp, readonly, widget });
     return comp.render();
   }

@@ -23,7 +23,7 @@ func RenderSWCWorkspace(ctx context.Context, view *parser.View, activeMenuID, te
 
 	actCtxModel := ""
 	var actCtxID int64
-	if strings.EqualFold(selectedMode, "form") && recData.RecordID > 0 {
+	if strings.EqualFold(selectedMode, ViewModeForm) && recData.RecordID > 0 {
 		actCtxModel = strings.TrimSpace(view.Model)
 		actCtxID = int64(recData.RecordID)
 	}
@@ -43,7 +43,14 @@ func RenderSWCWorkspace(ctx context.Context, view *parser.View, activeMenuID, te
 		ActivityContextModel:    actCtxModel,
 		ActivityContextRecordID: actCtxID,
 		SettingsNavActive:       IsMenuUnderSettingsRoot(ctx, activeMenuID),
-		BreadcrumbItems:         BuildWorkspaceBreadcrumbs(ctx, activeMenuID, selectedMode, viewBC, recData.FormBaseQuery, recData.Record, recData.RecordID),
+		BreadcrumbItems: BuildWorkspaceBreadcrumbs(ctx, BreadcrumbInput{
+			ActiveMenuID:  activeMenuID,
+			ViewType:      selectedMode,
+			Title:         viewBC,
+			FormBaseQuery: recData.FormBaseQuery,
+			Record:        recData.Record,
+			RecordID:      recData.RecordID,
+		}),
 		CSRFToken:               recData.CSRFToken,
 		SWCEnabled:              true,
 	}

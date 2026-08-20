@@ -2,7 +2,6 @@ package render
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -27,10 +26,7 @@ func SettingsHomeURL() string {
 
 // MenuWebURL builds a /web URL for a sys.menu row.
 func MenuWebURL(menuID, actionID int) string {
-	if actionID > 0 {
-		return fmt.Sprintf("/web?action=%d&menu_id=%d", actionID, menuID)
-	}
-	return fmt.Sprintf("/web?menu_id=%d", menuID)
+	return WorkspaceURL(WorkspaceQuery{ActionID: actionID, MenuID: strconv.Itoa(menuID)})
 }
 
 // listViewURL returns the list view URL for a form workspace query string.
@@ -43,9 +39,9 @@ func listViewURL(formBaseQuery string) string {
 	if err != nil {
 		return ""
 	}
-	u.Set("view_type", "list")
-	u.Del("id")
-	return "/web?" + u.Encode()
+	u.Set(WorkspaceViewTypeParam, ViewModeList)
+	u.Del(WorkspaceRecordIDParam)
+	return WorkspaceRoute + "?" + u.Encode()
 }
 
 type menuCrumb struct {
@@ -82,24 +78,33 @@ func collectMenuAncestors(ctx context.Context, leafID int) []menuCrumb {
 	return stack
 }
 
+type BreadcrumbInput struct {
+	ActiveMenuID   string
+	ViewType       string
+	Title          string
+	FormBaseQuery  string
+	Record         map[string]interface{}
+	RecordID       int
+}
+
 // BuildWorkspaceBreadcrumbs builds app-root menu path + current view/record for /web workspace pages.
 // The trail starts at the active application root (same label as shell ModuleName in normal cases), not Home.
-func BuildWorkspaceBreadcrumbs(ctx context.Context, activeMenuID string, viewType, viewHumanTitle, formBaseQuery string, record map[string]interface{}, recordID int) []BreadcrumbItem {
+func BuildWorkspaceBreadcrumbs(ctx context.Context, in BreadcrumbInput) []BreadcrumbItem {
 	var items []BreadcrumbItem
 
-	mid, err := strconv.Atoi(strings.TrimSpace(activeMenuID))
+	mid, err := strconv.Atoi(strings.TrimSpace(in.ActiveMenuID))
 	if err != nil || mid <= 0 {
-		if strings.TrimSpace(viewHumanTitle) != "" {
-			return []BreadcrumbItem{{Label: strings.TrimSpace(viewHumanTitle), Href: ""}}
+		if strings.TrimSpace(in.Title) != "" {
+			return []BreadcrumbItem{{Label: strings.TrimSpace(in.Title), Href: ""}}
 		}
 		return items
 	}
 
 	chain := collectMenuAncestors(ctx, mid)
-	vt := strings.ToLower(strings.TrimSpace(viewType))
-	isMatrix := vt == "list" || vt == "kanban"
+	vt := strings.ToLower(strings.TrimSpace(in.ViewType))
+	isMatrix := vt == ViewModeList || vt == ViewModeKanban
 	settingsRootID := 0
-	if IsMenuUnderSettingsRoot(ctx, activeMenuID) {
+	if IsMenuUnderSettingsRoot(ctx, in.ActiveMenuID) {
 		if rid, _, err := orm.ResolveXmlId(ctx, "base.menu_settings_root"); err == nil && rid > 0 {
 			settingsRootID = rid
 		}
@@ -114,18 +119,18 @@ func BuildWorkspaceBreadcrumbs(ctx context.Context, activeMenuID string, viewTyp
 		if isLast && isMatrix {
 			href = ""
 		}
-		if isLast && vt == "form" && recordID > 0 {
-			if listHref := listViewURL(formBaseQuery); listHref != "" {
+		if isLast && vt == ViewModeForm && in.RecordID > 0 {
+			if listHref := listViewURL(in.FormBaseQuery); listHref != "" {
 				href = listHref
 			}
 		}
 		items = append(items, BreadcrumbItem{Label: m.Name, Href: href})
 	}
 
-	if vt == "form" && recordID > 0 {
-		label := strings.TrimSpace(viewHumanTitle)
-		if record != nil {
-			if n := strings.TrimSpace(recStr(record, "name")); n != "" {
+	if vt == ViewModeForm && in.RecordID > 0 {
+		label := strings.TrimSpace(in.Title)
+		if in.Record != nil {
+			if n := strings.TrimSpace(recStr(in.Record, "name")); n != "" {
 				label = n
 			}
 		}
@@ -141,9 +146,9 @@ func BuildWorkspaceBreadcrumbs(ctx context.Context, activeMenuID string, viewTyp
 		return items
 	}
 
-	if strings.TrimSpace(viewHumanTitle) != "" {
-		if len(items) == 0 || items[len(items)-1].Label != viewHumanTitle {
-			items = append(items, BreadcrumbItem{Label: viewHumanTitle, Href: ""})
+	if strings.TrimSpace(in.Title) != "" {
+		if len(items) == 0 || items[len(items)-1].Label != in.Title {
+			items = append(items, BreadcrumbItem{Label: in.Title, Href: ""})
 		}
 	}
 	return items
