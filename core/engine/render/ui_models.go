@@ -58,6 +58,10 @@ func viewTypeLabel(base, viewType string) string {
 		return base + " · Kanban"
 	case ViewModePivot:
 		return base + " · Pivot"
+	case ViewModeGraph:
+		return base + " · Graph"
+	case ViewModeCalendar:
+		return base + " · Calendar"
 	default:
 		return base
 	}

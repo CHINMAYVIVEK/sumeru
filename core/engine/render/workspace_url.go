@@ -15,14 +15,22 @@ const (
 	WorkspaceRecordIDParam = "id"
 	WorkspaceEditParam     = "edit"
 	WorkspaceSearchParam   = "q"
+	WorkspaceModelParam    = "model"
+	WorkspaceFilterParam   = "filter"
+	WorkspaceSortParam     = "sort"
+	WorkspaceOffsetParam   = "offset"
+	WorkspaceGroupByParam  = "groupby"
 )
 
 // Workspace view_type values.
 const (
-	ViewModeList   = "list"
-	ViewModeForm   = "form"
-	ViewModeKanban = "kanban"
-	ViewModePivot  = "pivot"
+	ViewModeList     = "list"
+	ViewModeForm     = "form"
+	ViewModeKanban   = "kanban"
+	ViewModePivot    = "pivot"
+	ViewModeGraph    = "graph"
+	ViewModeCalendar = "calendar"
+	ViewModeSearch   = "search"
 )
 
 // WorkspaceQuery is the /web workspace query (empty fields are omitted).
@@ -33,6 +41,11 @@ type WorkspaceQuery struct {
 	ViewType string
 	RecordID string
 	Search   string
+	Model    string
+	Filter   string
+	Sort     string
+	Offset   string
+	GroupBy  string
 }
 
 func setWorkspaceQueryString(query url.Values, param, value string) {
@@ -52,6 +65,11 @@ func (q WorkspaceQuery) values() url.Values {
 	setWorkspaceQueryString(query, WorkspaceViewTypeParam, q.ViewType)
 	setWorkspaceQueryString(query, WorkspaceRecordIDParam, q.RecordID)
 	setWorkspaceQueryString(query, WorkspaceSearchParam, q.Search)
+	setWorkspaceQueryString(query, WorkspaceModelParam, q.Model)
+	setWorkspaceQueryString(query, WorkspaceFilterParam, q.Filter)
+	setWorkspaceQueryString(query, WorkspaceSortParam, q.Sort)
+	setWorkspaceQueryString(query, WorkspaceOffsetParam, q.Offset)
+	setWorkspaceQueryString(query, WorkspaceGroupByParam, q.GroupBy)
 	return query
 }
 

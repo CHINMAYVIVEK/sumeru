@@ -25,17 +25,26 @@ func WebHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	actionID := ResolveWindowActionID(ctx, actionQuery, menuQuery)
-	if redirectIfNoWindowAction(w, r, actionQuery, menuQuery, actionID) {
+	modelQuery := strings.TrimSpace(r.URL.Query().Get(workspaceModelParam))
+
+	var actionData map[string]interface{}
+	var resolved *resolvedWorkspaceView
+	var err error
+	if actionID != 0 {
+		actionData, err = loadWindowAction(ctx, actionID)
+		if err != nil {
+			respondActionNotFound(w, actionID)
+			return
+		}
+		resolved, err = resolveWorkspaceView(ctx, r, actionData)
+	} else if modelQuery != "" {
+		actionData = map[string]interface{}{}
+		resolved, err = resolveWorkspaceByModel(ctx, r, modelQuery)
+	} else if redirectIfNoWindowAction(w, r, actionQuery, menuQuery, actionID) {
+		return
+	} else {
 		return
 	}
-
-	actionData, err := loadWindowAction(ctx, actionID)
-	if err != nil {
-		respondActionNotFound(w, actionID)
-		return
-	}
-
-	resolved, err := resolveWorkspaceView(ctx, r, actionData)
 	if err != nil {
 		http.Error(w, err.Error(), httpStatusFromWorkspaceError(err))
 		return
@@ -102,6 +111,8 @@ func httpStatusFromWorkspaceError(err error) int {
 		return http.StatusBadRequest
 	case strings.Contains(message, workspaceErrNoView), strings.Contains(message, workspaceErrNotFound):
 		return http.StatusNotFound
+	case strings.Contains(message, "access denied"):
+		return http.StatusForbidden
 	default:
 		return http.StatusInternalServerError
 	}

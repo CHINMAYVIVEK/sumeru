@@ -296,6 +296,21 @@
   }
 }
 
+@keyframes sum-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-0.35rem);
+  }
+}
+
+.sum-toast-out {
+  animation: sum-toast-out 0.2s var(--sum-ease) forwards;
+}
+
 .sum-toast--success {
   background: rgba(34, 197, 94, 0.12);
   border-color: rgba(34, 197, 94, 0.35);
@@ -325,6 +340,14 @@
 .sum-toast-body {
   margin: 0;
   line-height: 1.45;
+}
+
+.sum-toast-details {
+  margin: 0.35rem 0 0;
+  max-height: 8rem;
+  overflow: auto;
+  font-size: var(--sum-font-size-sm);
+  white-space: pre-wrap;
 }
 
 .sum-toast-close {

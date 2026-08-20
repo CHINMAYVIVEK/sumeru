@@ -5,9 +5,12 @@ import { fileURLToPath } from "node:url";
 import { compileSumXml } from "./sum-compile.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const outFile = join(__dirname, "../engine/assets/swc/swc.js");
+const swcOutFile = join(__dirname, "../engine/assets/swc/swc.js");
+const passwordToggleOutFile = join(__dirname, "../engine/assets/js/sumeru-password-toggle.js");
+const passwordMatchOutFile = join(__dirname, "../engine/assets/js/sumeru-password-match.js");
 
-mkdirSync(dirname(outFile), { recursive: true });
+mkdirSync(dirname(swcOutFile), { recursive: true });
+mkdirSync(dirname(passwordMatchOutFile), { recursive: true });
 
 const sumXmlPlugin = {
   name: "sum-xml",
@@ -30,7 +33,7 @@ await esbuild.build({
   bundle: true,
   format: "iife",
   globalName: "SumeruSWC",
-  outfile: outFile,
+  outfile: swcOutFile,
   target: "es2022",
   sourcemap: true,
   minify: process.env.NODE_ENV === "production",
@@ -40,4 +43,26 @@ await esbuild.build({
   plugins: [sumXmlPlugin],
 });
 
-console.log(`SWC bundle → ${outFile}`);
+await esbuild.build({
+  entryPoints: [join(__dirname, "src/login/password-toggle.ts")],
+  bundle: true,
+  format: "iife",
+  outfile: passwordToggleOutFile,
+  target: "es2022",
+  sourcemap: true,
+  minify: process.env.NODE_ENV === "production",
+});
+
+await esbuild.build({
+  entryPoints: [join(__dirname, "src/login/password-match-entry.ts")],
+  bundle: true,
+  format: "iife",
+  outfile: passwordMatchOutFile,
+  target: "es2022",
+  sourcemap: true,
+  minify: process.env.NODE_ENV === "production",
+});
+
+console.log(`SWC bundle → ${swcOutFile}`);
+console.log(`Login password toggle → ${passwordToggleOutFile}`);
+console.log(`Login password match → ${passwordMatchOutFile}`);

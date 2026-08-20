@@ -88,8 +88,14 @@ export class RpcService {
     return this.dispatch(model, "unlink", [ids]);
   }
 
-  callMethod(model: string, method: string, recordId: number): Promise<unknown> {
-    return this.dispatch(model, "call", [recordId, method]);
+  callMethod(
+    model: string,
+    method: string,
+    recordId: number,
+    vals?: Record<string, string>,
+  ): Promise<unknown> {
+    const args: unknown[] = vals ? [recordId, method, vals] : [recordId, method];
+    return this.dispatch(model, "call", args);
   }
 
   readGroup(

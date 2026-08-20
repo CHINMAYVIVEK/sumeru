@@ -1,4 +1,4 @@
-/** Ported form UX behaviors (notebook keyboard, M2O dismiss, avatar crop). */
+import { initPasswordMatchGroups } from "../../login/password-match.js";
 
 function onNotebookKeydown(ev: Event): void {
   if (!(ev instanceof KeyboardEvent)) return;
@@ -194,6 +194,7 @@ export function initFormInteractions(root: HTMLElement): () => void {
   cleanups.push(bindMany2OneDismiss(root));
   cleanups.push(bindAvatarUpload(root));
   cleanups.push(bindDateDismiss(root));
+  initPasswordMatchGroups(root);
   return () => {
     for (const fn of cleanups) fn();
   };

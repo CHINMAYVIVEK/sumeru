@@ -1,20 +1,12 @@
 package orm
 
-// SysModuleCategory classifies core.group rows for display (name + sequence).
+import (
+	"sumeru/core/modelmeta"
+)
+
 type SysModuleCategory struct {
-	ID       int    `orm:"id"`
-	Name     string `orm:"name"`
-	Sequence int    `orm:"sequence"`
-}
+	modelmeta.ModelMeta `sumeru:"model=sys.module.category"`
 
-func (SysModuleCategory) ModelName() string { return "sys.module.category" }
-func (SysModuleCategory) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "name", Type: Char, Required: true, Unique: true, String: "Name"},
-		{Name: "sequence", Type: Integer, String: "Sequence"},
-	}
-}
-
-func init() {
-	RegisterModelWithModule(SysModuleCategory{}, "base")
+	Name     modelmeta.String  `sumeru:"required,unique,string=Name"`
+	Sequence modelmeta.Integer `sumeru:"string=Sequence"`
 }

@@ -76,8 +76,5 @@ func rpcCall(ctx context.Context, model string, args json.RawMessage) (interface
 	if err != nil {
 		return nil, err
 	}
-	if redirect != "" {
-		return map[string]interface{}{"redirect": redirect}, nil
-	}
-	return true, nil
+	return orm.EncodeActionResult(redirect), nil
 }

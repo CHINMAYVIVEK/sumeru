@@ -696,8 +696,9 @@ var SumeruSWC = (() => {
       this.invalidateSearchReadCache();
       return this.dispatch(model, "unlink", [ids]);
     }
-    callMethod(model, method, recordId) {
-      return this.dispatch(model, "call", [recordId, method]);
+    callMethod(model, method, recordId, vals) {
+      const args = vals ? [recordId, method, vals] : [recordId, method];
+      return this.dispatch(model, "call", args);
     }
     readGroup(model, domain, fields, groupBy, limit = 80) {
       const spec = {
@@ -760,6 +761,8 @@ var SumeruSWC = (() => {
   };
 
   // src/services/notification.ts
+  var MAX_TOASTS = 5;
+  var EXIT_MS = 250;
   var NotificationService = class {
     stack;
     constructor(stackEl) {
@@ -773,619 +776,116 @@ var SumeruSWC = (() => {
       document.body.appendChild(el);
       return el;
     }
+    success(title, body, details) {
+      this.show({ kind: "success", title, body, details });
+    }
+    error(title, body, details) {
+      this.show({ kind: "error", title, body, details });
+    }
+    warning(title, body, details) {
+      this.show({ kind: "warning", title, body, details });
+    }
     show(msg, timeoutMs = 6e3) {
-      const toast = document.createElement("div");
-      toast.className = `sum-toast sum-toast--${msg.kind || "info"}`;
-      toast.innerHTML = `<strong>${escape(msg.title)}</strong><span>${escape(msg.body)}</span>`;
+      this.capStack();
+      const toast = this.buildToast(msg);
       this.stack.appendChild(toast);
-      window.setTimeout(() => toast.remove(), timeoutMs);
+      this.armTimer(toast, timeoutMs);
     }
     bootstrap(messages) {
       for (const m of messages ?? []) {
         this.show(m);
       }
     }
-  };
-  function escape(s) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-
-  // src/services/action.ts
-  var ActionService = class {
-    constructor(router) {
-      this.router = router;
+    liveToasts() {
+      return [...this.stack.children].filter(
+        (el) => el instanceof HTMLElement && !el.classList.contains("sum-toast-out")
+      );
     }
-    router;
-    navigate(url) {
-      if (url.startsWith("/web?") && this.router) {
-        const q = new URLSearchParams(url.slice(url.indexOf("?") + 1));
-        this.router.push({
-          actionId: Number(q.get("action") ?? "0"),
-          menuId: q.get("menu_id") ?? "",
-          viewType: q.get("view_type") ?? "",
-          recordId: Number(q.get("id") ?? "0"),
-          formEdit: q.get("edit") === "1",
-          listSearch: q.get("q") ?? ""
-        });
-        return;
+    capStack() {
+      const live = this.liveToasts();
+      while (live.length >= MAX_TOASTS) {
+        const oldest = live.shift();
+        if (oldest) this.dismiss(oldest);
       }
-      window.location.assign(url);
     }
-    openWindowAction(actionId, menuId, extra) {
-      const params = new URLSearchParams({ action: String(actionId) });
-      if (menuId) params.set("menu_id", menuId);
-      for (const [k, v] of Object.entries(extra ?? {})) {
-        if (v) params.set(k, v);
+    buildToast(msg) {
+      const toast = document.createElement("div");
+      toast.className = `sum-toast sum-toast--${msg.kind || "info"}`;
+      toast.setAttribute("role", "status");
+      const title = document.createElement("span");
+      title.className = "sum-toast-title";
+      title.textContent = msg.title;
+      const body = document.createElement("p");
+      body.className = "sum-toast-body";
+      body.textContent = msg.body;
+      toast.append(title, body);
+      if (msg.details) {
+        const details = document.createElement("pre");
+        details.className = "sum-toast-details";
+        details.textContent = msg.details;
+        toast.append(details);
       }
-      this.navigate(`/web?${params.toString()}`);
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "sum-toast-close";
+      close.setAttribute("aria-label", "Close");
+      close.textContent = "\xD7";
+      close.addEventListener("click", () => this.dismiss(toast));
+      toast.append(close);
+      return toast;
     }
-    openRecord(_model, actionId, menuId, recordId, viewType = "form") {
-      const params = new URLSearchParams({
-        action: String(actionId),
-        menu_id: menuId,
-        view_type: viewType,
-        id: String(recordId)
+    armTimer(toast, timeoutMs) {
+      let remaining = timeoutMs;
+      let started = Date.now();
+      let timer = window.setTimeout(() => this.dismiss(toast), remaining);
+      toast.addEventListener("mouseenter", () => {
+        window.clearTimeout(timer);
+        remaining -= Date.now() - started;
       });
-      this.navigate(`/web?${params.toString()}`);
+      toast.addEventListener("mouseleave", () => {
+        started = Date.now();
+        timer = window.setTimeout(() => this.dismiss(toast), Math.max(0, remaining));
+      });
     }
-  };
-
-  // src/services/router.ts
-  var RouterService = class {
-    parse(location = window.location) {
-      const q = new URLSearchParams(location.search);
-      return {
-        actionId: Number(q.get("action") ?? "0"),
-        menuId: q.get("menu_id") ?? "",
-        viewType: q.get("view_type") ?? "",
-        recordId: Number(q.get("id") ?? "0"),
-        formEdit: q.get("edit") === "1",
-        listSearch: q.get("q") ?? "",
-        shell: q.get("shell") ?? ""
+    dismiss(toast) {
+      if (!toast.isConnected || toast.classList.contains("sum-toast-out")) return;
+      toast.classList.add("sum-toast-out");
+      let removed = false;
+      const remove = () => {
+        if (removed) return;
+        removed = true;
+        toast.remove();
       };
-    }
-    workspaceUrl(route) {
-      const current = this.parse();
-      const merged = { ...current, ...route };
-      const params = new URLSearchParams();
-      if (merged.actionId) params.set("action", String(merged.actionId));
-      if (merged.menuId) params.set("menu_id", merged.menuId);
-      if (merged.viewType) params.set("view_type", merged.viewType);
-      if (merged.recordId) params.set("id", String(merged.recordId));
-      if (merged.formEdit) params.set("edit", "1");
-      if (merged.listSearch) params.set("q", merged.listSearch);
-      if (merged.shell) params.set("shell", merged.shell);
-      return `/web?${params.toString()}`;
-    }
-    push(route) {
-      const url = this.workspaceUrl(route);
-      window.history.pushState({}, "", url);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      toast.addEventListener("animationend", remove, { once: true });
+      window.setTimeout(remove, EXIT_MS);
     }
   };
 
-  // src/services/bus.ts
-  var BusService = class {
-    handlers = /* @__PURE__ */ new Map();
-    ws = null;
-    subscribe(channel, handler) {
-      if (!this.handlers.has(channel)) {
-        this.handlers.set(channel, /* @__PURE__ */ new Set());
-      }
-      this.handlers.get(channel).add(handler);
-      return () => this.handlers.get(channel)?.delete(handler);
-    }
-    emit(channel, payload) {
-      for (const fn of this.handlers.get(channel) ?? []) {
-        fn(payload);
-      }
-    }
-    /** Connect to /web/swc/bus when bootstrap.busEnabled is true. */
-    connect(url = "/web/swc/bus") {
-      if (this.ws) return;
-      try {
-        const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-        this.ws = new WebSocket(`${proto}//${window.location.host}${url}`);
-        this.ws.addEventListener("message", (ev) => {
-          try {
-            const msg = JSON.parse(String(ev.data));
-            if (msg.channel) this.emit(msg.channel, msg.payload);
-          } catch {
-          }
-        });
-        this.ws.addEventListener("close", () => {
-          this.ws = null;
-        });
-      } catch {
-      }
-    }
-    disconnect() {
-      this.ws?.close();
-      this.ws = null;
-    }
-  };
-
-  // src/services/dialog.ts
-  var DialogService = class {
-    layer = null;
-    confirm(title, body) {
-      return this.open({
-        title,
-        body,
-        buttons: [
-          { label: "Cancel", value: false },
-          { label: "OK", primary: true, value: true }
-        ]
-      });
-    }
-    alert(title, body) {
-      return this.open({
-        title,
-        body,
-        buttons: [{ label: "OK", primary: true, value: true }]
-      }).then(() => void 0);
-    }
-    open(opts) {
-      this.close();
-      return new Promise((resolve) => {
-        const layer = document.createElement("div");
-        layer.className = "sum-dialog-layer";
-        layer.setAttribute("role", "presentation");
-        const dialog = document.createElement("div");
-        dialog.className = "sum-dialog";
-        dialog.setAttribute("role", "dialog");
-        dialog.setAttribute("aria-modal", "true");
-        dialog.setAttribute("aria-labelledby", "sum-dialog-title");
-        const title = document.createElement("h2");
-        title.id = "sum-dialog-title";
-        title.className = "sum-dialog-title";
-        title.textContent = opts.title;
-        const body = document.createElement("p");
-        body.className = "sum-dialog-body";
-        body.textContent = opts.body;
-        const actions = document.createElement("div");
-        actions.className = "sum-dialog-actions";
-        const buttons = opts.buttons ?? [{ label: "Close", primary: true, value: true }];
-        for (const btn of buttons) {
-          const el = document.createElement("button");
-          el.type = "button";
-          el.textContent = btn.label;
-          el.className = "sum-dialog-btn";
-          if (btn.primary) el.classList.add("sum-dialog-btn--primary");
-          if (btn.danger) el.classList.add("sum-dialog-btn--danger");
-          el.addEventListener("click", () => {
-            this.close();
-            resolve(btn.value ?? true);
-          });
-          actions.appendChild(el);
-        }
-        dialog.append(title, body, actions);
-        layer.appendChild(dialog);
-        document.body.appendChild(layer);
-        this.layer = layer;
-        const onKey = (ev) => {
-          if (ev.key === "Escape") {
-            this.close();
-            resolve(false);
-          }
-        };
-        document.addEventListener("keydown", onKey, true);
-        layer.addEventListener(
-          "click",
-          (ev) => {
-            if (ev.target === layer) {
-              this.close();
-              resolve(false);
-            }
-          },
-          true
-        );
-        layer.addEventListener(
-          "remove",
-          () => document.removeEventListener("keydown", onKey, true),
-          { once: true }
-        );
-        actions.querySelector("button")?.focus();
-      });
-    }
-    close() {
-      this.layer?.remove();
-      this.layer = null;
-    }
-  };
-
-  // src/runtime/registry.ts
-  var Registry = class {
-    entries = /* @__PURE__ */ new Map();
-    category(name) {
-      if (!this.entries.has(name)) {
-        this.entries.set(name, /* @__PURE__ */ new Map());
-      }
-      return new CategoryRegistry(this.entries.get(name));
-    }
-    get(category, key) {
-      return this.entries.get(category)?.get(key);
-    }
-  };
-  var CategoryRegistry = class {
-    constructor(map) {
-      this.map = map;
-    }
-    map;
-    add(key, value) {
-      this.map.set(key, value);
-    }
-    get(key) {
-      return this.map.get(key);
-    }
-    keys() {
-      return [...this.map.keys()];
-    }
-  };
-  var registry = new Registry();
-
-  // src/services/service-registry.ts
-  function registerCoreServices(services) {
-    const cat = registry.category("services");
-    for (const [key, svc] of Object.entries(services)) {
-      cat.add(key, svc);
-    }
-  }
-
-  // src/views/shared/view-toolbar.ts
-  function linkButton(href, label, className = "sum-btn sum-btn--secondary") {
-    const a = document.createElement("a");
-    a.className = className;
-    a.href = href;
-    a.textContent = label;
-    return a;
-  }
-  function visibleFieldNames(fields) {
-    return fields.map((f) => f.name).filter(Boolean).join(",");
-  }
-  function newRecordUrl(payload) {
-    const params = new URLSearchParams();
-    if (payload.actionId > 0) params.set("action", String(payload.actionId));
-    if (payload.menuId) params.set("menu_id", payload.menuId);
-    params.set("view_type", "form");
-    return `/web?${params.toString()}`;
-  }
-  function exportQuery(payload, fields, recordId = 0) {
-    const params = new URLSearchParams();
-    params.set("model", payload.model);
-    if (payload.actionId > 0) params.set("action", String(payload.actionId));
-    if (fields) params.set("fields", fields);
-    if (recordId > 0) params.set("id", String(recordId));
-    return params;
-  }
-  function renderSearchField(value, onSearch, onInput) {
-    return html`
-    <div class="sum-list-search-wrap">
-      <span class="sum-list-search-icon" aria-hidden="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="7" />
-          <path d="M20 20l-3-3" />
-        </svg>
-      </span>
-      <input
-        type="search"
-        class="sum-list-search"
-        placeholder="Search…"
-        value=${value}
-        @keydown=${(ev) => ev.key === "Enter" && onSearch()}
-        @input=${(ev) => onInput(ev.target.value)}
-      />
-    </div>
-  `;
-  }
-  function renderNewButton(payload) {
-    return linkButton(newRecordUrl(payload), "New", "sum-btn sum-list-btn-new");
-  }
-  function toolbarButton(label, className, onClick, disabled = false) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = className;
-    btn.textContent = label;
-    btn.disabled = disabled;
-    btn.addEventListener("click", onClick);
-    return btn;
-  }
-  function resolveHeaderButtonClass(archClass) {
-    const base = "sum-header-btn";
-    if (archClass?.includes("sum_highlight")) {
-      return `${base} sum-header-btn--primary`;
-    }
-    return `${base} sum-header-btn--secondary`;
-  }
-  function headerButton(label, archClass, onClick, disabled = false) {
-    const className = disabled ? `${resolveHeaderButtonClass(archClass)} sum-header-btn--disabled` : resolveHeaderButtonClass(archClass);
-    return toolbarButton(label, className, onClick, disabled);
-  }
-  function renderReportActions(payload, fields, recordId = 0) {
-    const report = payload.arch.report;
-    if (!report?.download && !report?.upload) return null;
-    const exportParams = exportQuery(payload, fields, recordId);
-    const items = [];
-    if (report.download) {
-      items.push(linkButton(`/web/export/csv?${exportParams.toString()}`, "Export CSV"));
-      items.push(linkButton(`/web/export/pdf?${exportParams.toString()}`, "Export PDF"));
-    }
-    if (report.upload && fields) {
-      const templateParams = new URLSearchParams(exportParams);
-      items.push(linkButton(`/web/bulk/template?${templateParams.toString()}`, "Download template"));
-      items.push(
-        html`<form class="sum-list-upload-form" method="post" enctype="multipart/form-data" action="/web/bulk/upload">
-        <input type="hidden" name="csrf_token" value=${payload.csrfToken} />
-        <input type="hidden" name="model" value=${payload.model} />
-        ${payload.actionId > 0 ? html`<input type="hidden" name="action" value=${String(payload.actionId)} />` : ""}
-        <input type="hidden" name="fields" value=${fields} />
-        <label class="sum-btn sum-btn--secondary sum-list-upload-label">
-          Import CSV
-          <input type="file" name="file" accept=".csv,text/csv" class="sum-list-upload-input" @change=${(ev) => ev.target.form?.requestSubmit()} />
-        </label>
-      </form>`
-      );
-    }
-    if (items.length === 0) return null;
-    const wrap = document.createElement("div");
-    wrap.className = "sum-view-toolbar-actions";
-    for (const item of items) {
-      wrap.appendChild(item instanceof HTMLElement ? item : item.render());
-    }
-    return wrap;
-  }
-
-  // src/views/list/control-panel.ts
-  function renderControlPanel(opts) {
-    const { payload, state, onPage } = opts;
-    const rows = payload.records ?? [];
-    const total = payload.listTotal ?? rows.length;
-    const page = Math.floor(state.offset / state.limit) + 1;
-    const pageCount = Math.max(1, Math.ceil(total / state.limit));
-    const showPager = pageCount > 1 || state.offset > 0;
-    if (!showPager) return html``;
-    return html`
-    <div class="sum-list-control sum-list-control--secondary">
-      <div class="sum-list-pager">
-        <button
-          type="button"
-          class="sum-btn sum-btn--ghost"
-          disabled=${state.offset <= 0 ? "disabled" : void 0}
-          @click=${() => onPage(Math.max(0, state.offset - state.limit))}
-        >
-          Prev
-        </button>
-        <span>${page} / ${pageCount}</span>
-        <button
-          type="button"
-          class="sum-btn sum-btn--ghost"
-          disabled=${state.offset + state.limit >= total ? "disabled" : void 0}
-          @click=${() => onPage(state.offset + state.limit)}
-        >
-          Next
-        </button>
-      </div>
-    </div>
-  `;
-  }
-  function renderRowCheckbox(id, selected, onToggle) {
-    return html`<td class="sum-list-select-cell" @click=${(ev) => ev.stopPropagation()}>
-    <input
-      type="checkbox"
-      checked=${selected ? "checked" : void 0}
-      @change=${(ev) => onToggle(id, ev.target.checked)}
-    />
-  </td>`;
-  }
-  function renderSelectAllHeader(allSelected, onToggleAll) {
-    return html`<th class="sum-list-select-head">
-    <input
-      type="checkbox"
-      title="Select all"
-      checked=${allSelected ? "checked" : void 0}
-      @change=${(ev) => onToggleAll(ev.target.checked)}
-    />
-  </th>`;
-  }
-
-  // src/template/helpers.ts
-  function keyedResult(key, result) {
-    return {
-      render() {
-        const el = result.render();
-        el.dataset.swcKey = key;
-        return el;
-      }
-    };
-  }
-  function forEach(items, keyFn, renderFn) {
-    return items.map((item, index) => keyedResult(String(keyFn(item, index)), renderFn(item, index)));
-  }
-
-  // src/views/list/ListView.ts
-  var ListView = class extends SwcComponent {
-    panelState = {
-      search: "",
-      offset: 0,
-      limit: 40,
-      selectedIds: /* @__PURE__ */ new Set()
-    };
-    setup() {
-      this.panelState.search = this.props.payload.listSearch ?? "";
-      const [, bump] = useState(0);
-      this.bump = () => bump((n) => n + 1);
-    }
-    onPropsChanged(props) {
-      this.panelState.search = props.payload.listSearch ?? "";
-      this.panelState.offset = 0;
-      this.panelState.selectedIds = /* @__PURE__ */ new Set();
-    }
-    bump = null;
-    columns() {
-      return this.props.payload.arch.fields.filter((f) => !f.invisible);
-    }
-    allRows() {
-      let rows = [...this.props.payload.records ?? []];
-      const order = this.panelState.order;
-      if (order) {
-        const desc = order.startsWith("-");
-        const field = desc ? order.slice(1) : order;
-        rows.sort((a, b) => {
-          const av = String(a[field] ?? "");
-          const bv = String(b[field] ?? "");
-          return desc ? bv.localeCompare(av) : av.localeCompare(bv);
-        });
-      }
-      return rows;
-    }
-    pageRows() {
-      const rows = this.allRows();
-      const start = this.panelState.offset;
-      return rows.slice(start, start + this.panelState.limit);
-    }
-    applySearch() {
-      this.panelState.offset = 0;
-      const p = this.props.payload;
-      const url = this.env.services.router.workspaceUrl({
-        actionId: p.actionId,
-        menuId: p.menuId,
-        viewType: "list",
-        listSearch: this.panelState.search
-      });
-      this.env.services.action.navigate(url);
-    }
-    applyPage(offset) {
-      this.panelState.offset = offset;
-      this.bump?.();
-    }
-    openRow(row) {
-      const id = Number(row.id ?? 0);
-      if (id <= 0) return;
-      this.env.services.action.openRecord(
-        this.props.payload.model,
-        this.props.payload.actionId,
-        this.props.payload.menuId,
-        id,
-        "form"
-      );
-    }
-    toggleRow(id, checked) {
-      if (checked) this.panelState.selectedIds.add(id);
-      else this.panelState.selectedIds.delete(id);
-      this.bump?.();
-    }
-    toggleAll(checked, ids) {
-      this.panelState.selectedIds = checked ? new Set(ids) : /* @__PURE__ */ new Set();
-      this.bump?.();
-    }
-    async bulkDelete() {
-      const ids = [...this.panelState.selectedIds];
-      if (ids.length === 0) return;
-      const ok = await this.env.services.dialog.confirm(
-        "Delete records",
-        `Delete ${ids.length} selected record(s)?`
-      );
-      if (!ok) return;
-      await this.env.services.rpc.unlink(this.props.payload.model, ids);
-      this.panelState.selectedIds = /* @__PURE__ */ new Set();
-      this.env.services.notification.show({
-        kind: "success",
-        title: "Deleted",
-        body: `${ids.length} record(s) removed.`
-      });
-      this.applySearch();
-    }
-    patch() {
-      const tbody = this.el?.querySelector("tbody");
-      if (tbody) {
-        const rows = this.pageRows();
-        const cols = this.columns();
-        patchKeyedChildren(
-          tbody,
-          rows.map((row) => ({
-            key: String(row.id ?? 0),
-            render: () => {
-              const id = Number(row.id ?? 0);
-              return html`<tr class="sum-list-row sum-list-row--click" @click=${() => this.openRow(row)}>
-              ${renderRowCheckbox(
-                id,
-                this.panelState.selectedIds.has(id),
-                (rid, checked) => this.toggleRow(rid, checked)
-              )}
-              ${cols.map((c) => {
-                const display = row[`${c.name}_name`] ?? row[c.name];
-                return html`<td class="sum-list-td">${String(display ?? "")}</td>`;
-              })}
-            </tr>`.render();
-            }
-          }))
-        );
-        return;
-      }
-      super.patch();
-    }
-    template() {
-      const p = this.props.payload;
-      const cols = this.columns();
-      const rows = this.pageRows();
-      const allRows = this.allRows();
-      const fields = visibleFieldNames(cols);
-      const reportActions = renderReportActions(p, fields);
-      const ids = allRows.map((r) => Number(r.id ?? 0)).filter((id) => id > 0);
-      const allSelected = ids.length > 0 && ids.every((id) => this.panelState.selectedIds.has(id));
-      return html`
-      <div class="sum-list-view">
-        <div class="sum-view-toolbar sum-list-toolbar">
-          <div class="sum-view-toolbar-primary">
-            ${renderNewButton(p)}
-            ${renderSearchField(
-        this.panelState.search,
-        () => this.applySearch(),
-        (next) => {
-          this.panelState.search = next;
-        }
-      )}
-            ${this.panelState.selectedIds.size > 0 ? html`<button type="button" class="sum-btn sum-btn--danger" @click=${() => void this.bulkDelete()}>
-                  Delete (${this.panelState.selectedIds.size})
-                </button>` : ""}
-          </div>
-          ${reportActions ?? ""}
-        </div>
-        ${renderControlPanel({
-        payload: { ...p, records: allRows },
-        state: this.panelState,
-        onPage: (o) => this.applyPage(o)
-      })}
-        <div class="sum-list-table-wrap">
-          <table class="sum-list-table">
-            <thead>
-              <tr>
-                ${renderSelectAllHeader(allSelected, (checked) => this.toggleAll(checked, ids))}
-                ${cols.map((c) => html`<th class="sum-list-th">${c.string ?? c.name}</th>`)}
-              </tr>
-            </thead>
-            <tbody>
-              ${forEach(rows, (row) => Number(row.id ?? 0), (row) => {
-        const id = Number(row.id ?? 0);
-        return html`<tr class="sum-list-row sum-list-row--click" @click=${() => this.openRow(row)}>
-                  ${renderRowCheckbox(
-          id,
-          this.panelState.selectedIds.has(id),
-          (rid, checked) => this.toggleRow(rid, checked)
-        )}
-                  ${cols.map((c) => {
-          const display = row[`${c.name}_name`] ?? row[c.name];
-          return html`<td class="sum-list-td">${String(display ?? "")}</td>`;
-        })}
-                </tr>`;
-      })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-    }
-  };
+  // src/constants/routes.ts
+  var WEB_ROUTE = "/web";
+  var SWC_API_BASE = "/web/swc";
+  var Q_ACTION = "action";
+  var Q_MENU_ID = "menu_id";
+  var Q_VIEW_TYPE = "view_type";
+  var Q_RECORD_ID = "id";
+  var Q_EDIT = "edit";
+  var Q_SEARCH = "q";
+  var Q_SHELL = "shell";
+  var Q_MODEL = "model";
+  var Q_FILTER = "filter";
+  var Q_SORT = "sort";
+  var Q_OFFSET = "offset";
+  var Q_GROUPBY = "groupby";
+  var EDIT_ENABLED = "1";
+  var VIEW_LIST = "list";
+  var VIEW_FORM = "form";
+  var VIEW_KANBAN = "kanban";
+  var RECORD_UPDATED = "record.updated";
+  var ACTION_CLOSED = "action.closed";
+  var EXPORT_CSV_ROUTE = "/web/export/csv";
+  var EXPORT_PDF_ROUTE = "/web/export/pdf";
+  var BULK_TEMPLATE_ROUTE = "/web/bulk/template";
+  var BULK_UPLOAD_ROUTE = "/web/bulk/upload";
 
   // src/model/record.ts
   var SwcRecord = class {
@@ -1491,6 +991,208 @@ var SumeruSWC = (() => {
       }
     }
   };
+
+  // src/services/router.ts
+  var RouterService = class _RouterService {
+    static searchParams(route) {
+      const params = new URLSearchParams();
+      if (route.actionId) params.set(Q_ACTION, String(route.actionId));
+      if (route.menuId) params.set(Q_MENU_ID, route.menuId);
+      if (route.viewType) params.set(Q_VIEW_TYPE, route.viewType);
+      if (route.recordId) params.set(Q_RECORD_ID, String(route.recordId));
+      if (route.formEdit) params.set(Q_EDIT, EDIT_ENABLED);
+      if (route.listSearch) params.set(Q_SEARCH, route.listSearch);
+      if (route.model) params.set(Q_MODEL, route.model);
+      if (route.listFilter) params.set(Q_FILTER, route.listFilter);
+      if (route.listSort) params.set(Q_SORT, route.listSort);
+      if (route.listOffset) params.set(Q_OFFSET, String(route.listOffset));
+      if (route.listGroupBy) params.set(Q_GROUPBY, route.listGroupBy);
+      if (route.shell) params.set(Q_SHELL, route.shell);
+      return params;
+    }
+    static buildUrl(route) {
+      return `${WEB_ROUTE}?${_RouterService.searchParams(route).toString()}`;
+    }
+    parse(location = window.location) {
+      const q = new URLSearchParams(location.search);
+      return {
+        actionId: Number(q.get(Q_ACTION) ?? "0"),
+        menuId: q.get(Q_MENU_ID) ?? "",
+        viewType: q.get(Q_VIEW_TYPE) ?? "",
+        recordId: Number(q.get(Q_RECORD_ID) ?? "0"),
+        formEdit: q.get(Q_EDIT) === EDIT_ENABLED,
+        listSearch: q.get(Q_SEARCH) ?? "",
+        model: q.get(Q_MODEL) ?? "",
+        listFilter: q.get(Q_FILTER) ?? "",
+        listSort: q.get(Q_SORT) ?? "",
+        listOffset: Number(q.get(Q_OFFSET) ?? "0"),
+        listGroupBy: q.get(Q_GROUPBY) ?? "",
+        shell: q.get(Q_SHELL) ?? ""
+      };
+    }
+    workspaceUrl(route) {
+      return _RouterService.buildUrl({ ...this.parse(), ...route });
+    }
+    push(route) {
+      const url = this.workspaceUrl(route);
+      window.history.pushState({}, "", url);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
+    /** Replace the workspace query with an absolute route (no merge with current). */
+    assign(route) {
+      const url = _RouterService.buildUrl(route);
+      window.history.pushState({}, "", url);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
+  };
+
+  // src/views/shared/view-toolbar.ts
+  function linkButton(href, label, className = "sum-btn sum-btn--secondary") {
+    const a = document.createElement("a");
+    a.className = className;
+    a.href = href;
+    a.textContent = label;
+    return a;
+  }
+  function visibleFieldNames(fields) {
+    return fields.map((f) => f.name).filter(Boolean).join(",");
+  }
+  function newRecordUrl(payload) {
+    return RouterService.buildUrl({
+      actionId: payload.actionId,
+      menuId: payload.menuId,
+      viewType: VIEW_FORM
+    });
+  }
+  function exportQuery(payload, fields, recordId = 0) {
+    const params = new URLSearchParams();
+    params.set("model", payload.model);
+    if (payload.actionId > 0) params.set("action", String(payload.actionId));
+    if (fields) params.set("fields", fields);
+    if (recordId > 0) params.set("id", String(recordId));
+    return params;
+  }
+  function renderSearchField(value, onSearch, onInput) {
+    return html`
+    <div class="sum-list-search-wrap">
+      <span class="sum-list-search-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3-3" />
+        </svg>
+      </span>
+      <input
+        type="search"
+        class="sum-list-search"
+        placeholder="Search…"
+        value=${value}
+        @keydown=${(ev) => ev.key === "Enter" && onSearch()}
+        @input=${(ev) => onInput(ev.target.value)}
+      />
+    </div>
+  `;
+  }
+  function renderNewButton(payload) {
+    return linkButton(newRecordUrl(payload), "New", "sum-btn sum-list-btn-new");
+  }
+  function renderCollectionToolbar(opts) {
+    const fields = visibleFieldNames((opts.payload.arch.fields ?? []).filter((f) => !f.invisible));
+    const reportActions = renderReportActions(opts.payload, fields);
+    const toolbarClass = opts.viewType === VIEW_KANBAN ? "sum-kanban-report-bar" : "sum-list-toolbar";
+    return html`
+    <div class="sum-view-toolbar ${toolbarClass}">
+      <div class="sum-view-toolbar-primary">
+        ${renderNewButton(opts.payload)}
+        ${renderSearchField(opts.search, opts.onSearch, opts.onInput)}
+        ${opts.extraPrimary ?? ""}
+      </div>
+      ${reportActions ?? ""}
+    </div>
+  `;
+  }
+  function toolbarButton(label, className, onClick, disabled = false) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = className;
+    btn.textContent = label;
+    btn.disabled = disabled;
+    btn.addEventListener("click", onClick);
+    return btn;
+  }
+  function resolveHeaderButtonClass(archClass) {
+    const base = "sum-header-btn";
+    if (archClass?.includes("sum_highlight")) {
+      return `${base} sum-header-btn--primary`;
+    }
+    return `${base} sum-header-btn--secondary`;
+  }
+  function headerButton(label, archClass, onClick, disabled = false) {
+    const className = disabled ? `${resolveHeaderButtonClass(archClass)} sum-header-btn--disabled` : resolveHeaderButtonClass(archClass);
+    return toolbarButton(label, className, onClick, disabled);
+  }
+  function renderReportActions(payload, fields, recordId = 0) {
+    const report = payload.arch.report;
+    if (!report?.download && !report?.upload) return null;
+    const exportParams = exportQuery(payload, fields, recordId);
+    const items = [];
+    if (report.download) {
+      items.push(linkButton(`${EXPORT_CSV_ROUTE}?${exportParams.toString()}`, "Export CSV"));
+      items.push(linkButton(`${EXPORT_PDF_ROUTE}?${exportParams.toString()}`, "Export PDF"));
+    }
+    if (report.upload && fields) {
+      const templateParams = new URLSearchParams(exportParams);
+      items.push(linkButton(`${BULK_TEMPLATE_ROUTE}?${templateParams.toString()}`, "Download template"));
+      items.push(
+        html`<form class="sum-list-upload-form" method="post" enctype="multipart/form-data" action=${BULK_UPLOAD_ROUTE}>
+        <input type="hidden" name="csrf_token" value=${payload.csrfToken} />
+        <input type="hidden" name="model" value=${payload.model} />
+        ${payload.actionId > 0 ? html`<input type="hidden" name="action" value=${String(payload.actionId)} />` : ""}
+        <input type="hidden" name="fields" value=${fields} />
+        <label class="sum-btn sum-btn--secondary sum-list-upload-label">
+          Import CSV
+          <input type="file" name="file" accept=".csv,text/csv" class="sum-list-upload-input" @change=${(ev) => ev.target.form?.requestSubmit()} />
+        </label>
+      </form>`
+      );
+    }
+    if (items.length === 0) return null;
+    const wrap = document.createElement("div");
+    wrap.className = "sum-view-toolbar-actions";
+    for (const item of items) {
+      wrap.appendChild(item instanceof HTMLElement ? item : item.render());
+    }
+    return wrap;
+  }
+
+  // src/runtime/registry.ts
+  var Registry = class {
+    entries = /* @__PURE__ */ new Map();
+    category(name) {
+      if (!this.entries.has(name)) {
+        this.entries.set(name, /* @__PURE__ */ new Map());
+      }
+      return new CategoryRegistry(this.entries.get(name));
+    }
+    get(category, key) {
+      return this.entries.get(category)?.get(key);
+    }
+  };
+  var CategoryRegistry = class {
+    constructor(map) {
+      this.map = map;
+    }
+    map;
+    add(key, value) {
+      this.map.set(key, value);
+    }
+    get(key) {
+      return this.map.get(key);
+    }
+    keys() {
+      return [...this.map.keys()];
+    }
+  };
+  var registry = new Registry();
 
   // src/widgets/field-shell.ts
   function fieldInputId(field) {
@@ -2799,6 +2501,16 @@ var SumeruSWC = (() => {
       return super.template();
     }
   };
+  var HandleField = class extends SwcComponent {
+    template() {
+      const { field } = this.props;
+      return renderFieldShell(
+        field,
+        html`<span class="sum-handle-grip" title="Reorder" aria-hidden="true">⋮⋮</span>`,
+        { labelFor: false }
+      );
+    }
+  };
 
   // src/widgets/registry.ts
   function registerDefaultWidgets() {
@@ -2833,45 +2545,55 @@ var SumeruSWC = (() => {
     add("color", ColorField);
     add("url", UrlField);
     add("progress", ProgressField);
+    add("handle", HandleField);
   }
+  var WIDGET_MAP = {
+    many2many_tags: "many2many_tags",
+    boolean_toggle: "boolean_toggle",
+    radio: "radio",
+    phone: "phone",
+    image: "image",
+    selection: "selection",
+    email: "email",
+    statusbar: "statusbar",
+    priority: "priority",
+    monetary: "monetary",
+    html: "html",
+    binary: "binary",
+    reference: "reference",
+    color: "color",
+    url: "url",
+    progressbar: "progress",
+    progress: "progress",
+    handle: "handle"
+  };
+  var TYPE_MAP = {
+    boolean: "boolean",
+    text: "text",
+    many2one: "many2one",
+    one2many: "one2many",
+    many2many: "many2many_tags",
+    selection: "selection",
+    date: "date",
+    datetime: "datetime",
+    integer: "integer",
+    float: "float",
+    numeric: "numeric"
+  };
   function resolveFieldWidget(field) {
-    if (field.widget === "many2many_tags") return "many2many_tags";
-    if (field.widget === "boolean_toggle") return "boolean_toggle";
-    if (field.widget === "radio") return "radio";
-    if (field.widget === "phone") return "phone";
-    if (field.widget === "image") return "image";
-    if (field.widget === "selection") return "selection";
-    if (field.widget === "email") return "email";
-    if (field.widget === "statusbar") return "statusbar";
-    if (field.widget === "priority") return "priority";
-    if (field.type === "boolean" && field.widget === "radio") return "radio";
-    if (field.widget === "image") return "image";
-    if (field.widget === "monetary") return "monetary";
-    if (field.widget === "html") return "html";
-    if (field.widget === "binary") return "binary";
-    if (field.widget === "reference") return "reference";
-    if (field.widget === "color") return "color";
-    if (field.widget === "url") return "url";
-    if (field.widget === "progressbar" || field.widget === "progress") return "progress";
-    if (field.type === "boolean") return "boolean";
-    if (field.type === "text") return "text";
-    if (field.type === "many2one") return "many2one";
-    if (field.type === "one2many") return "one2many";
-    if (field.type === "many2many") return "many2many_tags";
-    if (field.type === "selection") return "selection";
-    if (field.type === "date") return "date";
-    if (field.type === "datetime") return "datetime";
-    if (field.type === "integer" || field.type === "float" || field.type === "numeric") {
-      return field.type;
-    }
+    if (field.widget && WIDGET_MAP[field.widget]) return WIDGET_MAP[field.widget];
+    if (field.type && TYPE_MAP[field.type]) return TYPE_MAP[field.type];
     return field.widget ?? field.type ?? "default";
   }
-  function renderField(env, field, record, readonly) {
+  function instantiateFieldWidget(env, field, record, readonly) {
     const key = resolveFieldWidget(field);
     const Ctor = registry.get("fields", key) ?? registry.get("fields", "default");
     const comp = new Ctor({ field, record, readonly }, env);
     comp.setup?.();
-    return comp.render();
+    return comp;
+  }
+  function renderField(env, field, record, readonly) {
+    return instantiateFieldWidget(env, field, record, readonly).render();
   }
 
   // src/views/form/form-sheet.ts
@@ -3203,6 +2925,110 @@ var SumeruSWC = (() => {
     return html`<div class="sum-form-sheet">${parts}</div>`;
   }
 
+  // src/login/password-match.ts
+  var DEFAULT_MESSAGE = "Passwords do not match.";
+  function resolveHint(confirm, hint) {
+    if (hint) {
+      return hint;
+    }
+    const el = document.createElement("p");
+    el.className = "sum-field-hint";
+    el.setAttribute("role", "alert");
+    el.setAttribute("aria-live", "polite");
+    el.hidden = true;
+    const field = confirm.closest(".field, .sum-field-widget");
+    if (field) {
+      field.appendChild(el);
+    } else {
+      confirm.insertAdjacentElement("afterend", el);
+    }
+    return el;
+  }
+  function showMismatch(password, confirm, hint, message) {
+    hint.textContent = message;
+    hint.hidden = false;
+    hint.classList.add("sum-field-hint--error");
+    password.classList.add("sum-input-invalid");
+    confirm.classList.add("sum-input-invalid");
+    confirm.setAttribute("aria-invalid", "true");
+  }
+  function clearMismatch(password, confirm, hint) {
+    hint.textContent = "";
+    hint.hidden = true;
+    hint.classList.remove("sum-field-hint--error");
+    password.classList.remove("sum-input-invalid");
+    confirm.classList.remove("sum-input-invalid");
+    confirm.removeAttribute("aria-invalid");
+  }
+  function bindPasswordMatch(options) {
+    const { password, confirm, message = DEFAULT_MESSAGE } = options;
+    const hint = resolveHint(confirm, options.hint);
+    const evaluate = () => {
+      if (!confirm.value && !password.value) {
+        clearMismatch(password, confirm, hint);
+        return true;
+      }
+      if (password.value !== confirm.value) {
+        showMismatch(password, confirm, hint, message);
+        return false;
+      }
+      clearMismatch(password, confirm, hint);
+      return true;
+    };
+    const onInput = () => {
+      evaluate();
+    };
+    password.addEventListener("input", onInput);
+    confirm.addEventListener("input", onInput);
+    password.addEventListener("blur", onInput);
+    confirm.addEventListener("blur", onInput);
+    return {
+      isValid: evaluate,
+      destroy: () => {
+        password.removeEventListener("input", onInput);
+        confirm.removeEventListener("input", onInput);
+        password.removeEventListener("blur", onInput);
+        confirm.removeEventListener("blur", onInput);
+      }
+    };
+  }
+  function validatePasswordMatchGroups(root = document) {
+    let ok = true;
+    root.querySelectorAll("[data-password-match]").forEach((group) => {
+      const password = group.querySelector("[data-password-primary]");
+      const confirm = group.querySelector("[data-password-confirm]");
+      if (!password || !confirm) {
+        return;
+      }
+      if (!password.value && !confirm.value) {
+        return;
+      }
+      if (password.value !== confirm.value) {
+        const hint = group.querySelector("[data-password-match-hint]");
+        if (hint) {
+          showMismatch(password, confirm, hint, DEFAULT_MESSAGE);
+        }
+        ok = false;
+      }
+    });
+    return ok;
+  }
+  function initPasswordMatchGroups(root = document) {
+    root.querySelectorAll("[data-password-match]").forEach((group) => {
+      if (group.dataset.passwordMatchBound === "1") {
+        return;
+      }
+      const password = group.querySelector("[data-password-primary]");
+      const confirm = group.querySelector("[data-password-confirm]");
+      if (!password || !confirm) {
+        return;
+      }
+      const hint = group.querySelector("[data-password-match-hint]");
+      bindPasswordMatch({ password, confirm, hint });
+      group.dataset.passwordMatchBound = "1";
+    });
+  }
+
   // src/views/form/form-interactions.ts
   function onNotebookKeydown(ev) {
     if (!(ev instanceof KeyboardEvent)) return;
@@ -3374,6 +3200,7 @@ var SumeruSWC = (() => {
     cleanups.push(bindMany2OneDismiss(root));
     cleanups.push(bindAvatarUpload(root));
     cleanups.push(bindDateDismiss(root));
+    initPasswordMatchGroups(root);
     return () => {
       for (const fn of cleanups) fn();
     };
@@ -3394,9 +3221,7 @@ var SumeruSWC = (() => {
         return prev.comp.render();
       }
       prev?.comp.destroy();
-      const Ctor = registry.get("fields", widget) ?? registry.get("fields", "default");
-      const comp = new Ctor({ field, record, readonly }, this.env);
-      comp.setup?.();
+      const comp = instantiateFieldWidget(this.env, field, record, readonly);
       this.entries.set(key, { comp, readonly, widget });
       return comp.render();
     }
@@ -3433,7 +3258,7 @@ var SumeruSWC = (() => {
       this.loading = true;
       this.bump?.();
       try {
-        const base = this.env.bootstrap.swcApiBase || "/web/swc";
+        const base = this.env.bootstrap.swcApiBase || SWC_API_BASE;
         const data = await this.env.services.http.getJSON(
           `${base}/chatter?model=${encodeURIComponent(model)}&id=${recordId}`
         );
@@ -3459,7 +3284,7 @@ var SumeruSWC = (() => {
         });
         this.draft = "";
         await this.load();
-        this.env.services.bus.emit("record.updated", {
+        this.env.services.bus.emit(RECORD_UPDATED, {
           model: this.props.model,
           id: this.props.recordId
         });
@@ -3600,11 +3425,7 @@ var SumeruSWC = (() => {
       if (this.isReadonly()) return;
       const result = await this.recordStore.applyOnchange(this.record, field);
       if (result?.warning) {
-        this.env.services.notification.show({
-          kind: "warning",
-          title: result.warning.title,
-          body: result.warning.message
-        });
+        this.env.services.notification.warning(result.warning.title, result.warning.message);
       }
       this.fieldHost.clear();
       this.bump?.();
@@ -3641,7 +3462,7 @@ var SumeruSWC = (() => {
         const url = this.env.services.router.workspaceUrl({
           actionId: p.actionId,
           menuId: p.menuId,
-          viewType: "list",
+          viewType: VIEW_LIST,
           recordId: 0,
           formEdit: false
         });
@@ -3666,6 +3487,11 @@ var SumeruSWC = (() => {
       this.bump?.();
     }
     async save() {
+      if (this.el && !validatePasswordMatchGroups(this.el)) {
+        this.error = "Passwords do not match.";
+        this.bump?.();
+        return;
+      }
       this.saving = true;
       this.error = "";
       this.bump?.();
@@ -3673,21 +3499,27 @@ var SumeruSWC = (() => {
         const required = this.fields().filter((f) => f.required).map((f) => f.name);
         this.recordStore.validate(this.record, required);
         const id = await this.recordStore.save(this.record);
-        this.env.services.notification.show({
-          kind: "success",
-          title: "Saved",
-          body: "Record saved successfully."
-        });
+        this.env.services.notification.success("Saved", "Record saved successfully.");
         const p = this.props.payload;
         if (p.recordId <= 0 && id > 0) {
-          this.env.services.action.openRecord(p.model, p.actionId, p.menuId, id, "form");
+          this.env.services.action.openRecord({
+            actionId: p.actionId,
+            menuId: p.menuId,
+            recordId: id,
+            viewType: VIEW_FORM
+          });
           return;
         }
         this.snapshot = { ...this.record.data };
         this.editing = false;
         this.bump?.();
       } catch (err) {
-        this.error = err instanceof SwcError ? err.message : String(err);
+        const message = err instanceof SwcError ? err.message : String(err);
+        if (err instanceof SwcError && err.code === "validation") {
+          this.error = message;
+        } else {
+          this.env.services.notification.error("Save failed", message);
+        }
       } finally {
         this.saving = false;
         this.bump?.();
@@ -3698,22 +3530,42 @@ var SumeruSWC = (() => {
       if (p.recordId <= 0) return;
       const ok = await this.env.services.dialog.confirm("Delete record", "This cannot be undone.");
       if (!ok) return;
-      await this.recordStore.unlink(this.record);
-      this.env.services.notification.show({ kind: "success", title: "Deleted", body: "Record deleted." });
-      this.env.services.action.navigate(
-        this.env.services.router.workspaceUrl({
-          actionId: p.actionId,
-          menuId: p.menuId,
-          viewType: "list",
-          recordId: 0
-        })
-      );
+      try {
+        await this.recordStore.unlink(this.record);
+        this.env.services.notification.success("Deleted", "Record deleted.");
+        this.env.services.action.navigate(
+          this.env.services.router.workspaceUrl({
+            actionId: p.actionId,
+            menuId: p.menuId,
+            viewType: VIEW_LIST,
+            recordId: 0
+          })
+        );
+      } catch (err) {
+        this.env.services.notification.error(
+          "Delete failed",
+          err instanceof SwcError ? err.message : String(err)
+        );
+      }
     }
     async duplicateRecord() {
       const p = this.props.payload;
       if (p.recordId <= 0) return;
-      const newId = await this.recordStore.duplicate(this.record);
-      this.env.services.action.openRecord(p.model, p.actionId, p.menuId, newId, "form");
+      try {
+        const newId = await this.recordStore.duplicate(this.record);
+        this.env.services.notification.success("Duplicated", "Record duplicated.");
+        this.env.services.action.openRecord({
+          actionId: p.actionId,
+          menuId: p.menuId,
+          recordId: newId,
+          viewType: VIEW_FORM
+        });
+      } catch (err) {
+        this.env.services.notification.error(
+          "Duplicate failed",
+          err instanceof SwcError ? err.message : String(err)
+        );
+      }
     }
     async runObjectButton(btn) {
       const p = this.props.payload;
@@ -3723,18 +3575,16 @@ var SumeruSWC = (() => {
       this.bump?.();
       try {
         const result = await this.env.services.rpc.callMethod(p.model, btn.name, p.recordId);
-        if (result?.redirect) {
-          this.env.services.action.navigate(result.redirect);
+        if (await this.env.services.action.applyCallResult(result)) {
           return;
         }
-        this.env.services.notification.show({
-          kind: "success",
-          title: btn.string || btn.name,
-          body: "Action completed."
-        });
+        this.env.services.notification.success(btn.string || btn.name, "Action completed.");
         await this.reloadRecord();
       } catch (err) {
-        this.error = err instanceof SwcError ? err.message : String(err);
+        this.env.services.notification.error(
+          btn.string || btn.name,
+          err instanceof SwcError ? err.message : String(err)
+        );
       } finally {
         this.acting = false;
         this.bump?.();
@@ -3745,12 +3595,16 @@ var SumeruSWC = (() => {
       const busy = this.toolbarBusy();
       const items = [];
       if (p.recordId > 0 && this.isReadonly()) {
-        items.push(renderNewButton(p));
-        items.push(headerButton("Edit", void 0, () => this.startEdit(), busy));
-        items.push(headerButton("Duplicate", void 0, () => void this.duplicateRecord(), busy));
-        items.push(
-          headerButton("Delete", "sum-btn--danger", () => void this.deleteRecord(), busy)
-        );
+        if (!this.props.inDialog) {
+          items.push(renderNewButton(p));
+          items.push(headerButton("Edit", void 0, () => this.startEdit(), busy));
+          items.push(headerButton("Duplicate", void 0, () => void this.duplicateRecord(), busy));
+          items.push(
+            headerButton("Delete", "sum-btn--danger", () => void this.deleteRecord(), busy)
+          );
+        } else {
+          items.push(headerButton("Edit", void 0, () => this.startEdit(), busy));
+        }
       } else {
         items.push(headerButton("Save", "sum_highlight", () => void this.save(), busy));
         items.push(headerButton("Cancel", void 0, () => this.cancelEdit(), busy || this.saving));
@@ -3818,365 +3672,659 @@ var SumeruSWC = (() => {
     }
   };
 
-  // src/views/kanban/kanban-card.ts
-  function isKanbanImageField(field) {
-    const name = field.name.toLowerCase();
-    return name === "image" || name.startsWith("image_") || field.widget === "image" || field.widget === "circle";
-  }
-  function isKanbanImageCircle(field) {
-    return field.widget === "circle" || field.options?.shape === "circle";
-  }
-  function isPriorityField(field) {
-    return field.name === "priority" || field.widget === "priority";
-  }
-  function displayValue(row, field) {
-    const raw = row[`${field.name}_name`] ?? row[field.name];
-    if (raw == null || raw === false) return "";
-    return String(raw);
-  }
-  function imageSrc(row, field) {
-    const raw = row[field.name];
-    if (typeof raw !== "string" || !raw.trim()) return "";
-    const v = raw.trim();
-    if (v.startsWith("data:") || v.startsWith("http://") || v.startsWith("https://") || v.startsWith("/")) {
-      return v;
+  // src/services/action.ts
+  var ActionService = class {
+    constructor(router) {
+      this.router = router;
     }
-    return "";
-  }
-  function initials(row, fields) {
-    const nameField = fields.find((f) => f.name === "name") ?? fields.find((f) => !isKanbanImageField(f));
-    const text = nameField ? displayValue(row, nameField) : "";
-    const parts = text.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return "?";
-    if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  function titleField(fields) {
-    return fields.find((f) => f.name === "name") ?? fields.find((f) => f.name === "display_name") ?? fields.find((f) => !isKanbanImageField(f) && !isPriorityField(f));
-  }
-  function renderPriority(row, field) {
-    const level = Number(row[field.name] ?? 0);
-    if (!level) return null;
-    const stars = [1, 2, 3].map(
-      (n) => html`<span class="sum-kanban-priority-star${n <= level ? " sum-kanban-priority-star--on" : ""}">★</span>`
-    );
-    return html`<div class="sum-kanban-priority">${stars}</div>`;
-  }
-  function renderMedia(row, imageField, fields) {
-    const src = imageSrc(row, imageField);
-    const label = displayValue(row, titleField(fields) ?? imageField);
-    if (!src && !label) return null;
-    const media = document.createElement("div");
-    media.className = `sum-kanban-card-media${isKanbanImageCircle(imageField) ? " sum-kanban-card-media--circle" : " sum-kanban-card-media--square"}`;
-    if (src) {
-      const img = document.createElement("img");
-      img.className = "sum-kanban-card-media-img";
-      img.src = src;
-      img.alt = "";
-      media.appendChild(img);
-    } else {
-      const initialsEl = document.createElement("span");
-      initialsEl.className = "sum-kanban-card-media-initials";
-      initialsEl.textContent = initials(row, fields);
-      media.appendChild(initialsEl);
+    router;
+    env;
+    dialogView = null;
+    setEnv(env) {
+      this.env = env;
     }
-    return media;
-  }
-  function renderKanbanCardInner(row, fields) {
-    const imageField = fields.find(isKanbanImageField);
-    const priorityField = fields.find(isPriorityField);
-    const title = titleField(fields);
-    const subs = fields.filter(
-      (f) => f !== imageField && f !== title && f !== priorityField && !isKanbanImageField(f) && !isPriorityField(f)
-    );
-    const media = imageField ? renderMedia(row, imageField, fields) : null;
-    const titleEl = title ? html`<div class="sum-kanban-card-title">${displayValue(row, title)}</div>` : null;
-    const subEls = subs.map((f) => displayValue(row, f)).filter(Boolean).map((text) => html`<div class="sum-kanban-card-sub">${text}</div>`);
-    const priorityEl = priorityField ? renderPriority(row, priorityField) : null;
-    if (media) {
-      return html`${media}<div class="sum-kanban-card-body">${titleEl}${subEls}${priorityEl}</div>`;
+    navigate(url) {
+      if ((url.startsWith(`${WEB_ROUTE}?`) || url === WEB_ROUTE) && this.router) {
+        const parsed = new URL(url, window.location.origin);
+        this.router.assign(this.router.parse({ search: parsed.search }));
+        return;
+      }
+      window.location.assign(url);
     }
-    return html`${titleEl}${subEls}${priorityEl}`;
-  }
-
-  // src/views/kanban/KanbanView.ts
-  var KanbanView = class extends SwcComponent {
-    search = "";
-    setup() {
-      this.search = this.props.payload.listSearch ?? "";
+    openWindowAction(actionId, menuId, extra) {
+      const params = new URLSearchParams({ [Q_ACTION]: String(actionId) });
+      if (menuId) params.set(Q_MENU_ID, menuId);
+      for (const [k, v] of Object.entries(extra ?? {})) {
+        if (v) params.set(k, v);
+      }
+      this.navigate(`${WEB_ROUTE}?${params.toString()}`);
     }
-    onPropsChanged(props) {
-      this.search = props.payload.listSearch ?? "";
+    openRecord({ actionId, menuId, recordId, viewType = VIEW_FORM }) {
+      const route = {
+        actionId,
+        menuId,
+        recordId,
+        viewType,
+        formEdit: false,
+        listSearch: ""
+      };
+      if (this.router) {
+        this.router.push(route);
+        return;
+      }
+      this.navigate(RouterService.buildUrl(route));
     }
-    cardFields() {
-      return this.props.payload.arch.fields.filter((f) => !f.invisible);
+    /** Apply an object-action RPC result. Returns true when navigation or a dialog handled it. */
+    async applyCallResult(result) {
+      if (result === true || result === false || result == null) return false;
+      const body = result;
+      if (body.close) {
+        this.closeDialog();
+        this.env?.services.bus.emit(ACTION_CLOSED, {});
+        return true;
+      }
+      if (body.open) {
+        const target = body.open.target || "dialog";
+        if (target === "dialog") {
+          await this.openFormDialog(body.open);
+          return true;
+        }
+        this.navigateCurrent(body.open);
+        return true;
+      }
+      if (body.redirect) {
+        const parsed = this.parseRedirectOpen(body.redirect);
+        if (parsed) {
+          return this.applyCallResult({ open: parsed });
+        }
+        this.navigate(body.redirect);
+        return true;
+      }
+      return false;
     }
-    applySearch() {
-      const p = this.props.payload;
-      this.env.services.action.navigate(
-        this.env.services.router.workspaceUrl({
-          actionId: p.actionId,
-          menuId: p.menuId,
-          viewType: "kanban",
-          listSearch: this.search
+    navigateCurrent(open) {
+      this.navigate(
+        RouterService.buildUrl({
+          actionId: open.actionId ?? 0,
+          viewType: open.viewType || VIEW_FORM,
+          recordId: open.recordId ?? 0,
+          model: open.model,
+          formEdit: false,
+          listSearch: "",
+          menuId: ""
         })
       );
     }
-    openCard(row) {
-      const id = Number(row.id ?? 0);
-      if (id <= 0) return;
-      const p = this.props.payload;
-      this.env.services.action.openRecord(p.model, p.actionId, p.menuId, id, "form");
+    parseRedirectOpen(redirect) {
+      if (!redirect.startsWith(`${WEB_ROUTE}?`) && !redirect.startsWith("?")) return null;
+      const q = new URLSearchParams(redirect.slice(redirect.indexOf("?") + 1));
+      const model = q.get("model") ?? "";
+      const recordId = Number(q.get("id") ?? "0");
+      if (!model || recordId <= 0) return null;
+      return {
+        model,
+        actionId: Number(q.get(Q_ACTION) ?? "0") || void 0,
+        viewType: q.get(Q_VIEW_TYPE) || VIEW_FORM,
+        recordId,
+        target: q.get("target") || "dialog"
+      };
     }
-    async moveCard(recordId, columnValue) {
-      const groupField = this.props.payload.arch.kanban?.groupField;
-      if (!groupField) return;
-      await this.env.services.rpc.write(this.props.payload.model, [recordId], {
-        [groupField]: columnValue || false
-      });
-      this.env.services.bus.emit("record.updated", {
-        model: this.props.payload.model,
-        id: recordId
+    async openFormDialog(open) {
+      const env = this.env;
+      if (!env) {
+        this.navigateCurrent({ ...open, target: "current" });
+        return;
+      }
+      const params = new URLSearchParams();
+      if (open.model) params.set("model", open.model);
+      if (open.actionId) params.set(Q_ACTION, String(open.actionId));
+      if (open.recordId) params.set("id", String(open.recordId));
+      params.set(Q_VIEW_TYPE, open.viewType || VIEW_FORM);
+      params.set(Q_EDIT, EDIT_ENABLED);
+      const base = env.bootstrap.swcApiBase || SWC_API_BASE;
+      const payload = await env.services.http.getJSON(
+        `${base}/workspace?${params.toString()}`
+      );
+      this.closeDialog();
+      const view = new FormView({ payload, inDialog: true }, env);
+      view.setup?.();
+      this.dialogView = view;
+      const title = payload.arch.title || payload.arch.model || "Wizard";
+      void env.services.dialog.openHost(title, view.render()).then(() => {
+        view.destroy();
+        if (this.dialogView === view) this.dialogView = null;
       });
     }
-    toolbar() {
-      const p = this.props.payload;
-      const fields = visibleFieldNames(this.cardFields());
-      const reportActions = renderReportActions(p, fields);
-      return html`
-      <div class="sum-view-toolbar sum-kanban-report-bar">
-        <div class="sum-view-toolbar-primary">
-          ${renderNewButton(p)}
-          ${renderSearchField(
-        this.search,
-        () => this.applySearch(),
-        (next) => {
-          this.search = next;
+    closeDialog() {
+      this.env?.services.dialog.close();
+    }
+  };
+
+  // src/services/bus.ts
+  var BusService = class {
+    handlers = /* @__PURE__ */ new Map();
+    ws = null;
+    subscribe(channel, handler) {
+      if (!this.handlers.has(channel)) {
+        this.handlers.set(channel, /* @__PURE__ */ new Set());
+      }
+      this.handlers.get(channel).add(handler);
+      return () => this.handlers.get(channel)?.delete(handler);
+    }
+    emit(channel, payload) {
+      for (const fn of this.handlers.get(channel) ?? []) {
+        fn(payload);
+      }
+    }
+    /** Connect to /web/swc/bus when bootstrap.busEnabled is true. */
+    connect(url = `${SWC_API_BASE}/bus`) {
+      if (this.ws) return;
+      try {
+        const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+        this.ws = new WebSocket(`${proto}//${window.location.host}${url}`);
+        this.ws.addEventListener("message", (ev) => {
+          try {
+            const msg = JSON.parse(String(ev.data));
+            if (msg.channel) this.emit(msg.channel, msg.payload);
+          } catch {
+          }
+        });
+        this.ws.addEventListener("close", () => {
+          this.ws = null;
+        });
+      } catch {
+      }
+    }
+    disconnect() {
+      this.ws?.close();
+      this.ws = null;
+    }
+  };
+
+  // src/services/dialog.ts
+  var DialogService = class {
+    layer = null;
+    pendingResolve = null;
+    confirm(title, body) {
+      return this.open({
+        title,
+        body,
+        buttons: [
+          { label: "Cancel", value: false },
+          { label: "OK", primary: true, value: true }
+        ]
+      });
+    }
+    alert(title, body) {
+      return this.open({
+        title,
+        body,
+        buttons: [{ label: "OK", primary: true, value: true }]
+      }).then(() => void 0);
+    }
+    openHost(title, content) {
+      this.close();
+      return new Promise((resolve) => {
+        this.pendingResolve = resolve;
+        const layer = document.createElement("div");
+        layer.className = "sum-dialog-layer";
+        layer.setAttribute("role", "presentation");
+        const dialog = document.createElement("div");
+        dialog.className = "sum-dialog sum-dialog--form";
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("aria-labelledby", "sum-dialog-title");
+        const heading = document.createElement("h2");
+        heading.id = "sum-dialog-title";
+        heading.className = "sum-dialog-title";
+        heading.textContent = title;
+        const body = document.createElement("div");
+        body.className = "sum-dialog-body sum-dialog-body--host";
+        body.appendChild(content);
+        const actions = document.createElement("div");
+        actions.className = "sum-dialog-actions";
+        const closeBtn = document.createElement("button");
+        closeBtn.type = "button";
+        closeBtn.textContent = "Close";
+        closeBtn.className = "sum-dialog-btn";
+        closeBtn.addEventListener("click", () => {
+          this.close(false);
+        });
+        actions.appendChild(closeBtn);
+        dialog.append(heading, body, actions);
+        layer.appendChild(dialog);
+        document.body.appendChild(layer);
+        this.layer = layer;
+        this.bindDismiss(layer);
+      });
+    }
+    open(opts) {
+      this.close();
+      return new Promise((resolve) => {
+        this.pendingResolve = resolve;
+        const layer = document.createElement("div");
+        layer.className = "sum-dialog-layer";
+        layer.setAttribute("role", "presentation");
+        const dialog = document.createElement("div");
+        dialog.className = "sum-dialog";
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("aria-labelledby", "sum-dialog-title");
+        const title = document.createElement("h2");
+        title.id = "sum-dialog-title";
+        title.className = "sum-dialog-title";
+        title.textContent = opts.title;
+        const body = document.createElement("p");
+        body.className = "sum-dialog-body";
+        body.textContent = opts.body;
+        const actions = document.createElement("div");
+        actions.className = "sum-dialog-actions";
+        const buttons = opts.buttons ?? [{ label: "Close", primary: true, value: true }];
+        for (const btn of buttons) {
+          const el = document.createElement("button");
+          el.type = "button";
+          el.textContent = btn.label;
+          el.className = "sum-dialog-btn";
+          if (btn.primary) el.classList.add("sum-dialog-btn--primary");
+          if (btn.danger) el.classList.add("sum-dialog-btn--danger");
+          el.addEventListener("click", () => {
+            this.close(btn.value ?? true);
+          });
+          actions.appendChild(el);
         }
-      )}
-        </div>
-        ${reportActions ?? ""}
-      </div>
-    `;
-    }
-    renderCard(row, fields, draggable = false) {
-      return html`<div
-      class="sum-kanban-card"
-      draggable=${draggable ? "true" : void 0}
-      @click=${() => this.openCard(row)}
-      @dragstart=${draggable ? (ev) => ev.dataTransfer?.setData("text/plain", String(row.id)) : void 0}
-    >
-      ${renderKanbanCardInner(row, fields)}
-    </div>`;
-    }
-    template() {
-      const p = this.props.payload;
-      const kanban = p.arch.kanban;
-      const fields = this.cardFields();
-      if (!kanban?.columns?.length) {
-        const rows = p.records ?? [];
-        return html`
-        <div class="sum-kanban-view">
-          ${this.toolbar()}
-          <div class="sum-kanban-columns">
-            ${rows.length === 0 ? html`<div class="sum-kanban-empty">No records</div>` : rows.map((row) => this.renderCard(row, fields))}
-          </div>
-        </div>
-      `;
-      }
-      return html`
-      <div class="sum-kanban-view">
-        ${this.toolbar()}
-        <div class="sum-kanban-board sum-kanban-board--grouped">
-          <div class="sum-kanban-stage-columns">
-            ${kanban.columns.map(
-        (col) => html`<div class="sum-kanban-stage-column" data-column=${String(col.value)}>
-                <div class="sum-kanban-stage-header">
-                  <span>${col.label}</span>
-                  <span class="sum-kanban-stage-count">${String(col.records.length)}</span>
-                </div>
-                <div class="sum-kanban-cards">
-                  ${col.records.map(
-          (row) => html`<div
-                      class="sum-kanban-card"
-                      draggable=${kanban.draggable ? "true" : void 0}
-                      @click=${() => this.openCard(row)}
-                      @dragstart=${(ev) => ev.dataTransfer?.setData("text/plain", String(row.id))}
-                      @dragover=${(ev) => ev.preventDefault()}
-                      @drop=${(ev) => {
-            ev.preventDefault();
-            const de = ev;
-            const id = Number(de.dataTransfer?.getData("text/plain"));
-            if (id) void this.moveCard(id, col.value);
-          }}
-                    >
-                      ${renderKanbanCardInner(row, fields)}
-                    </div>`
-        )}
-                </div>
-              </div>`
-      )}
-          </div>
-        </div>
-      </div>
-    `;
-    }
-  };
-
-  // src/views/pivot/PivotView.ts
-  var PivotView = class extends SwcComponent {
-    template() {
-      const pivot = this.props.payload.arch.pivot;
-      if (!pivot) {
-        return html`<div class="sum-pivot-view sum-pivot-view--empty">No pivot data</div>`;
-      }
-      return html`
-      <div class="sum-pivot-view">
-        <table class="sum-pivot-table">
-          <thead>
-            <tr>
-              <th></th>
-              ${pivot.colLabels.map((c) => html`<th>${c}</th>`)}
-            </tr>
-          </thead>
-          <tbody>
-            ${pivot.rowLabels.map(
-        (row) => html`<tr>
-                <th>${row}</th>
-                ${pivot.colLabels.map((col) => {
-          const val = pivot.values[row]?.[col] ?? 0;
-          return html`<td>${String(val)}</td>`;
-        })}
-              </tr>`
-      )}
-          </tbody>
-        </table>
-        <p class="sum-pivot-measure">${pivot.measureLabel}</p>
-      </div>
-    `;
-    }
-  };
-
-  // src/views/graph/GraphView.ts
-  var GraphView = class extends SwcComponent {
-    groups = [];
-    measureField = "id";
-    setup() {
-      const [, bump] = useState(0);
-      this.bump = () => bump((n) => n + 1);
-      useEffect(() => {
-        void this.load();
+        dialog.append(title, body, actions);
+        layer.appendChild(dialog);
+        document.body.appendChild(layer);
+        this.layer = layer;
+        this.bindDismiss(layer);
+        actions.querySelector("button")?.focus();
       });
     }
-    bump = null;
-    async load() {
-      const p = this.props.payload;
-      const groupField = p.arch.fields.find((f) => f.pivotType === "row")?.name ?? "create_date";
-      this.measureField = p.arch.fields.find((f) => f.pivotType === "measure")?.name ?? "id";
-      this.groups = await this.env.services.rpc.readGroup(p.model, [], [this.measureField], [groupField], 40);
-      this.bump?.();
+    bindDismiss(layer) {
+      const onKey = (ev) => {
+        if (ev.key === "Escape") {
+          this.close(false);
+        }
+      };
+      document.addEventListener("keydown", onKey, true);
+      layer.addEventListener(
+        "click",
+        (ev) => {
+          if (ev.target === layer) {
+            this.close(false);
+          }
+        },
+        true
+      );
+      layer.addEventListener(
+        "remove",
+        () => document.removeEventListener("keydown", onKey, true),
+        { once: true }
+      );
     }
-    template() {
-      const max = Math.max(...this.groups.map((g) => Number(g[this.measureField] ?? 0)), 1);
-      return html`
-      <div class="sum-graph-view">
-        ${this.groups.map((g) => {
-        const label = String(g[`${Object.keys(g).find((k) => k.endsWith("_count")) ?? "name"}`] ?? g.name ?? "");
-        const val = Number(g[this.measureField] ?? 0);
-        const pct = Math.round(val / max * 100);
-        return html`<div class="sum-graph-bar-row">
-            <span class="sum-graph-label">${label}</span>
-            <div class="sum-graph-bar" style="width:${pct}%"></div>
-            <span class="sum-graph-value">${val}</span>
-          </div>`;
-      })}
-      </div>
-    `;
-    }
-  };
-
-  // src/views/calendar/CalendarView.ts
-  var CalendarView = class extends SwcComponent {
-    dateField = "date_deadline";
-    setup() {
-      const fields = this.props.payload.arch.fields;
-      const dateField = fields.find((f) => f.type === "date" || f.type === "datetime");
-      if (dateField) this.dateField = dateField.name;
-    }
-    groupByDate() {
-      const map = /* @__PURE__ */ new Map();
-      for (const row of this.props.payload.records ?? []) {
-        const raw = String(row[this.dateField] ?? "").slice(0, 10);
-        const key = raw || "Unscheduled";
-        if (!map.has(key)) map.set(key, []);
-        map.get(key).push(row);
-      }
-      return map;
-    }
-    openRecord(row) {
-      const id = Number(row.id ?? 0);
-      if (id <= 0) return;
-      const p = this.props.payload;
-      this.env.services.action.openRecord(p.model, p.actionId, p.menuId, id, "form");
-    }
-    template() {
-      const buckets = [...this.groupByDate().entries()].sort(([a], [b]) => a.localeCompare(b));
-      return html`
-      <div class="sum-calendar-view">
-        <h2 class="sum-calendar-title">${this.props.payload.arch.title ?? "Calendar"}</h2>
-        <div class="sum-calendar-columns">
-          ${buckets.map(
-        ([day, rows]) => html`<section class="sum-calendar-day">
-              <h3 class="sum-calendar-day-title">${day}</h3>
-              <ul class="sum-calendar-events">
-                ${rows.map(
-          (row) => html`<li class="sum-calendar-event" @click=${() => this.openRecord(row)}>
-                    ${String(row.name ?? row.display_name ?? `#${row.id}`)}
-                  </li>`
-        )}
-              </ul>
-            </section>`
-      )}
-        </div>
-      </div>
-    `;
+    close(value = false) {
+      const resolve = this.pendingResolve;
+      this.pendingResolve = null;
+      this.layer?.remove();
+      this.layer = null;
+      resolve?.(value);
     }
   };
 
-  // src/views/advanced/stub-view.ts
-  function renderStubView(title, payload) {
+  // src/services/service-registry.ts
+  function registerCoreServices(services) {
+    const cat = registry.category("services");
+    for (const [key, svc] of Object.entries(services)) {
+      cat.add(key, svc);
+    }
+  }
+
+  // src/views/list/control-panel.ts
+  function parseFilterCSV(raw) {
+    return (raw ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  function toggleFilterName(active, name) {
+    if (active.includes(name)) return active.filter((n) => n !== name);
+    return [...active, name];
+  }
+  function renderControlPanel(opts) {
+    const { payload, state, onPage } = opts;
     const rows = payload.records ?? [];
+    const total = payload.listTotal ?? rows.length;
+    const page = Math.floor(state.offset / state.limit) + 1;
+    const pageCount = Math.max(1, Math.ceil(total / state.limit));
+    const showPager = pageCount > 1 || state.offset > 0;
+    if (!showPager) return html``;
     return html`
-    <div class="sum-advanced-view">
-      <h2>${title}</h2>
-      <p class="sum-advanced-view-hint">${rows.length} record(s) loaded.</p>
-      <ul>
-        ${rows.slice(0, 20).map(
-      (row) => html`<li>${String(row.name ?? row.display_name ?? row.id ?? "")}</li>`
-    )}
-      </ul>
+    <div class="sum-list-control sum-list-control--secondary">
+      <div class="sum-list-pager">
+        <button
+          type="button"
+          class="sum-btn sum-btn--ghost"
+          disabled=${state.offset <= 0 ? "disabled" : void 0}
+          @click=${() => onPage(Math.max(0, state.offset - state.limit))}
+        >
+          Prev
+        </button>
+        <span>${page} / ${pageCount}</span>
+        <button
+          type="button"
+          class="sum-btn sum-btn--ghost"
+          disabled=${state.offset + state.limit >= total ? "disabled" : void 0}
+          @click=${() => onPage(state.offset + state.limit)}
+        >
+          Next
+        </button>
+      </div>
     </div>
   `;
   }
+  function renderSearchFilters(opts) {
+    const domainFilters = opts.filters.filter((f) => f.domain || !f.groupBy);
+    const groupFilters = opts.filters.filter((f) => f.groupBy);
+    if (domainFilters.length === 0 && groupFilters.length === 0) return html``;
+    return html`
+    <div class="sum-search-filters">
+      ${domainFilters.map((f) => {
+      const on = opts.active.includes(f.name);
+      return html`<button
+          type="button"
+          class=${on ? "sum-search-chip sum-search-chip--active" : "sum-search-chip"}
+          @click=${() => opts.onToggle(f.name)}
+        >
+          ${f.string || f.name}
+        </button>`;
+    })}
+      ${groupFilters.length ? html`<span class="sum-search-filters-label">Group</span>${groupFilters.map((f) => {
+      const on = opts.active.includes(f.name);
+      return html`<button
+              type="button"
+              class=${on ? "sum-search-chip sum-search-chip--active" : "sum-search-chip"}
+              @click=${() => opts.onToggle(f.name)}
+            >
+              ${f.string || f.name}
+            </button>`;
+    })}` : ""}
+    </div>
+  `;
+  }
+  function renderSortHeader(field, currentSort, onSort) {
+    const name = field.name;
+    const active = currentSort === name || currentSort === `-${name}`;
+    const desc = currentSort === `-${name}`;
+    const marker = active ? desc ? " \u2193" : " \u2191" : "";
+    return html`<th
+    class=${active ? "sum-list-th sum-list-th--sort" : "sum-list-th"}
+    @click=${() => onSort(name)}
+  >
+    ${field.string ?? field.name}${marker}
+  </th>`;
+  }
+  function renderRowCheckbox(id, selected, onToggle) {
+    return html`<td class="sum-list-select-cell" @click=${(ev) => ev.stopPropagation()}>
+    <input
+      type="checkbox"
+      checked=${selected ? "checked" : void 0}
+      @change=${(ev) => onToggle(id, ev.target.checked)}
+    />
+  </td>`;
+  }
+  function renderSelectAllHeader(allSelected, onToggleAll) {
+    return html`<th class="sum-list-select-head">
+    <input
+      type="checkbox"
+      title="Select all"
+      checked=${allSelected ? "checked" : void 0}
+      @change=${(ev) => onToggleAll(ev.target.checked)}
+    />
+  </th>`;
+  }
 
-  // src/views/advanced/GanttView.ts
-  var GanttView = class extends SwcComponent {
-    template() {
-      return renderStubView(this.props.payload.arch.title ?? "Gantt", this.props.payload);
+  // src/template/helpers.ts
+  function keyedResult(key, result) {
+    return {
+      render() {
+        const el = result.render();
+        el.dataset.swcKey = key;
+        return el;
+      }
+    };
+  }
+  function forEach(items, keyFn, renderFn) {
+    return items.map((item, index) => keyedResult(String(keyFn(item, index)), renderFn(item, index)));
+  }
+
+  // src/views/list/ListView.ts
+  var ListView = class extends SwcComponent {
+    panelState = {
+      search: "",
+      offset: 0,
+      limit: 40,
+      selectedIds: /* @__PURE__ */ new Set(),
+      filters: []
+    };
+    deleting = false;
+    acting = false;
+    setup() {
+      this.syncFromPayload(this.props.payload);
+      const [, bump] = useState(0);
+      this.bump = () => bump((n) => n + 1);
     }
-  };
-
-  // src/views/advanced/MapView.ts
-  var MapView = class extends SwcComponent {
-    template() {
-      return renderStubView(this.props.payload.arch.title ?? "Map", this.props.payload);
+    onPropsChanged(props) {
+      this.syncFromPayload(props.payload);
+      this.panelState.selectedIds = /* @__PURE__ */ new Set();
     }
-  };
-
-  // src/views/advanced/CohortView.ts
-  var CohortView = class extends SwcComponent {
+    bump = null;
+    syncFromPayload(p) {
+      this.panelState.search = p.listSearch ?? "";
+      this.panelState.offset = p.listOffset ?? 0;
+      this.panelState.order = p.listSort ?? "";
+      this.panelState.filters = parseFilterCSV(p.listFilter);
+    }
+    columns() {
+      return this.props.payload.arch.fields.filter((f) => !f.invisible);
+    }
+    pageRows() {
+      return [...this.props.payload.records ?? []];
+    }
+    navigateList(patch) {
+      const p = this.props.payload;
+      const url = this.env.services.router.workspaceUrl({
+        actionId: p.actionId,
+        menuId: p.menuId,
+        viewType: VIEW_LIST,
+        listSearch: patch.listSearch ?? this.panelState.search,
+        listOffset: patch.listOffset ?? 0,
+        listSort: patch.listSort ?? this.panelState.order ?? "",
+        listFilter: patch.listFilter ?? this.panelState.filters.join(","),
+        model: p.actionId ? "" : p.model
+      });
+      this.env.services.action.navigate(url);
+    }
+    applySearch() {
+      this.navigateList({ listSearch: this.panelState.search, listOffset: 0 });
+    }
+    applyPage(offset) {
+      this.navigateList({ listOffset: offset });
+    }
+    applySort(fieldName) {
+      const current = this.panelState.order ?? "";
+      let next = fieldName;
+      if (current === fieldName) next = `-${fieldName}`;
+      else if (current === `-${fieldName}`) next = "";
+      this.navigateList({ listSort: next, listOffset: 0 });
+    }
+    applyFilter(name) {
+      const next = toggleFilterName(this.panelState.filters, name);
+      this.navigateList({ listFilter: next.join(","), listOffset: 0 });
+    }
+    openRow(row) {
+      const id = Number(row.id ?? 0);
+      if (id <= 0) return;
+      this.env.services.action.openRecord({
+        actionId: this.props.payload.actionId,
+        menuId: this.props.payload.menuId,
+        recordId: id,
+        viewType: VIEW_FORM
+      });
+    }
+    toggleRow(id, checked) {
+      if (checked) this.panelState.selectedIds.add(id);
+      else this.panelState.selectedIds.delete(id);
+      this.bump?.();
+    }
+    toggleAll(checked, ids) {
+      this.panelState.selectedIds = checked ? new Set(ids) : /* @__PURE__ */ new Set();
+      this.bump?.();
+    }
+    toolbarBusy() {
+      return this.deleting || this.acting;
+    }
+    headerObjectButtons() {
+      return (this.props.payload.arch.header?.buttons ?? []).filter((btn) => btn.type === "object");
+    }
+    async bulkDelete() {
+      const ids = [...this.panelState.selectedIds];
+      if (ids.length === 0 || this.toolbarBusy()) return;
+      const ok = await this.env.services.dialog.confirm(
+        "Delete records",
+        `Delete ${ids.length} selected record(s)?`
+      );
+      if (!ok) return;
+      this.deleting = true;
+      this.bump?.();
+      try {
+        await this.env.services.rpc.unlink(this.props.payload.model, ids);
+        this.panelState.selectedIds = /* @__PURE__ */ new Set();
+        this.env.services.notification.success("Deleted", `${ids.length} record(s) removed.`);
+        this.applySearch();
+      } catch (err) {
+        this.env.services.notification.error(
+          "Delete failed",
+          err instanceof SwcError ? err.message : String(err)
+        );
+      } finally {
+        this.deleting = false;
+        this.bump?.();
+      }
+    }
+    async runHeaderObject(btn) {
+      const ids = [...this.panelState.selectedIds];
+      if (ids.length === 0 || this.toolbarBusy()) return;
+      this.acting = true;
+      this.bump?.();
+      try {
+        const result = await this.env.services.rpc.callMethod(this.props.payload.model, btn.name, ids[0], {
+          active_ids: ids.join(",")
+        });
+        if (await this.env.services.action.applyCallResult(result)) {
+          return;
+        }
+        this.env.services.notification.success(btn.string || btn.name, "Action completed.");
+        this.applySearch();
+      } catch (err) {
+        this.env.services.notification.error(
+          btn.string || btn.name,
+          err instanceof SwcError ? err.message : String(err)
+        );
+      } finally {
+        this.acting = false;
+        this.bump?.();
+      }
+    }
+    renderRow(row) {
+      const id = Number(row.id ?? 0);
+      const cols = this.columns();
+      return html`<tr class="sum-list-row sum-list-row--click" @click=${() => this.openRow(row)}>
+      ${renderRowCheckbox(
+        id,
+        this.panelState.selectedIds.has(id),
+        (rid, checked) => this.toggleRow(rid, checked)
+      )}
+      ${cols.map((c) => {
+        const display = row[`${c.name}_name`] ?? row[c.name];
+        return html`<td class="sum-list-td">${String(display ?? "")}</td>`;
+      })}
+    </tr>`;
+    }
+    patch() {
+      const tbody = this.el?.querySelector("tbody");
+      if (tbody) {
+        const rows = this.pageRows();
+        patchKeyedChildren(
+          tbody,
+          rows.map((row) => ({
+            key: String(row.id ?? 0),
+            render: () => this.renderRow(row).render()
+          }))
+        );
+        return;
+      }
+      super.patch();
+    }
     template() {
-      return renderStubView(this.props.payload.arch.title ?? "Cohort", this.props.payload);
+      const p = this.props.payload;
+      const cols = this.columns();
+      const rows = this.pageRows();
+      const ids = rows.map((r) => Number(r.id ?? 0)).filter((id) => id > 0);
+      const allSelected = ids.length > 0 && ids.every((id) => this.panelState.selectedIds.has(id));
+      const filters = p.arch.search?.filters ?? [];
+      return html`
+      <div class="sum-list-view">
+        ${renderCollectionToolbar({
+        payload: p,
+        viewType: VIEW_LIST,
+        search: this.panelState.search,
+        onSearch: () => this.applySearch(),
+        onInput: (next) => {
+          this.panelState.search = next;
+        },
+        extraPrimary: [
+          this.panelState.selectedIds.size > 0 ? html`<button
+                  type="button"
+                  class="sum-btn sum-btn--danger"
+                  disabled=${this.toolbarBusy() ? "disabled" : void 0}
+                  @click=${() => void this.bulkDelete()}
+                >
+                  Delete (${this.panelState.selectedIds.size})
+                </button>` : "",
+          this.panelState.selectedIds.size >= 2 ? this.headerObjectButtons().map(
+            (btn) => headerButton(
+              btn.string || btn.name,
+              btn.class,
+              () => void this.runHeaderObject(btn),
+              this.toolbarBusy()
+            )
+          ) : ""
+        ]
+      })}
+        ${renderSearchFilters({
+        filters,
+        active: this.panelState.filters,
+        onToggle: (name) => this.applyFilter(name)
+      })}
+        ${renderControlPanel({
+        payload: p,
+        state: this.panelState,
+        onPage: (o) => this.applyPage(o)
+      })}
+        <div class="sum-list-table-wrap">
+          <table class="sum-list-table">
+            <thead>
+              <tr>
+                ${renderSelectAllHeader(allSelected, (checked) => this.toggleAll(checked, ids))}
+                ${cols.map(
+        (c) => renderSortHeader(c, this.panelState.order ?? "", (name) => this.applySort(name))
+      )}
+              </tr>
+            </thead>
+            <tbody>
+              ${forEach(rows, (row) => Number(row.id ?? 0), (row) => this.renderRow(row))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
     }
   };
 
@@ -4354,7 +4502,7 @@ var SumeruSWC = (() => {
       const tab = ev.target.closest(
         ".sum-breadcrumb-right .sum-view-tab[href]"
       );
-      if (!tab?.href.includes("/web?")) return;
+      if (!tab?.href.includes(`${WEB_ROUTE}?`)) return;
       ev.preventDefault();
       const url = new URL(tab.href, window.location.origin);
       window.history.pushState({}, "", `${url.pathname}${url.search}`);
@@ -4396,7 +4544,12 @@ var SumeruSWC = (() => {
         return () => window.removeEventListener("popstate", onNav);
       });
       useEffect(() => {
-        return this.env.services.bus.subscribe("record.updated", (payload) => {
+        return this.env.services.bus.subscribe(ACTION_CLOSED, () => {
+          void load();
+        });
+      });
+      useEffect(() => {
+        return this.env.services.bus.subscribe(RECORD_UPDATED, (payload) => {
           const msg = payload;
           if (!this.payload || !msg.model) return;
           if (msg.model !== this.payload.model) return;
@@ -4407,20 +4560,12 @@ var SumeruSWC = (() => {
     }
     bump = null;
     async fetchWorkspace() {
-      const route = this.env.services.router.parse();
-      const params = new URLSearchParams();
-      if (route.actionId) params.set("action", String(route.actionId));
-      if (route.menuId) params.set("menu_id", route.menuId);
-      if (route.viewType) params.set("view_type", route.viewType);
-      if (route.recordId) params.set("id", String(route.recordId));
-      if (route.formEdit) params.set("edit", "1");
-      if (route.listSearch) params.set("q", route.listSearch);
-      const base = this.env.bootstrap.swcApiBase || "/web/swc";
+      const params = RouterService.searchParams(this.env.services.router.parse());
+      const base = this.env.bootstrap.swcApiBase || SWC_API_BASE;
       return this.env.services.http.getJSON(`${base}/workspace?${params.toString()}`);
     }
     createView(type, payload) {
-      const views = registry.category("views");
-      const Ctor = views.get(type) ?? (type === "form" ? FormView : type === "kanban" ? KanbanView : type === "pivot" ? PivotView : type === "graph" ? GraphView : type === "calendar" ? CalendarView : type === "gantt" ? GanttView : type === "map" ? MapView : type === "cohort" ? CohortView : ListView);
+      const Ctor = registry.category("views").get(type) ?? ListView;
       const view = new Ctor({ payload }, this.env);
       view.setup?.();
       return view;
@@ -5125,6 +5270,512 @@ var SumeruSWC = (() => {
     }
   };
 
+  // src/views/kanban/kanban-card.ts
+  function isKanbanImageField(field) {
+    const name = field.name.toLowerCase();
+    return name === "image" || name.startsWith("image_") || field.widget === "image" || field.widget === "circle";
+  }
+  function isKanbanImageCircle(field) {
+    return field.widget === "circle" || field.options?.shape === "circle";
+  }
+  function isPriorityField(field) {
+    return field.name === "priority" || field.widget === "priority";
+  }
+  function displayValue(row, field) {
+    const raw = row[`${field.name}_name`] ?? row[field.name];
+    if (raw == null || raw === false) return "";
+    return String(raw);
+  }
+  function imageSrc(row, field) {
+    const raw = row[field.name];
+    if (typeof raw !== "string" || !raw.trim()) return "";
+    const v = raw.trim();
+    if (v.startsWith("data:") || v.startsWith("http://") || v.startsWith("https://") || v.startsWith("/")) {
+      return v;
+    }
+    return "";
+  }
+  function initials(row, fields) {
+    const nameField = fields.find((f) => f.name === "name") ?? fields.find((f) => !isKanbanImageField(f));
+    const text = nameField ? displayValue(row, nameField) : "";
+    const parts = text.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  function titleField(fields) {
+    return fields.find((f) => f.name === "name") ?? fields.find((f) => f.name === "display_name") ?? fields.find((f) => !isKanbanImageField(f) && !isPriorityField(f));
+  }
+  function renderPriority(row, field) {
+    const level = Number(row[field.name] ?? 0);
+    if (!level) return null;
+    const stars = [1, 2, 3].map(
+      (n) => html`<span class="sum-kanban-priority-star${n <= level ? " sum-kanban-priority-star--on" : ""}">★</span>`
+    );
+    return html`<div class="sum-kanban-priority">${stars}</div>`;
+  }
+  function renderMedia(row, imageField, fields) {
+    const src = imageSrc(row, imageField);
+    const label = displayValue(row, titleField(fields) ?? imageField);
+    if (!src && !label) return null;
+    const media = document.createElement("div");
+    media.className = `sum-kanban-card-media${isKanbanImageCircle(imageField) ? " sum-kanban-card-media--circle" : " sum-kanban-card-media--square"}`;
+    if (src) {
+      const img = document.createElement("img");
+      img.className = "sum-kanban-card-media-img";
+      img.src = src;
+      img.alt = "";
+      media.appendChild(img);
+    } else {
+      const initialsEl = document.createElement("span");
+      initialsEl.className = "sum-kanban-card-media-initials";
+      initialsEl.textContent = initials(row, fields);
+      media.appendChild(initialsEl);
+    }
+    return media;
+  }
+  function renderKanbanCardInner(row, fields) {
+    const imageField = fields.find(isKanbanImageField);
+    const priorityField = fields.find(isPriorityField);
+    const title = titleField(fields);
+    const subs = fields.filter(
+      (f) => f !== imageField && f !== title && f !== priorityField && !isKanbanImageField(f) && !isPriorityField(f)
+    );
+    const media = imageField ? renderMedia(row, imageField, fields) : null;
+    const titleEl = title ? html`<div class="sum-kanban-card-title">${displayValue(row, title)}</div>` : null;
+    const subEls = subs.map((f) => displayValue(row, f)).filter(Boolean).map((text) => html`<div class="sum-kanban-card-sub">${text}</div>`);
+    const priorityEl = priorityField ? renderPriority(row, priorityField) : null;
+    if (media) {
+      return html`${media}<div class="sum-kanban-card-body">${titleEl}${subEls}${priorityEl}</div>`;
+    }
+    return html`${titleEl}${subEls}${priorityEl}`;
+  }
+
+  // src/views/kanban/KanbanView.ts
+  var KanbanView = class extends SwcComponent {
+    search = "";
+    filters = [];
+    drafts = {};
+    setup() {
+      this.syncFromPayload(this.props.payload);
+    }
+    onPropsChanged(props) {
+      this.syncFromPayload(props.payload);
+    }
+    syncFromPayload(p) {
+      this.search = p.listSearch ?? "";
+      this.filters = parseFilterCSV(p.listFilter);
+    }
+    cardFields() {
+      return this.props.payload.arch.fields.filter((f) => !f.invisible);
+    }
+    navigateKanban(patch) {
+      const p = this.props.payload;
+      this.env.services.action.navigate(
+        this.env.services.router.workspaceUrl({
+          actionId: p.actionId,
+          menuId: p.menuId,
+          viewType: VIEW_KANBAN,
+          listSearch: patch.listSearch ?? this.search,
+          listFilter: patch.listFilter ?? this.filters.join(",")
+        })
+      );
+    }
+    applySearch() {
+      this.navigateKanban({ listSearch: this.search });
+    }
+    applyFilter(name) {
+      this.navigateKanban({ listFilter: toggleFilterName(this.filters, name).join(",") });
+    }
+    openCard(row) {
+      const id = Number(row.id ?? 0);
+      if (id <= 0) return;
+      const p = this.props.payload;
+      this.env.services.action.openRecord({
+        actionId: p.actionId,
+        menuId: p.menuId,
+        recordId: id,
+        viewType: VIEW_FORM
+      });
+    }
+    async moveCard(recordId, columnValue) {
+      const groupField = this.props.payload.arch.kanban?.groupField;
+      if (!groupField) return;
+      try {
+        await this.env.services.rpc.write(this.props.payload.model, [recordId], {
+          [groupField]: columnValue || false
+        });
+        this.env.services.bus.emit(RECORD_UPDATED, {
+          model: this.props.payload.model,
+          id: recordId
+        });
+      } catch (err) {
+        this.env.services.notification.error(
+          "Move failed",
+          err instanceof SwcError ? err.message : String(err)
+        );
+      }
+    }
+    async quickCreate(columnValue) {
+      const key = String(columnValue);
+      const name = (this.drafts[key] ?? "").trim();
+      const groupField = this.props.payload.arch.kanban?.groupField;
+      if (!name || !groupField) return;
+      try {
+        await this.env.services.rpc.create(this.props.payload.model, {
+          ...this.props.payload.defaults ?? {},
+          name,
+          [groupField]: columnValue || false
+        });
+        this.drafts[key] = "";
+        this.env.services.notification.success("Created", "Record created.");
+        this.env.services.bus.emit(RECORD_UPDATED, { model: this.props.payload.model });
+      } catch (err) {
+        this.env.services.notification.error(
+          "Create failed",
+          err instanceof SwcError ? err.message : String(err)
+        );
+      }
+    }
+    toolbar() {
+      return renderCollectionToolbar({
+        payload: this.props.payload,
+        viewType: VIEW_KANBAN,
+        search: this.search,
+        onSearch: () => this.applySearch(),
+        onInput: (next) => {
+          this.search = next;
+        }
+      });
+    }
+    renderCard(row, fields, opts = {}) {
+      const draggable = Boolean(opts.draggable);
+      const dropValue = opts.dropValue;
+      return html`<div
+      class="sum-kanban-card"
+      draggable=${draggable ? "true" : void 0}
+      @click=${() => this.openCard(row)}
+      @dragstart=${draggable ? (ev) => ev.dataTransfer?.setData("text/plain", String(row.id)) : void 0}
+      @dragover=${dropValue !== void 0 ? (ev) => ev.preventDefault() : void 0}
+      @drop=${dropValue !== void 0 ? (ev) => {
+        ev.preventDefault();
+        const id = Number(ev.dataTransfer?.getData("text/plain"));
+        if (id) void this.moveCard(id, dropValue);
+      } : void 0}
+    >
+      ${renderKanbanCardInner(row, fields)}
+    </div>`;
+    }
+    template() {
+      const p = this.props.payload;
+      const kanban = p.arch.kanban;
+      const fields = this.cardFields();
+      const filters = p.arch.search?.filters ?? [];
+      if (!kanban?.columns?.length) {
+        const rows = p.records ?? [];
+        return html`
+        <div class="sum-kanban-view">
+          ${this.toolbar()}
+          ${renderSearchFilters({
+          filters,
+          active: this.filters,
+          onToggle: (name) => this.applyFilter(name)
+        })}
+          <div class="sum-kanban-columns">
+            ${rows.length === 0 ? html`<div class="sum-kanban-empty">No records</div>` : rows.map((row) => this.renderCard(row, fields))}
+          </div>
+        </div>
+      `;
+      }
+      return html`
+      <div class="sum-kanban-view">
+        ${this.toolbar()}
+        ${renderSearchFilters({
+        filters,
+        active: this.filters,
+        onToggle: (name) => this.applyFilter(name)
+      })}
+        <div class="sum-kanban-board sum-kanban-board--grouped">
+          <div class="sum-kanban-stage-columns">
+            ${kanban.columns.map(
+        (col) => html`<div class="sum-kanban-stage-column" data-column=${String(col.value)}>
+                <div class="sum-kanban-stage-header">
+                  <span>${col.label}</span>
+                  <span class="sum-kanban-stage-count">${String(col.records.length)}</span>
+                </div>
+                <div class="sum-kanban-cards">
+                  ${col.records.map(
+          (row) => this.renderCard(row, fields, { draggable: kanban.draggable, dropValue: col.value })
+        )}
+                </div>
+                ${kanban.quickCreate ? html`<form
+                      class="sum-kanban-quick-create"
+                      @submit=${(ev) => {
+          ev.preventDefault();
+          void this.quickCreate(col.value);
+        }}
+                    >
+                      <input
+                        type="text"
+                        class="sum-kanban-quick-input"
+                        placeholder="Add…"
+                        value=${this.drafts[String(col.value)] ?? ""}
+                        @input=${(ev) => {
+          this.drafts[String(col.value)] = ev.target.value;
+        }}
+                      />
+                      <button type="submit" class="sum-btn sum-btn--ghost">Add</button>
+                    </form>` : ""}
+              </div>`
+      )}
+          </div>
+        </div>
+      </div>
+    `;
+    }
+  };
+
+  // src/views/pivot/PivotView.ts
+  var PivotView = class extends SwcComponent {
+    template() {
+      const pivot = this.props.payload.arch.pivot;
+      if (!pivot) {
+        return html`<div class="sum-pivot-view sum-pivot-view--empty">No pivot data</div>`;
+      }
+      return html`
+      <div class="sum-pivot-view">
+        <table class="sum-pivot-table">
+          <thead>
+            <tr>
+              <th></th>
+              ${pivot.colLabels.map((c) => html`<th>${c}</th>`)}
+            </tr>
+          </thead>
+          <tbody>
+            ${pivot.rowLabels.map(
+        (row) => html`<tr>
+                <th>${row}</th>
+                ${pivot.colLabels.map((col) => {
+          const val = pivot.values[row]?.[col] ?? 0;
+          return html`<td>${String(val)}</td>`;
+        })}
+              </tr>`
+      )}
+          </tbody>
+        </table>
+        <p class="sum-pivot-measure">${pivot.measureLabel}</p>
+      </div>
+    `;
+    }
+  };
+
+  // src/views/graph/GraphView.ts
+  var GraphView = class extends SwcComponent {
+    groups = [];
+    measureField = "id";
+    groupField = "create_date";
+    chart = "bar";
+    setup() {
+      const [, bump] = useState(0);
+      this.bump = () => bump((n) => n + 1);
+      useEffect(() => {
+        void this.load();
+      });
+    }
+    bump = null;
+    async load() {
+      const p = this.props.payload;
+      this.chart = (p.arch.graph?.chart || "bar").toLowerCase();
+      this.groupField = p.arch.fields.find((f) => f.pivotType === "row")?.name ?? "create_date";
+      this.measureField = p.arch.fields.find((f) => f.pivotType === "measure")?.name ?? "id";
+      this.groups = await this.env.services.rpc.readGroup(
+        p.model,
+        [],
+        [this.measureField],
+        [this.groupField],
+        40
+      );
+      this.bump?.();
+    }
+    labelOf(g) {
+      const nameKey = `${this.groupField}_name`;
+      if (g[nameKey] != null) return String(g[nameKey]);
+      if (g[this.groupField] != null) return String(g[this.groupField]);
+      return String(g.name ?? "");
+    }
+    template() {
+      const max = Math.max(...this.groups.map((g) => Number(g[this.measureField] ?? 0)), 1);
+      if (this.chart === "pie") {
+        let acc = 0;
+        const total = this.groups.reduce((s, g) => s + Number(g[this.measureField] ?? 0), 0) || 1;
+        const stops = [];
+        const palette = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2"];
+        this.groups.forEach((g, i) => {
+          const val = Number(g[this.measureField] ?? 0);
+          const start = acc;
+          acc += val / total * 100;
+          stops.push(`${palette[i % palette.length]} ${start}% ${acc}%`);
+        });
+        return html`
+        <div class="sum-graph-view">
+          <div class="sum-graph-pie" style=${`background:conic-gradient(${stops.join(",")})`}></div>
+          <ul class="sum-graph-legend">
+            ${this.groups.map(
+          (g, i) => html`<li>
+                <span class="sum-graph-swatch" style=${`background:${["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2"][i % 6]}`}></span>
+                ${this.labelOf(g)} (${String(g[this.measureField] ?? 0)})
+              </li>`
+        )}
+          </ul>
+        </div>
+      `;
+      }
+      return html`
+      <div class="sum-graph-view">
+        ${this.groups.map((g) => {
+        const label = this.labelOf(g);
+        const val = Number(g[this.measureField] ?? 0);
+        const pct = Math.round(val / max * 100);
+        return html`<div class="sum-graph-bar-row">
+            <span class="sum-graph-label">${label}</span>
+            <div class=${this.chart === "line" ? "sum-graph-bar sum-graph-bar--line" : "sum-graph-bar"} style="width:${pct}%"></div>
+            <span class="sum-graph-value">${val}</span>
+          </div>`;
+      })}
+      </div>
+    `;
+    }
+  };
+
+  // src/views/calendar/CalendarView.ts
+  var WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var CalendarView = class extends SwcComponent {
+    dateField = "date_deadline";
+    year = 0;
+    month = 0;
+    setup() {
+      const now = /* @__PURE__ */ new Date();
+      this.year = now.getFullYear();
+      this.month = now.getMonth();
+      const archStart = this.props.payload.arch.calendar?.dateStart;
+      if (archStart) {
+        this.dateField = archStart;
+      } else {
+        const fields = this.props.payload.arch.fields;
+        const dateField = fields.find((f) => f.type === "date" || f.type === "datetime");
+        if (dateField) this.dateField = dateField.name;
+      }
+      const [, bump] = useState(0);
+      this.bump = () => bump((n) => n + 1);
+    }
+    bump = null;
+    eventsByDay() {
+      const map = /* @__PURE__ */ new Map();
+      for (const row of this.props.payload.records ?? []) {
+        const raw = String(row[this.dateField] ?? "").slice(0, 10);
+        if (!raw) continue;
+        if (!map.has(raw)) map.set(raw, []);
+        map.get(raw).push(row);
+      }
+      return map;
+    }
+    openRecord(row) {
+      const id = Number(row.id ?? 0);
+      if (id <= 0) return;
+      const p = this.props.payload;
+      this.env.services.action.openRecord({
+        actionId: p.actionId,
+        menuId: p.menuId,
+        recordId: id,
+        viewType: VIEW_FORM
+      });
+    }
+    shiftMonth(delta) {
+      const d = new Date(this.year, this.month + delta, 1);
+      this.year = d.getFullYear();
+      this.month = d.getMonth();
+      this.bump?.();
+    }
+    cells() {
+      const first = new Date(this.year, this.month, 1);
+      const start = new Date(first);
+      start.setDate(1 - first.getDay());
+      const out = [];
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        out.push({ date: d, inMonth: d.getMonth() === this.month });
+      }
+      return out;
+    }
+    iso(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+    template() {
+      const events2 = this.eventsByDay();
+      const title = new Date(this.year, this.month, 1).toLocaleString(void 0, {
+        month: "long",
+        year: "numeric"
+      });
+      return html`
+      <div class="sum-calendar-view">
+        <div class="sum-calendar-toolbar">
+          <button type="button" class="sum-btn sum-btn--ghost" @click=${() => this.shiftMonth(-1)}>Prev</button>
+          <h2 class="sum-calendar-title">${this.props.payload.arch.title ?? title}</h2>
+          <button type="button" class="sum-btn sum-btn--ghost" @click=${() => this.shiftMonth(1)}>Next</button>
+        </div>
+        <div class="sum-calendar-grid">
+          ${WEEKDAYS.map((d) => html`<div class="sum-calendar-weekday">${d}</div>`)}
+          ${this.cells().map((cell) => {
+        const key = this.iso(cell.date);
+        const rows = events2.get(key) ?? [];
+        return html`<section class=${cell.inMonth ? "sum-calendar-cell" : "sum-calendar-cell sum-calendar-cell--muted"}>
+              <h3 class="sum-calendar-day-title">${String(cell.date.getDate())}</h3>
+              <ul class="sum-calendar-events">
+                ${rows.map(
+          (row) => html`<li class="sum-calendar-event" @click=${() => this.openRecord(row)}>
+                    ${String(row.name ?? row.display_name ?? `#${row.id}`)}
+                  </li>`
+        )}
+              </ul>
+            </section>`;
+      })}
+        </div>
+      </div>
+    `;
+    }
+  };
+
+  // src/views/advanced/stub-view.ts
+  function renderStubView(title, payload) {
+    const rows = payload.records ?? [];
+    return html`
+    <div class="sum-advanced-view">
+      <h2>${title}</h2>
+      <p class="sum-advanced-view-hint">${rows.length} record(s) loaded.</p>
+      <ul>
+        ${rows.slice(0, 20).map(
+      (row) => html`<li>${String(row.name ?? row.display_name ?? row.id ?? "")}</li>`
+    )}
+      </ul>
+    </div>
+  `;
+  }
+  function titleFallback(type) {
+    const trimmed = type.trim();
+    if (!trimmed) return "View";
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  }
+  var StubView = class extends SwcComponent {
+    template() {
+      const type = this.props.payload.arch.type ?? this.props.payload.viewType ?? "";
+      return renderStubView(this.props.payload.arch.title ?? titleFallback(type), this.props.payload);
+    }
+  };
+
   // src/i18n/translate.ts
   var translations = /* @__PURE__ */ new Map();
   function loadTranslations(source) {
@@ -5145,9 +5796,9 @@ var SumeruSWC = (() => {
     views.add("pivot", PivotView);
     views.add("graph", GraphView);
     views.add("calendar", CalendarView);
-    views.add("gantt", GanttView);
-    views.add("map", MapView);
-    views.add("cohort", CohortView);
+    views.add("gantt", StubView);
+    views.add("map", StubView);
+    views.add("cohort", StubView);
     const main = registry.category("main_components");
     main.add("shell", ShellLayout);
   }
@@ -5175,6 +5826,7 @@ var SumeruSWC = (() => {
       return;
     }
     const env = buildEnv(boot);
+    env.services.action.setEnv(env);
     loadTranslations(boot.translations);
     initDevtoolsBridge();
     mountDebugPanel();

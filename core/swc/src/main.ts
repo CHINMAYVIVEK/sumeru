@@ -69,6 +69,7 @@ function bootstrap(): void {
   }
 
   const env = buildEnv(boot);
+  env.services.action.setEnv(env);
   loadTranslations(boot.translations);
   initDevtoolsBridge();
   mountDebugPanel();

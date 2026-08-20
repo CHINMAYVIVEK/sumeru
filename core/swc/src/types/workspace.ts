@@ -12,6 +12,9 @@ export interface SwcViewArch {
   formMeta?: SwcFormMeta;
   kanban?: SwcKanbanMeta;
   pivot?: SwcPivotMeta;
+  search?: SwcSearchMeta;
+  graph?: SwcGraphMeta;
+  calendar?: SwcCalendarMeta;
   report?: SwcReportMeta;
 }
 
@@ -111,6 +114,7 @@ export interface SwcArchPage {
 export interface SwcKanbanMeta {
   groupField: string;
   draggable: boolean;
+  quickCreate?: boolean;
   columns: SwcKanbanColumn[];
 }
 
@@ -128,6 +132,26 @@ export interface SwcPivotMeta {
   colLabels: string[];
   values: Record<string, Record<string, number>>;
   measureLabel: string;
+}
+
+export interface SwcSearchFilter {
+  name: string;
+  string: string;
+  domain?: string;
+  groupBy?: string;
+}
+
+export interface SwcSearchMeta {
+  filters: SwcSearchFilter[];
+}
+
+export interface SwcGraphMeta {
+  chart?: string;
+}
+
+export interface SwcCalendarMeta {
+  dateStart?: string;
+  dateStop?: string;
 }
 
 export interface SwcReportMeta {
@@ -165,5 +189,9 @@ export interface SwcWorkspacePayload {
   listSearch?: string;
   listSearchUrl?: string;
   listTotal?: number;
+  listSort?: string;
+  listOffset?: number;
+  listFilter?: string;
   formBaseQuery?: string;
+  defaults?: Record<string, unknown>;
 }

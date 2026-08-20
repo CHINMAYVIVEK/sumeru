@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // CheckFieldWriteAccess errors if any key in values is write-denied by sys.field.access.
@@ -26,7 +27,7 @@ func CheckFieldWriteAccess(ctx context.Context, uid int, model string, values ma
 func fieldAccessDenied(ctx context.Context, uid int, model, op string) (map[string]bool, error) {
 	out := map[string]bool{}
 	if _, ok := Registry["sys.field.access"]; !ok || DB == nil {
-		return out, nil
+		return applyGroupsFieldDenial(ctx, uid, model, op, out)
 	}
 	col, err := QuotedPermColumnForOp(op)
 	if err != nil {
@@ -77,5 +78,25 @@ func fieldAccessDenied(ctx context.Context, uid int, model, op string) (map[stri
 			out[field] = true
 		}
 	}
+	out, err = applyGroupsFieldDenial(ctx, uid, model, op, out)
 	return out, rows.Err()
+}
+
+func applyGroupsFieldDenial(ctx context.Context, uid int, model, op string, out map[string]bool) (map[string]bool, error) {
+	inst, ok := Registry[model]
+	if !ok || inst == nil {
+		return out, nil
+	}
+	for _, fd := range inst.Fields() {
+		if strings.TrimSpace(fd.Groups) == "" {
+			continue
+		}
+		if out[fd.Name] {
+			continue
+		}
+		if !UserHasGroupXML(ctx, uid, fd.Groups) {
+			out[fd.Name] = true
+		}
+	}
+	return out, nil
 }

@@ -10,9 +10,30 @@ func prepareCreateWrite(ctx context.Context, model Model, values map[string]inte
 	if err := CheckModelAccess(ctx, uid, model.ModelName(), "create"); err != nil {
 		return nil, 0, err
 	}
+	if err := RejectVirtualWrites(model, values); err != nil {
+		return nil, 0, err
+	}
 	prepared, err = PrepareValues(model, values, WriteOpCreate, opts)
 	if err != nil {
 		return nil, 0, err
+	}
+	defs := map[string]FieldDefinition{}
+	for _, f := range model.Fields() {
+		if f.Name != "" && f.Name != "id" {
+			defs[f.Name] = f
+		}
+	}
+	if err := applySpecialDefaults(ctx, model, defs, prepared); err != nil {
+		return nil, 0, err
+	}
+	working := mergeRecordMap(map[string]interface{}{}, prepared)
+	if err := MergeStoredComputes(ctx, model.ModelName(), working); err != nil {
+		return nil, 0, err
+	}
+	for k, v := range working {
+		if fd := FieldDef(model.ModelName(), k); fd != nil && fd.ComputeStore {
+			prepared[k] = v
+		}
 	}
 	if err := CheckFieldWriteAccess(ctx, uid, model.ModelName(), prepared); err != nil {
 		return nil, 0, err

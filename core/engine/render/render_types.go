@@ -70,15 +70,15 @@ type PageData struct {
 	// AppLauncherJSON is installed-app metadata for the global Ctrl+K launcher (JSON array).
 	AppLauncherJSON template.JS
 	// PinnedAppsJSON is the signed-in user's pinned module list for the shell.
-	PinnedAppsJSON template.JS
-	ShellCompany      string
-	ShellUser         string
-	ShellUserImage    template.URL    // profile photo for top bar (template.URL so data: URLs are not scrubbed); empty → initials
+	PinnedAppsJSON     template.JS
+	ShellCompany       string
+	ShellUser          string
+	ShellUserImage     template.URL      // profile photo for top bar (template.URL so data: URLs are not scrubbed); empty → initials
 	ShellUserImageCrop template.HTMLAttr // inline crop style for shell avatar when image_crop is set
-	UserInitial       string          // legacy single-letter hint; prefer ShellUserInitials in shell chrome
-	ShellUserInitials string          // two-letter avatar label in top bar when no photo
-	ShellExtraHTML    template.HTML   // AI Assistant or other shell widgets
-	ViewTabs          []ViewSwitchTab // workspace view switcher in breadcrumb bar; empty hides toolbar
+	UserInitial        string            // legacy single-letter hint; prefer ShellUserInitials in shell chrome
+	ShellUserInitials  string            // two-letter avatar label in top bar when no photo
+	ShellExtraHTML     template.HTML     // AI Assistant or other shell widgets
+	ViewTabs           []ViewSwitchTab   // workspace view switcher in breadcrumb bar; empty hides toolbar
 
 	// ShellCompanyOptions lists companies for the top bar switcher (empty when core.company missing).
 	ShellCompanyOptions  []ShellCompanyOption
@@ -118,8 +118,8 @@ type PageData struct {
 	ActivityChatterHTML     template.HTML
 
 	// SWC bootstrap JSON injected as window.__SWC_BOOTSTRAP__
-	SWCBootstrapJSON template.JS
-	SWCEnabled         bool
+	SWCBootstrapJSON    template.JS
+	SWCEnabled          bool
 	SwcAddonEntriesJSON template.JS
 }
 
@@ -178,12 +178,12 @@ type ViewRecordData struct {
 	KanbanModel      string
 
 	// Workspace form chrome (/web): Edit / Save / Cancel and POST save target.
-	ResModel       string // e.g. core.company
-	RecordID       int    // 0 = create form
-	FormEditing    bool   // true when URL contains edit=1
-	FormBaseQuery  string // query string for /web without leading "?" and without edit= (action, menu_id, view_type, id)
-	CSRFToken      string // per-session CSRF hidden field value
-	FlashMessages  []FlashMessage
+	ResModel      string // e.g. core.company
+	RecordID      int    // 0 = create form
+	FormEditing   bool   // true when URL contains edit=1
+	FormBaseQuery string // query string for /web without leading "?" and without edit= (action, menu_id, view_type, id)
+	CSRFToken     string // per-session CSRF hidden field value
+	FlashMessages []FlashMessage
 
 	// Pivot aggregation (view type pivot).
 	Pivot *PivotData
@@ -191,6 +191,10 @@ type ViewRecordData struct {
 	// List view quick search (GET q=).
 	ListSearchQuery string
 	ListSearchURL   string
+	ListTotal       int
+	ListSort        string
+	ListOffset      int
+	ListFilter      string
 }
 
 // PivotData holds aggregated pivot table cells for HTML rendering.

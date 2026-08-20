@@ -79,9 +79,6 @@ func SyncRegistrySchemaForNames(modelNames []string) error {
 // ModelsForModuleSchemaSync returns (names, true) when install should only touch those models;
 // (nil, false) means sync the full registry (unknown modules with no registered models).
 func ModelsForModuleSchemaSync(moduleName string) ([]string, bool) {
-	if moduleName == "base" {
-		return InitialSetupModelNames, true
-	}
 	names := ModelsOwnedByModule(moduleName)
 	if len(names) > 0 {
 		return names, true

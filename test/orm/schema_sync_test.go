@@ -11,9 +11,13 @@ func TestColumnTypeSQL(t *testing.T) {
 	if ok {
 		t.Fatal("unknown type should return ok=false")
 	}
-	s, ok := orm.ColumnTypeSQL(orm.FieldDefinition{Name: "m", Type: orm.Many2One})
-	if !ok || s != "BIGINT" {
-		t.Fatalf("many2one: got %q %v", s, ok)
+	s, ok := orm.ColumnTypeSQL(orm.FieldDefinition{Name: "m", Type: orm.Float64})
+	if !ok || s != "DOUBLE PRECISION" {
+		t.Fatalf("float64: got %q %v", s, ok)
+	}
+	s, ok = orm.ColumnTypeSQL(orm.FieldDefinition{Name: "m", Type: orm.Float})
+	if !ok || s != "REAL" {
+		t.Fatalf("float: got %q %v", s, ok)
 	}
 }
 

@@ -2,17 +2,14 @@ package orm
 
 import "testing"
 
-type testDateModel struct {
-	BaseModel
-}
-
-func (testDateModel) ModelName() string { return "test.date" }
-
-func (testDateModel) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "name", Type: Char, Required: true, String: "Name"},
-		{Name: "date_deadline", Type: Date, String: "Deadline"},
-		{Name: "date_last_stage_update", Type: DateTime, String: "Last Stage Update"},
+func testDateModel() stubModel {
+	return stubModel{
+		name: "test.date",
+		fields: []FieldDefinition{
+			{Name: "name", Type: Char, Required: true, String: "Name"},
+			{Name: "date_deadline", Type: Date, String: "Deadline"},
+			{Name: "date_last_stage_update", Type: DateTime, String: "Last Stage Update"},
+		},
 	}
 }
 
@@ -50,9 +47,9 @@ func TestCoerceFieldValueNonEmptyDatePreserved(t *testing.T) {
 }
 
 func TestPrepareValuesEmptyOptionalDateIsNil(t *testing.T) {
-	out, err := PrepareValues(testDateModel{}, map[string]interface{}{
-		"name":           "Acme",
-		"date_deadline":  "",
+	out, err := PrepareValues(testDateModel(), map[string]interface{}{
+		"name":          "Acme",
+		"date_deadline": "",
 	}, WriteOpCreate, PrepareOptions{StrictUnknown: true})
 	if err != nil {
 		t.Fatalf("PrepareValues: %v", err)
@@ -63,7 +60,7 @@ func TestPrepareValuesEmptyOptionalDateIsNil(t *testing.T) {
 }
 
 func TestPrepareValuesRequiredFieldValidationError(t *testing.T) {
-	_, err := PrepareValues(testDateModel{}, map[string]interface{}{}, WriteOpCreate, PrepareOptions{StrictUnknown: true})
+	_, err := PrepareValues(testDateModel(), map[string]interface{}{}, WriteOpCreate, PrepareOptions{StrictUnknown: true})
 	fve, ok := err.(*FieldValidationError)
 	if !ok {
 		t.Fatalf("expected FieldValidationError, got %T: %v", err, err)

@@ -124,7 +124,7 @@ func (addon *Addon) SyncToDB(ctx context.Context) error {
 		if strings.TrimSpace(orm.DeclaringModule(registeredModel.ModelName())) != moduleName {
 			continue
 		}
-		_, err := orm.Upsert(ctx, orm.SysModel{}, map[string]interface{}{
+		_, err := orm.Upsert(ctx, orm.RegistryModel("sys.model"), map[string]interface{}{
 			"name":   registeredModel.ModelName(),
 			"model":  registeredModel.ModelName(),
 			"module": moduleName,

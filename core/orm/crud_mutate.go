@@ -40,7 +40,7 @@ func executeCreateMutation(ctx context.Context, model Model, values map[string]i
 	if err != nil {
 		return result, err
 	}
-	result.EventName = "record.created"
+	result.EventName = EventRecordCreated
 	err = runMutationTx(ctx, func(tx TxWrapper) error {
 		id, err := insertPreparedOnTx(ctx, tx, model, prepared)
 		if err != nil {
@@ -50,7 +50,7 @@ func executeCreateMutation(ctx context.Context, model Model, values map[string]i
 		if shouldEmitSideEffects(ctx, model.ModelName()) {
 			emitSideEffectsOnTx(ctx, tx, model.ModelName(), uid, []sideEffectRow{{
 				Action:    "create",
-				EventName: "record.created",
+				EventName: EventRecordCreated,
 				ResID:     int64(id),
 				After:     prepared,
 			}})
@@ -80,6 +80,9 @@ func executeUpdateMutation(ctx context.Context, modelName string, domain [][]int
 	if err != nil {
 		return result, err
 	}
+	if err := RejectVirtualWrites(inst, values); err != nil {
+		return result, err
+	}
 	if err := CheckFieldWriteAccess(ctx, uid, modelName, prepared); err != nil {
 		return result, err
 	}
@@ -94,12 +97,26 @@ func executeUpdateMutation(ctx context.Context, modelName string, domain [][]int
 	if err != nil {
 		return result, err
 	}
-	result.EventName = "record.updated"
+	result.EventName = EventRecordUpdated
 	var sideRows []sideEffectRow
 	err = runMutationTx(ctx, func(tx TxWrapper) error {
 		locked, err := lockRowsForDomain(ctx, tx, table, securedSQL, args)
 		if err != nil {
 			return err
+		}
+		if len(locked) == 0 {
+			return fmt.Errorf("access denied or record not found")
+		}
+		if len(locked) == 1 {
+			merged := mergeRecordMap(locked[0], prepared)
+			if err := MergeStoredComputes(ctx, modelName, merged); err != nil {
+				return err
+			}
+			for k, v := range merged {
+				if fd := FieldDef(modelName, k); fd != nil && fd.ComputeStore {
+					prepared[k] = v
+				}
+			}
 		}
 		for _, before := range locked {
 			if newState, ok := prepared["state"].(string); ok {
@@ -146,7 +163,7 @@ func executeUpdateMutation(ctx context.Context, modelName string, domain [][]int
 				merged := mergeRecordMap(before, prepared)
 				sideRows = append(sideRows, sideEffectRow{
 					Action:    "write",
-					EventName: "record.updated",
+					EventName: EventRecordUpdated,
 					ResID:     rid,
 					Before:    before,
 					After:     merged,
@@ -183,7 +200,7 @@ func executeDeleteMutation(ctx context.Context, modelName string, domain [][]int
 	if err != nil {
 		return result, err
 	}
-	result.EventName = "record.deleted"
+	result.EventName = EventRecordDeleted
 	var sideRows []sideEffectRow
 	err = runMutationTx(ctx, func(tx TxWrapper) error {
 		locked, err := lockRowsForDomain(ctx, tx, table, securedSQL, args)
@@ -210,7 +227,7 @@ func executeDeleteMutation(ctx context.Context, modelName string, domain [][]int
 				rid, _ := CoerceInt64(rec["id"])
 				sideRows = append(sideRows, sideEffectRow{
 					Action:    "unlink",
-					EventName: "record.deleted",
+					EventName: EventRecordDeleted,
 					ResID:     rid,
 					Before:    rec,
 				})

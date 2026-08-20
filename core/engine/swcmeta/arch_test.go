@@ -1,6 +1,7 @@
 package swcmeta
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -44,7 +45,7 @@ func TestSerializeSheetNestedGroupsAndDivs(t *testing.T) {
 		},
 	}
 
-	got := serializeSheet("core.partner", sheet)
+	got := serializeSheet(context.Background(), "core.partner", sheet)
 	if got == nil {
 		t.Fatal("expected sheet")
 	}
@@ -66,7 +67,7 @@ func TestSerializeSheetNestedGroupsAndDivs(t *testing.T) {
 }
 
 func TestSerializeGroupColAttributes(t *testing.T) {
-	g := serializeGroup("crm.lead", parser.Group{
+	g := serializeGroup(context.Background(), "crm.lead", parser.Group{
 		Col: "2",
 		Group: []parser.Group{
 			{Title: "Left", Colspan: "1", Field: []parser.Field{{Name: "a"}}},
@@ -82,7 +83,7 @@ func TestSerializeGroupColAttributes(t *testing.T) {
 }
 
 func TestSerializeGroupRecursive(t *testing.T) {
-	g := serializeGroup("core.partner", parser.Group{
+	g := serializeGroup(context.Background(), "core.partner", parser.Group{
 		Title: "Outer",
 		Group: []parser.Group{
 			{Title: "Inner", Field: []parser.Field{{Name: "x"}}},
@@ -97,7 +98,7 @@ func TestSerializeGroupRecursive(t *testing.T) {
 }
 
 func TestSerializeDivContactRow(t *testing.T) {
-	div := serializeDiv("core.user", parser.Div{
+	div := serializeDiv(context.Background(), "core.user", parser.Div{
 		Class: "sum_title",
 		H1: []parser.H1{
 			{Field: []parser.Field{{Name: "name", Placeholder: "Name"}}},
@@ -125,7 +126,7 @@ func TestSerializeSheetSeparatorsAndLabels(t *testing.T) {
 		Separator: []parser.Separator{{String: "Section"}},
 		Label:     []parser.Label{{For: "email", String: "Email hint"}},
 	}
-	got := serializeSheet("my.module", sheet)
+	got := serializeSheet(context.Background(), "my.module", sheet)
 	if len(got.Separators) != 1 || got.Separators[0].String != "Section" {
 		t.Fatalf("unexpected separators: %+v", got.Separators)
 	}
@@ -146,7 +147,7 @@ func TestFormMetaHasImageField(t *testing.T) {
 }
 
 func TestSerializeFieldListSubview(t *testing.T) {
-	fields := serializeFields([]parser.Field{
+	fields := serializeFields(context.Background(), []parser.Field{
 		{
 			Name: "line_ids",
 			List: &parser.FieldList{
@@ -163,6 +164,32 @@ func TestSerializeFieldListSubview(t *testing.T) {
 	}
 	if fields[0].Subview.Editable != "bottom" || len(fields[0].Subview.Fields) != 2 {
 		t.Fatalf("unexpected subview: %+v", fields[0].Subview)
+	}
+}
+
+func TestSerializeModifierExpressions(t *testing.T) {
+	fields := serializeFields(context.Background(), []parser.Field{
+		{Name: "amount", Invisible: "state == 'done'", Readonly: "1"},
+	})
+	if len(fields) != 1 {
+		t.Fatalf("fields: %+v", fields)
+	}
+	if fields[0].InvisibleExpr != "state == 'done'" || !fields[0].Readonly || fields[0].Invisible {
+		t.Fatalf("modifiers: %+v", fields[0])
+	}
+}
+
+func TestSerializeSearchFilters(t *testing.T) {
+	view := &parser.View{
+		Type: "search",
+		SearchFilter: []parser.SearchFilter{
+			{Name: "won", String: "Won", Domain: `[["won_status","=","won"]]`},
+			{Name: "stage", String: "Stage", GroupBy: "stage_id"},
+		},
+	}
+	out := SerializeView(view)
+	if out.Search == nil || len(out.Search.Filters) != 2 {
+		t.Fatalf("search: %+v", out.Search)
 	}
 }
 
@@ -191,7 +218,7 @@ func TestEnrichOne2ManyAutoColumns(t *testing.T) {
 	}
 }
 
-type stubO2MParent struct{ orm.BaseModel }
+type stubO2MParent struct{}
 
 func (stubO2MParent) ModelName() string { return "test.o2m.parent" }
 
@@ -201,7 +228,7 @@ func (stubO2MParent) Fields() []orm.FieldDefinition {
 	}
 }
 
-type stubO2MChild struct{ orm.BaseModel }
+type stubO2MChild struct{}
 
 func (stubO2MChild) ModelName() string { return "test.o2m.child" }
 
@@ -213,7 +240,7 @@ func (stubO2MChild) Fields() []orm.FieldDefinition {
 	}
 }
 
-type stubImageModel struct{ orm.BaseModel }
+type stubImageModel struct{}
 
 func (stubImageModel) ModelName() string { return "test.formmeta.partner" }
 

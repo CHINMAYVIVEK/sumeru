@@ -68,7 +68,7 @@ func syncModelSchema(ctx context.Context, model Model) error {
 		return err
 	}
 	for _, field := range model.Fields() {
-		if field.Name == "id" {
+		if field.Name == "id" || IsVirtualField(field) {
 			continue
 		}
 		if _, ok := existing[strings.ToLower(field.Name)]; ok {
@@ -156,6 +156,9 @@ func dropStaleColumnUniques(modelName, tableName, quotedTable string, model Mode
 
 func ensureModelIndexes(modelName, tableName, quotedTable string, model Model) error {
 	for _, field := range model.Fields() {
+		if IsVirtualField(field) {
+			continue
+		}
 		if !(field.Index || field.Type == Many2One) {
 			continue
 		}
@@ -177,6 +180,13 @@ func ensureExtraIndexes() error {
 	if DB == nil {
 		return nil
 	}
+	if err := ensureMailMessageListIndex(); err != nil {
+		return err
+	}
+	return ensureSysTranslationUniqueIndex()
+}
+
+func ensureMailMessageListIndex() error {
 	tablePhysical := MustModelToTableName("mail.message")
 	if tablePhysical == "" {
 		return nil
@@ -201,6 +211,35 @@ func ensureExtraIndexes() error {
 	idxName := "idx_" + tablePhysical + "_model_core_created"
 	q := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s, %s, %s DESC)",
 		quoteIdent(idxName), tableQuoted, modelCol, coreCol, dateCol)
+	_, err = DB.Exec(q)
+	return err
+}
+
+func ensureSysTranslationUniqueIndex() error {
+	tablePhysical := MustModelToTableName("sys.translation")
+	if tablePhysical == "" {
+		return nil
+	}
+	ok, err := tableExists(tablePhysical)
+	if err != nil || !ok {
+		return err
+	}
+	tableQuoted := MustQuotedTableName("sys.translation")
+	langCol, err := QuotedColumnForModel("sys.translation", "lang")
+	if err != nil {
+		return err
+	}
+	srcCol, err := QuotedColumnForModel("sys.translation", "src")
+	if err != nil {
+		return err
+	}
+	moduleCol, err := QuotedColumnForModel("sys.translation", "module")
+	if err != nil {
+		return err
+	}
+	idxName := "sys_translation_lang_src_module_uidx"
+	q := fmt.Sprintf("CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (%s, %s, %s)",
+		quoteIdent(idxName), tableQuoted, langCol, srcCol, moduleCol)
 	_, err = DB.Exec(q)
 	return err
 }

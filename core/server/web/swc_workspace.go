@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 const swcWorkspaceRoute = "/web/swc/workspace"
@@ -24,16 +25,25 @@ func SwcWorkspaceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actionID := ResolveWindowActionID(ctx, actionQuery, menuQuery)
-	if actionID == 0 {
+	modelQuery := strings.TrimSpace(r.URL.Query().Get(workspaceModelParam))
+
+	var actionData map[string]interface{}
+	var resolved *resolvedWorkspaceView
+	var err error
+	if actionID != 0 {
+		actionData, err = loadWindowAction(ctx, actionID)
+		if err != nil {
+			respondActionNotFound(w, actionID)
+			return
+		}
+		resolved, err = resolveWorkspaceView(ctx, r, actionData)
+	} else if modelQuery != "" {
+		actionData = map[string]interface{}{}
+		resolved, err = resolveWorkspaceByModel(ctx, r, modelQuery)
+	} else {
 		http.Error(w, "action required", http.StatusBadRequest)
 		return
 	}
-	actionData, err := loadWindowAction(ctx, actionID)
-	if err != nil {
-		respondActionNotFound(w, actionID)
-		return
-	}
-	resolved, err := resolveWorkspaceView(ctx, r, actionData)
 	if err != nil {
 		http.Error(w, err.Error(), httpStatusFromWorkspaceError(err))
 		return
@@ -44,7 +54,7 @@ func SwcWorkspaceHandler(w http.ResponseWriter, r *http.Request) {
 		respondWorkspaceLoadError(w, ctx, err)
 		return
 	}
-	payload := buildSwcWorkspacePayload(ctx, resolved, req, viewRecord)
+	payload := buildSwcWorkspacePayload(ctx, resolved, req, viewRecord, actionData)
 	writeJSONResponse(w, payload)
 }
 

@@ -14,4 +14,18 @@ describe("field modifiers", () => {
     } as never);
     expect(mods.readonly).toBe(true);
   });
+
+  it("evaluates modifier expressions", () => {
+    const field = { name: "amount", invisible_expr: "state == 'done'" };
+    const visible = fieldModifiers(field, {
+      data: { state: "draft" },
+      modifierOverrides: new Map(),
+    } as never);
+    expect(visible.invisible).toBe(false);
+    const hidden = fieldModifiers(field, {
+      data: { state: "done" },
+      modifierOverrides: new Map(),
+    } as never);
+    expect(hidden.invisible).toBe(true);
+  });
 });

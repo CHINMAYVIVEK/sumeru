@@ -18,38 +18,12 @@ func IsPlatformModule(name string) bool {
 }
 
 // DeclaringModule returns the sys.module technical name that owns this model's tables.
-// Values come from RegisterModelWithModule; if unset, legacyTechnicalModuleFromName is used once
-// all addons declare Module at registration.
+// Values are set at registration time via RegisterModelWithModule.
 func DeclaringModule(modelName string) string {
-	if m, ok := modelDeclaringModule[modelName]; ok && strings.TrimSpace(m) != "" {
+	if m, ok := modelDeclaringModule[modelName]; ok {
 		return strings.TrimSpace(m)
 	}
-	return legacyTechnicalModuleFromName(modelName)
-}
-
-// legacyTechnicalModuleFromName is a fallback when RegisterModelWithModule was not used (empty module).
-func legacyTechnicalModuleFromName(modelName string) string {
-	i := strings.Index(modelName, ".")
-	if i <= 0 {
-		return ""
-	}
-	prefix := modelName[:i]
-	switch prefix {
-	case "sys", "app":
-		return ""
-	case "mail":
-		return "mail"
-	case "core":
-		return "base"
-	case "crm":
-		return "crm"
-	case "sale":
-		return "sales"
-	case "stock", "product":
-		return "inventory"
-	default:
-		return prefix
-	}
+	return ""
 }
 
 // InstalledModuleNames returns technical names of installed, active modules.

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"sumeru/core/applog"
+	_ "sumeru/core/ormmodels"
 	"sumeru/core/orm"
 	"sumeru/core/runtime"
 	"sumeru/core/scheduler"

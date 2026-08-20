@@ -27,9 +27,12 @@ func writeResUsersSecuritySection(ctx context.Context, sb *strings.Builder, vr *
 	if editable {
 		sb.WriteString(`<p class="sum-security-muted">Only installed applications are listed. Manager includes User rights for that app. System admin includes all module Managers. Portal and Public are mutually exclusive with Internal User.</p>`)
 		sb.WriteString(`<input type="hidden" name="security_groups_touched" value="1"/>`)
-		sb.WriteString(`<div class="sum-field-widget sum-field-widget--spaced">`)
+		sb.WriteString(`<div data-password-match class="sum-field-widget sum-field-widget--spaced">`)
 		sb.WriteString(`<label class="sum-field-label" for="password_plain">New password</label>`)
-		sb.WriteString(`<input class="sum-field-input" id="password_plain" name="password_plain" type="password" autocomplete="new-password" placeholder="Leave blank to keep current" />`)
+		sb.WriteString(`<input class="sum-field-input" id="password_plain" name="password_plain" type="password" autocomplete="new-password" placeholder="Leave blank to keep current" data-password-primary />`)
+		sb.WriteString(`<label class="sum-field-label" for="password_plain_confirm">Confirm new password</label>`)
+		sb.WriteString(`<input class="sum-field-input" id="password_plain_confirm" name="password_plain_confirm" type="password" autocomplete="new-password" placeholder="Repeat new password" data-password-confirm />`)
+		sb.WriteString(`<p class="sum-field-hint" data-password-match-hint role="alert" aria-live="polite" hidden></p>`)
 		sb.WriteString(`</div>`)
 	} else {
 		sb.WriteString(`<p class="sum-security-muted">Assigned access for this user. Only an administrator can change access rights.</p>`)

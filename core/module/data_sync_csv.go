@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"sumeru/core/orm"
 )
@@ -55,13 +54,7 @@ func (addon *Addon) syncCSVModelAccess(ctx context.Context) error {
 
 		var groupId int
 		if groupXmlId != "" {
-			gid, _, err := orm.ResolveXmlId(ctx, groupXmlId)
-			if err != nil {
-				// Try with module prefix if not absolute
-				if !strings.Contains(groupXmlId, ".") {
-					gid, _, _ = orm.ResolveXmlId(ctx, addon.Manifest.Name+"."+groupXmlId)
-				}
-			}
+			gid, _ := resolveXMLIDInModule(ctx, addon.Manifest.Name, groupXmlId)
 			groupId = gid
 		}
 
@@ -77,9 +70,9 @@ func (addon *Addon) syncCSVModelAccess(ctx context.Context) error {
 			accessValues["group_id"] = groupId
 		}
 
-		id, err := orm.Upsert(ctx, orm.SysAccess{}, accessValues, "name")
+		id, err := orm.Upsert(ctx, orm.RegistryModel("sys.access"), accessValues, "name")
 		if err == nil {
-			_, _ = orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
+			_, _ = orm.Upsert(ctx, orm.RegistryModel("sys.model.data"), map[string]interface{}{
 				"module":  addon.Manifest.Name,
 				"name":    recordXmlId,
 				"model":   "sys.access",

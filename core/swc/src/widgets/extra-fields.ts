@@ -97,3 +97,14 @@ export class ProgressField extends DefaultField {
     return super.template();
   }
 }
+
+export class HandleField extends SwcComponent<FieldProps> {
+  template() {
+    const { field } = this.props;
+    return renderFieldShell(
+      field,
+      html`<span class="sum-handle-grip" title="Reorder" aria-hidden="true">⋮⋮</span>`,
+      { labelFor: false },
+    );
+  }
+}

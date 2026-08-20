@@ -24,6 +24,7 @@ import {
   ColorField,
   UrlField,
   ProgressField,
+  HandleField,
 } from "./extra-fields.js";
 
 export function registerDefaultWidgets(): void {
@@ -59,6 +60,7 @@ export function registerDefaultWidgets(): void {
   add("color", ColorField);
   add("url", UrlField);
   add("progress", ProgressField);
+  add("handle", HandleField);
 }
 
 const WIDGET_MAP: Record<string, string> = {
@@ -79,6 +81,7 @@ const WIDGET_MAP: Record<string, string> = {
   url: "url",
   progressbar: "progress",
   progress: "progress",
+  handle: "handle",
 };
 
 const TYPE_MAP: Record<string, string> = {

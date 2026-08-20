@@ -19,6 +19,7 @@ import { VIEW_FORM, VIEW_LIST } from "../../constants/routes.js";
 
 interface FormViewProps {
   payload: SwcWorkspacePayload;
+  inDialog?: boolean;
 }
 
 export class FormView extends SwcComponent<FormViewProps> {
@@ -103,11 +104,7 @@ export class FormView extends SwcComponent<FormViewProps> {
     if (this.isReadonly()) return;
     const result = await this.recordStore.applyOnchange(this.record, field);
     if (result?.warning) {
-      this.env.services.notification.show({
-        kind: "warning",
-        title: result.warning.title,
-        body: result.warning.message,
-      });
+      this.env.services.notification.warning(result.warning.title, result.warning.message);
     }
     this.fieldHost.clear();
     this.bump?.();
@@ -194,11 +191,7 @@ export class FormView extends SwcComponent<FormViewProps> {
       const required = this.fields().filter((f) => f.required).map((f) => f.name);
       this.recordStore.validate(this.record, required);
       const id = await this.recordStore.save(this.record);
-      this.env.services.notification.show({
-        kind: "success",
-        title: "Saved",
-        body: "Record saved successfully.",
-      });
+      this.env.services.notification.success("Saved", "Record saved successfully.");
       const p = this.props.payload;
       if (p.recordId <= 0 && id > 0) {
         this.env.services.action.openRecord({
@@ -213,7 +206,12 @@ export class FormView extends SwcComponent<FormViewProps> {
       this.editing = false;
       this.bump?.();
     } catch (err) {
-      this.error = err instanceof SwcError ? err.message : String(err);
+      const message = err instanceof SwcError ? err.message : String(err);
+      if (err instanceof SwcError && err.code === "validation") {
+        this.error = message;
+      } else {
+        this.env.services.notification.error("Save failed", message);
+      }
     } finally {
       this.saving = false;
       this.bump?.();
@@ -225,28 +223,43 @@ export class FormView extends SwcComponent<FormViewProps> {
     if (p.recordId <= 0) return;
     const ok = await this.env.services.dialog.confirm("Delete record", "This cannot be undone.");
     if (!ok) return;
-    await this.recordStore.unlink(this.record);
-    this.env.services.notification.show({ kind: "success", title: "Deleted", body: "Record deleted." });
-    this.env.services.action.navigate(
-      this.env.services.router.workspaceUrl({
-        actionId: p.actionId,
-        menuId: p.menuId,
-        viewType: VIEW_LIST,
-        recordId: 0,
-      }),
-    );
+    try {
+      await this.recordStore.unlink(this.record);
+      this.env.services.notification.success("Deleted", "Record deleted.");
+      this.env.services.action.navigate(
+        this.env.services.router.workspaceUrl({
+          actionId: p.actionId,
+          menuId: p.menuId,
+          viewType: VIEW_LIST,
+          recordId: 0,
+        }),
+      );
+    } catch (err) {
+      this.env.services.notification.error(
+        "Delete failed",
+        err instanceof SwcError ? err.message : String(err),
+      );
+    }
   }
 
   private async duplicateRecord(): Promise<void> {
     const p = this.props.payload;
     if (p.recordId <= 0) return;
-    const newId = await this.recordStore.duplicate(this.record);
-    this.env.services.action.openRecord({
-      actionId: p.actionId,
-      menuId: p.menuId,
-      recordId: newId,
-      viewType: VIEW_FORM,
-    });
+    try {
+      const newId = await this.recordStore.duplicate(this.record);
+      this.env.services.notification.success("Duplicated", "Record duplicated.");
+      this.env.services.action.openRecord({
+        actionId: p.actionId,
+        menuId: p.menuId,
+        recordId: newId,
+        viewType: VIEW_FORM,
+      });
+    } catch (err) {
+      this.env.services.notification.error(
+        "Duplicate failed",
+        err instanceof SwcError ? err.message : String(err),
+      );
+    }
   }
 
   private async runObjectButton(btn: SwcArchButton): Promise<void> {
@@ -256,21 +269,17 @@ export class FormView extends SwcComponent<FormViewProps> {
     this.error = "";
     this.bump?.();
     try {
-      const result = (await this.env.services.rpc.callMethod(p.model, btn.name, p.recordId)) as {
-        redirect?: string;
-      };
-      if (result?.redirect) {
-        this.env.services.action.navigate(result.redirect);
+      const result = await this.env.services.rpc.callMethod(p.model, btn.name, p.recordId);
+      if (await this.env.services.action.applyCallResult(result)) {
         return;
       }
-      this.env.services.notification.show({
-        kind: "success",
-        title: btn.string || btn.name,
-        body: "Action completed.",
-      });
+      this.env.services.notification.success(btn.string || btn.name, "Action completed.");
       await this.reloadRecord();
     } catch (err) {
-      this.error = err instanceof SwcError ? err.message : String(err);
+      this.env.services.notification.error(
+        btn.string || btn.name,
+        err instanceof SwcError ? err.message : String(err),
+      );
     } finally {
       this.acting = false;
       this.bump?.();
@@ -283,12 +292,16 @@ export class FormView extends SwcComponent<FormViewProps> {
     const items: HTMLElement[] = [];
 
     if (p.recordId > 0 && this.isReadonly()) {
-      items.push(renderNewButton(p));
-      items.push(headerButton("Edit", undefined, () => this.startEdit(), busy));
-      items.push(headerButton("Duplicate", undefined, () => void this.duplicateRecord(), busy));
-      items.push(
-        headerButton("Delete", "sum-btn--danger", () => void this.deleteRecord(), busy),
-      );
+      if (!this.props.inDialog) {
+        items.push(renderNewButton(p));
+        items.push(headerButton("Edit", undefined, () => this.startEdit(), busy));
+        items.push(headerButton("Duplicate", undefined, () => void this.duplicateRecord(), busy));
+        items.push(
+          headerButton("Delete", "sum-btn--danger", () => void this.deleteRecord(), busy),
+        );
+      } else {
+        items.push(headerButton("Edit", undefined, () => this.startEdit(), busy));
+      }
     } else {
       items.push(headerButton("Save", "sum_highlight", () => void this.save(), busy));
       items.push(headerButton("Cancel", undefined, () => this.cancelEdit(), busy || this.saving));

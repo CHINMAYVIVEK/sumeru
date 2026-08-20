@@ -1,15 +1,22 @@
 package swcmeta
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
 	"sumeru/core/engine/parser"
 	"sumeru/core/orm"
+	"sumeru/core/report"
 )
 
-// SerializeView converts a parsed view arch into SWC JSON metadata.
+// SerializeView converts a parsed view arch into SWC JSON metadata (no user ACL filter).
 func SerializeView(view *parser.View) ViewArch {
+	return SerializeViewForUser(context.Background(), view)
+}
+
+// SerializeViewForUser converts a parsed view arch, dropping fields the user cannot see via groups=.
+func SerializeViewForUser(ctx context.Context, view *parser.View) ViewArch {
 	if view == nil {
 		return ViewArch{}
 	}
@@ -18,12 +25,12 @@ func SerializeView(view *parser.View) ViewArch {
 		Type:   strings.TrimSpace(view.Type),
 		Model:  model,
 		Title:  strings.TrimSpace(view.Title),
-		Fields: enrichFields(model, serializeFields(view.Field)),
+		Fields: enrichFields(model, serializeFields(ctx, view.Field)),
 	}
 	if view.Header != nil {
 		arch.Header = &ArchHeader{
 			Buttons: serializeButtons(view.Header.Button),
-			Fields:  enrichFields(model, serializeFields(view.Header.Field)),
+			Fields:  enrichFields(model, serializeFields(ctx, view.Header.Field)),
 		}
 	}
 	if view.Footer != nil && len(view.Footer.Button) > 0 {
@@ -32,7 +39,7 @@ func SerializeView(view *parser.View) ViewArch {
 		}
 	}
 	if view.Sheet != nil {
-		arch.Sheet = serializeSheet(model, view.Sheet)
+		arch.Sheet = serializeSheet(ctx, model, view.Sheet)
 	}
 	arch.FormMeta = formMetaForModel(model)
 	if view.Chatter != nil {
@@ -40,19 +47,59 @@ func SerializeView(view *parser.View) ViewArch {
 	}
 	if strings.EqualFold(view.Type, "kanban") {
 		arch.Kanban = &KanbanMeta{
-			GroupField: view.KanbanGroupField(),
-			Draggable:  view.KanbanDraggable(),
+			GroupField:  view.KanbanGroupField(),
+			Draggable:   view.KanbanDraggable(),
+			QuickCreate: view.KanbanQuickCreate(),
 		}
 	}
-	if rep := view.Report; rep != nil {
+	if strings.EqualFold(view.Type, "graph") {
+		arch.Graph = &GraphMeta{Chart: view.GraphChart()}
+	}
+	if strings.EqualFold(view.Type, "calendar") || strings.TrimSpace(view.DateStart) != "" {
+		arch.Calendar = &CalendarMeta{
+			DateStart: strings.TrimSpace(view.DateStart),
+			DateStop:  strings.TrimSpace(view.DateStop),
+		}
+	}
+	if len(view.SearchFilter) > 0 {
+		arch.Search = serializeSearch(view)
+	}
+	if caps := report.CapabilitiesFromView(view); caps.HasDownload() || caps.BulkUpload {
 		arch.Report = &ReportMeta{
-			Download:  rep.Download != "" && rep.Download != "0" && rep.Download != "false",
-			Upload:    rep.Upload != "" && rep.Upload != "0" && rep.Upload != "false",
-			PDFSizes:  rep.PDFSizes,
-			BulkModes: rep.Modes,
+			Download:  caps.HasDownload(),
+			Upload:    caps.BulkUpload,
+			PDFSizes:  strings.Join(caps.PDFSizes, ","),
+			BulkModes: strings.Join(caps.BulkModes, ","),
 		}
 	}
 	return arch
+}
+
+func serializeSearch(view *parser.View) *SearchMeta {
+	if view == nil || len(view.SearchFilter) == 0 {
+		return nil
+	}
+	out := &SearchMeta{Filters: make([]SearchFilterMeta, 0, len(view.SearchFilter))}
+	for _, f := range view.SearchFilter {
+		name := strings.TrimSpace(f.Name)
+		if name == "" {
+			continue
+		}
+		label := strings.TrimSpace(f.String)
+		if label == "" {
+			label = name
+		}
+		out.Filters = append(out.Filters, SearchFilterMeta{
+			Name:    name,
+			String:  label,
+			Domain:  strings.TrimSpace(f.Domain),
+			GroupBy: strings.TrimSpace(f.GroupBy),
+		})
+	}
+	if len(out.Filters) == 0 {
+		return nil
+	}
+	return out
 }
 
 func formMetaForModel(model string) *FormMeta {
@@ -186,29 +233,29 @@ func autoColumnsForComodel(parentModel, comodel string) []ArchField {
 	return out
 }
 
-func serializeSheet(model string, s *parser.Sheet) *ArchSheet {
+func serializeSheet(ctx context.Context, model string, s *parser.Sheet) *ArchSheet {
 	out := &ArchSheet{
-		Fields:     enrichFields(model, serializeFields(s.Field)),
+		Fields:     enrichFields(model, serializeFields(ctx, s.Field)),
 		Groups:     []ArchGroup{},
-		Divs:       serializeDivs(model, s),
+		Divs:       serializeDivs(ctx, model, s),
 		Separators: serializeSeparators(s.Separator),
 		Labels:     serializeLabels(s.Label),
 	}
 	for _, g := range s.Group {
-		out.Groups = append(out.Groups, serializeGroup(model, g))
+		out.Groups = append(out.Groups, serializeGroup(ctx, model, g))
 	}
 	for _, nb := range s.Notebook {
 		pages := make([]ArchPage, 0, len(nb.Page))
 		for _, p := range nb.Page {
 			pg := ArchPage{
 				Title:      strings.TrimSpace(p.Title),
-				Fields:     enrichFields(model, serializeFields(p.Field)),
+				Fields:     enrichFields(model, serializeFields(ctx, p.Field)),
 				Groups:     []ArchGroup{},
 				Separators: serializeSeparators(p.Separator),
 				Labels:     serializeLabels(p.Label),
 			}
 			for _, g := range p.Group {
-				pg.Groups = append(pg.Groups, serializeGroup(model, g))
+				pg.Groups = append(pg.Groups, serializeGroup(ctx, model, g))
 			}
 			pages = append(pages, pg)
 		}
@@ -217,18 +264,18 @@ func serializeSheet(model string, s *parser.Sheet) *ArchSheet {
 	return out
 }
 
-func serializeGroup(model string, g parser.Group) ArchGroup {
+func serializeGroup(ctx context.Context, model string, g parser.Group) ArchGroup {
 	out := ArchGroup{
 		String:     strings.TrimSpace(g.Title),
 		Col:        parseArchInt(g.Col),
 		Colspan:    parseArchInt(g.Colspan),
-		Fields:     enrichFields(model, serializeFields(g.Field)),
+		Fields:     enrichFields(model, serializeFields(ctx, g.Field)),
 		Groups:     []ArchGroup{},
 		Separators: serializeSeparators(g.Separator),
 		Labels:     serializeLabels(g.Label),
 	}
 	for _, nested := range g.Group {
-		out.Groups = append(out.Groups, serializeGroup(model, nested))
+		out.Groups = append(out.Groups, serializeGroup(ctx, model, nested))
 	}
 	return out
 }
@@ -245,13 +292,13 @@ func parseArchInt(raw string) int {
 	return n
 }
 
-func serializeDivs(model string, s *parser.Sheet) []ArchDiv {
+func serializeDivs(ctx context.Context, model string, s *parser.Sheet) []ArchDiv {
 	if s == nil || len(s.Div) == 0 {
 		return nil
 	}
 	out := make([]ArchDiv, 0, len(s.Div))
 	for _, d := range s.Div {
-		div := serializeDiv(model, d)
+		div := serializeDiv(ctx, model, d)
 		if divHasContent(div) {
 			out = append(out, div)
 		}
@@ -262,17 +309,17 @@ func serializeDivs(model string, s *parser.Sheet) []ArchDiv {
 	return out
 }
 
-func serializeDiv(model string, d parser.Div) ArchDiv {
+func serializeDiv(ctx context.Context, model string, d parser.Div) ArchDiv {
 	out := ArchDiv{
 		Class:   strings.TrimSpace(d.Class),
-		Fields:  enrichFields(model, serializeFields(d.Field)),
+		Fields:  enrichFields(model, serializeFields(ctx, d.Field)),
 		Buttons: serializeButtons(d.Button),
 	}
 	for _, h1 := range d.H1 {
-		out.H1Fields = append(out.H1Fields, enrichFields(model, serializeFields(h1.Field))...)
+		out.H1Fields = append(out.H1Fields, enrichFields(model, serializeFields(ctx, h1.Field))...)
 	}
 	for _, nested := range d.Div {
-		child := serializeDiv(model, nested)
+		child := serializeDiv(ctx, model, nested)
 		if divHasContent(child) {
 			out.Divs = append(out.Divs, child)
 		}
@@ -297,9 +344,13 @@ func serializeButtons(buttons []parser.Button) []ArchButton {
 	return out
 }
 
-func serializeFields(fields []parser.Field) []ArchField {
+func serializeFields(ctx context.Context, fields []parser.Field) []ArchField {
 	out := make([]ArchField, 0, len(fields))
+	uid := orm.SecurityUID(ctx)
 	for _, f := range fields {
+		if !orm.UserHasAnyAccessGroup(ctx, uid, f.Groups) {
+			continue
+		}
 		af := ArchField{
 			Name:        strings.TrimSpace(f.Name),
 			String:      strings.TrimSpace(f.Label),
@@ -307,29 +358,41 @@ func serializeFields(fields []parser.Field) []ArchField {
 			Placeholder: strings.TrimSpace(f.Placeholder),
 			PivotType:   strings.TrimSpace(f.PivotType),
 			Options:     parseFieldOptions(f.Options),
-			Readonly:    parser.IsTruthyAttr(f.Readonly),
-			Required:    parser.IsTruthyAttr(f.Required),
-			Invisible:   parser.IsTruthyAttr(f.Invisible),
+		}
+		if lit, truthy, expr := parser.AttrLiteralOrExpr(f.Readonly); lit {
+			af.Readonly = truthy
+		} else {
+			af.ReadonlyExpr = expr
+		}
+		if lit, truthy, expr := parser.AttrLiteralOrExpr(f.Required); lit {
+			af.Required = truthy
+		} else {
+			af.RequiredExpr = expr
+		}
+		if lit, truthy, expr := parser.AttrLiteralOrExpr(f.Invisible); lit {
+			af.Invisible = truthy
+		} else {
+			af.InvisibleExpr = expr
 		}
 		sub := f.List
 		if sub == nil {
 			sub = f.Tree
 		}
 		if sub != nil {
-			af.Subview = serializeFieldList(sub)
+			af.Subview = serializeFieldList(ctx, sub)
 		}
 		out = append(out, af)
 	}
 	return out
 }
 
-func serializeFieldList(list *parser.FieldList) *ArchListSubview {
+func serializeFieldList(ctx context.Context, list *parser.FieldList) *ArchListSubview {
 	if list == nil {
 		return nil
 	}
 	return &ArchListSubview{
 		Editable: strings.TrimSpace(list.Editable),
-		Fields:   serializeFields(list.Field),
+		Fields:   serializeFields(ctx, list.Field),
 	}
 }
 

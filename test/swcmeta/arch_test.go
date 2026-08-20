@@ -37,3 +37,19 @@ func TestBuildWorkspacePayloadRedacts(t *testing.T) {
 	}
 	_ = orm.RedactRecordForRead // link orm package
 }
+
+func TestBuildWorkspacePayloadDefaults(t *testing.T) {
+	payload := swcmeta.BuildWorkspacePayload(
+		context.Background(),
+		&parser.View{Model: "crm.lead", Type: "kanban"},
+		"kanban",
+		swcmeta.ViewRecordInput{
+			ResModel: "crm.lead",
+			Defaults: map[string]interface{}{"type": "opportunity"},
+		},
+		"1",
+	)
+	if payload.Defaults["type"] != "opportunity" {
+		t.Fatalf("defaults: %+v", payload.Defaults)
+	}
+}

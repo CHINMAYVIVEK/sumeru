@@ -17,3 +17,19 @@ func TestIsTruthyAttr(t *testing.T) {
 		}
 	}
 }
+
+func TestAttrLiteralOrExpr(t *testing.T) {
+	t.Parallel()
+	lit, truthy, expr := AttrLiteralOrExpr("1")
+	if !lit || !truthy || expr != "" {
+		t.Fatalf("true literal: %v %v %q", lit, truthy, expr)
+	}
+	lit, truthy, expr = AttrLiteralOrExpr("false")
+	if !lit || truthy || expr != "" {
+		t.Fatalf("false literal: %v %v %q", lit, truthy, expr)
+	}
+	lit, truthy, expr = AttrLiteralOrExpr("state != 'done'")
+	if lit || truthy || expr != "state != 'done'" {
+		t.Fatalf("expr: %v %v %q", lit, truthy, expr)
+	}
+}

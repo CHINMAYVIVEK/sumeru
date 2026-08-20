@@ -2,6 +2,7 @@ package swcmeta
 
 import (
 	"context"
+	"strings"
 
 	"sumeru/core/engine/parser"
 	"sumeru/core/orm"
@@ -9,22 +10,27 @@ import (
 
 // ViewRecordInput is workspace ORM data passed from the web layer (no render import).
 type ViewRecordInput struct {
-	ActionID        int
-	ResModel        string
-	RecordID        int
-	FormEditing     bool
-	CSRFToken       string
-	FormBaseQuery   string
-	ListSearchQuery string
-	ListSearchURL   string
-	Record          map[string]interface{}
-	ListRows        []map[string]interface{}
-	KanbanColumns   []KanbanColumn
+	ActionID         int
+	ResModel         string
+	RecordID         int
+	FormEditing      bool
+	CSRFToken        string
+	FormBaseQuery    string
+	ListSearchQuery  string
+	ListSearchURL    string
+	ListTotal        int
+	ListSort         string
+	ListOffset       int
+	ListFilter       string
+	Record           map[string]interface{}
+	ListRows         []map[string]interface{}
+	KanbanColumns    []KanbanColumn
 	KanbanGroupField string
-	KanbanDraggable bool
-	Pivot           *PivotMeta
-	ViewTabs        []ViewTab
-	Breadcrumbs     []Breadcrumb
+	KanbanDraggable  bool
+	Pivot            *PivotMeta
+	ViewTabs         []ViewTab
+	Breadcrumbs      []Breadcrumb
+	Defaults         map[string]interface{}
 }
 
 // BuildWorkspacePayload serializes loaded workspace data for SWC.
@@ -35,18 +41,28 @@ func BuildWorkspacePayload(
 	rec ViewRecordInput,
 	reqMenuID string,
 ) WorkspacePayload {
-	arch := SerializeView(view)
+	arch := SerializeViewForUser(ctx, view)
 	arch.Type = selectedMode
 
 	if len(rec.KanbanColumns) > 0 || rec.KanbanGroupField != "" {
+		quick := false
+		if view != nil {
+			quick = view.KanbanQuickCreate()
+		}
 		arch.Kanban = &KanbanMeta{
-			GroupField: rec.KanbanGroupField,
-			Draggable:  rec.KanbanDraggable,
-			Columns:    rec.KanbanColumns,
+			GroupField:  rec.KanbanGroupField,
+			Draggable:   rec.KanbanDraggable,
+			QuickCreate: quick,
+			Columns:     rec.KanbanColumns,
 		}
 	}
 	if rec.Pivot != nil {
 		arch.Pivot = rec.Pivot
+	}
+	if selectedMode == "list" || selectedMode == "kanban" || selectedMode == "graph" || selectedMode == "calendar" || selectedMode == "pivot" {
+		if arch.Search == nil {
+			arch.Search = loadSearchMeta(ctx, rec.ResModel)
+		}
 	}
 
 	payload := WorkspacePayload{
@@ -60,9 +76,14 @@ func BuildWorkspacePayload(
 		Arch:          arch,
 		ListSearch:    rec.ListSearchQuery,
 		ListSearchURL: rec.ListSearchURL,
+		ListTotal:     rec.ListTotal,
+		ListSort:      rec.ListSort,
+		ListOffset:    rec.ListOffset,
+		ListFilter:    rec.ListFilter,
 		FormBaseQuery: rec.FormBaseQuery,
 		ViewTabs:      rec.ViewTabs,
 		Breadcrumbs:   rec.Breadcrumbs,
+		Defaults:      rec.Defaults,
 	}
 
 	if rec.Record != nil {
@@ -96,4 +117,24 @@ func redactRows(ctx context.Context, model string, rows []map[string]interface{}
 		out[i] = copy
 	}
 	return out
+}
+
+func loadSearchMeta(ctx context.Context, model string) *SearchMeta {
+	model = strings.TrimSpace(model)
+	if model == "" || orm.DB == nil {
+		return nil
+	}
+	viewData, err := orm.FindUIDefaultView(ctx, model, "search")
+	if err != nil || viewData == nil {
+		return nil
+	}
+	arch := strings.TrimSpace(orm.AsString(viewData["arch"]))
+	if arch == "" {
+		return nil
+	}
+	parsed, err := parser.ParseViewFromArch(arch)
+	if err != nil {
+		return nil
+	}
+	return serializeSearch(parsed)
 }

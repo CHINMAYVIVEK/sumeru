@@ -8,7 +8,7 @@ import { registry } from "../../runtime/registry.js";
 import { logWorkspacePayload, logViewArch } from "../../devtools/debug.js";
 import { ShellPageView } from "../../shell/ShellPageView.js";
 import { syncWorkspaceViewTabs } from "../../shell/view-tab-sync.js";
-import { RECORD_UPDATED, SWC_API_BASE } from "../../constants/routes.js";
+import { ACTION_CLOSED, RECORD_UPDATED, SWC_API_BASE } from "../../constants/routes.js";
 import { RouterService } from "../../services/router.js";
 
 type ViewInstance = SwcComponent & { setup?: () => void; render(): HTMLElement };
@@ -47,6 +47,12 @@ export class WorkspaceRouter extends SwcComponent {
       const onNav = (): void => void load();
       window.addEventListener("popstate", onNav);
       return () => window.removeEventListener("popstate", onNav);
+    });
+
+    useEffect(() => {
+      return this.env.services.bus.subscribe(ACTION_CLOSED, () => {
+        void load();
+      });
     });
 
     useEffect(() => {

@@ -13,6 +13,7 @@ func buildSwcWorkspacePayload(
 	resolved *resolvedWorkspaceView,
 	req workspaceRequest,
 	viewRecord *render.ViewRecordData,
+	actionData map[string]interface{},
 ) swcmeta.WorkspacePayload {
 	viewBC := render.HumanViewBreadcrumb(resolved.view.Model, resolved.selectedMode)
 	crumbs := render.BuildWorkspaceBreadcrumbs(ctx, render.BreadcrumbInput{
@@ -34,12 +35,17 @@ func buildSwcWorkspacePayload(
 		FormBaseQuery:    viewRecord.FormBaseQuery,
 		ListSearchQuery:  viewRecord.ListSearchQuery,
 		ListSearchURL:    viewRecord.ListSearchURL,
+		ListTotal:        viewRecord.ListTotal,
+		ListSort:         viewRecord.ListSort,
+		ListOffset:       viewRecord.ListOffset,
+		ListFilter:       viewRecord.ListFilter,
 		Record:           viewRecord.Record,
 		ListRows:         viewRecord.ListRows,
 		KanbanGroupField: viewRecord.KanbanGroupField,
 		KanbanDraggable:  viewRecord.KanbanDraggable,
 		ViewTabs:         serializeSwcViewTabs(tabs),
 		Breadcrumbs:      serializeSwcBreadcrumbs(crumbs),
+		Defaults:         actionDefaultFieldValues(actionData),
 	}
 	for _, c := range viewRecord.KanbanColumns {
 		input.KanbanColumns = append(input.KanbanColumns, swcmeta.KanbanColumn{

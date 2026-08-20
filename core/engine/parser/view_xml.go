@@ -8,12 +8,12 @@ import (
 )
 
 type View struct {
-	XMLName xml.Name `xml:"view"`
-	ID      string   `xml:"id,attr"`
-	Model   string   `xml:"model,attr"`
-	Type    string   `xml:"type,attr"`
-	Title   string   `xml:"title,attr"`
-	Priority int     `xml:"priority,attr"`
+	XMLName  xml.Name `xml:"view"`
+	ID       string   `xml:"id,attr"`
+	Model    string   `xml:"model,attr"`
+	Type     string   `xml:"type,attr"`
+	Title    string   `xml:"title,attr"`
+	Priority int      `xml:"priority,attr"`
 	// ListOpenAttr is the raw <list open="..."/> or <view type="list" open="..."/> attribute (false/0/off disables row→form).
 	ListOpenAttr string `xml:"open,attr"`
 	// ListNoRowOpen is derived from ListOpenAttr by the arch parser for type list.
@@ -28,25 +28,33 @@ type View struct {
 	Form *archFormRoot `xml:"form"`
 
 	// Kanban grouping / drag-drop (view type="kanban" or nested kanban arch).
-	DefaultGroupBy     string `xml:"default_group_by,attr"`
-	GroupBy            string `xml:"group_by,attr"`
-	RecordsDraggable   string `xml:"records_draggable,attr"`
-	QuickCreate        string `xml:"quick_create,attr"`
+	DefaultGroupBy   string `xml:"default_group_by,attr"`
+	GroupBy          string `xml:"group_by,attr"`
+	RecordsDraggable string `xml:"records_draggable,attr"`
+	QuickCreate      string `xml:"quick_create,attr"`
+
+	// Calendar / graph extras (ignored on other view types).
+	Chart     string `xml:"chart,attr"`
+	DateStart string `xml:"date_start,attr"`
+	DateStop  string `xml:"date_stop,attr"`
+
+	// Search view filters (<filter name domain group_by>).
+	SearchFilter []SearchFilter `xml:"filter"`
 
 	// Report exchange (download CSV/PDF, bulk upload) — opt-in per view.
-	Report           *ReportElement `xml:"report"`
-	ReportDownload   string         `xml:"report_download,attr"`
-	BulkUpload       string         `xml:"bulk_upload,attr"`
-	ReportPDFSizes   string         `xml:"pdf_sizes,attr"`
-	ReportBulkModes  string         `xml:"bulk_modes,attr"`
+	Report          *ReportElement `xml:"report"`
+	ReportDownload  string         `xml:"report_download,attr"`
+	BulkUpload      string         `xml:"bulk_upload,attr"`
+	ReportPDFSizes  string         `xml:"pdf_sizes,attr"`
+	ReportBulkModes string         `xml:"bulk_modes,attr"`
 }
 
 // ReportElement declares report download and bulk upload on a view.
 type ReportElement struct {
-	Download  string `xml:"download,attr"`
-	Upload    string `xml:"upload,attr"`
-	PDFSizes  string `xml:"pdf_sizes,attr"`
-	Modes     string `xml:"modes,attr"`
+	Download string `xml:"download,attr"`
+	Upload   string `xml:"upload,attr"`
+	PDFSizes string `xml:"pdf_sizes,attr"`
+	Modes    string `xml:"modes,attr"`
 }
 
 // KanbanGroupField returns the column grouping field (default_group_by, then group_by).
@@ -73,6 +81,30 @@ func (v *View) KanbanDraggable() bool {
 		return false
 	}
 	return true
+}
+
+// KanbanQuickCreate is true when grouped and quick_create is not explicitly off.
+func (v *View) KanbanQuickCreate() bool {
+	if v == nil || v.KanbanGroupField() == "" {
+		return false
+	}
+	s := strings.ToLower(strings.TrimSpace(v.QuickCreate))
+	if s == "0" || s == "false" || s == "off" || s == "no" {
+		return false
+	}
+	return true
+}
+
+// GraphChart returns the chart kind (bar, line, pie); default bar.
+func (v *View) GraphChart() string {
+	if v == nil {
+		return "bar"
+	}
+	c := strings.ToLower(strings.TrimSpace(v.Chart))
+	if c == "" {
+		return "bar"
+	}
+	return c
 }
 
 type Header struct {
@@ -152,6 +184,14 @@ type Field struct {
 type FieldList struct {
 	Editable string  `xml:"editable,attr"`
 	Field    []Field `xml:"field"`
+}
+
+// SearchFilter is a named search-view facet (domain JSON and optional group_by).
+type SearchFilter struct {
+	Name    string `xml:"name,attr"`
+	String  string `xml:"string,attr"`
+	Domain  string `xml:"domain,attr"`
+	GroupBy string `xml:"group_by,attr"`
 }
 
 type Group struct {

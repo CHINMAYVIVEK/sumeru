@@ -68,6 +68,12 @@ func ApplyUserSecurityPost(ctx context.Context, actor, userID int, form url.Valu
 			return
 		}
 		if pw := strings.TrimSpace(form.Get("password_plain")); pw != "" {
+			confirm := strings.TrimSpace(form.Get("password_plain_confirm"))
+			if pw != confirm {
+				applog.WarnMsg(ctx, "orm", "user_security", "password confirm mismatch", nil,
+					map[string]interface{}{"user_id": userID})
+				return
+			}
 			if err := ValidatePasswordPolicy(pw); err != nil {
 				applog.WarnMsg(ctx, "orm", "user_security", "password policy rejected", err, nil)
 				return

@@ -2,27 +2,44 @@ import { SwcComponent } from "../../runtime/component.js";
 import { html } from "../../template/html.js";
 import type { SwcWorkspacePayload } from "../../types/workspace.js";
 import { VIEW_FORM } from "../../constants/routes.js";
+import { useState } from "../../runtime/hooks.js";
 
 interface CalendarViewProps {
   payload: SwcWorkspacePayload;
 }
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 export class CalendarView extends SwcComponent<CalendarViewProps> {
   private dateField = "date_deadline";
+  private year = 0;
+  private month = 0;
 
   setup(): void {
-    const fields = this.props.payload.arch.fields;
-    const dateField = fields.find((f) => f.type === "date" || f.type === "datetime");
-    if (dateField) this.dateField = dateField.name;
+    const now = new Date();
+    this.year = now.getFullYear();
+    this.month = now.getMonth();
+    const archStart = this.props.payload.arch.calendar?.dateStart;
+    if (archStart) {
+      this.dateField = archStart;
+    } else {
+      const fields = this.props.payload.arch.fields;
+      const dateField = fields.find((f) => f.type === "date" || f.type === "datetime");
+      if (dateField) this.dateField = dateField.name;
+    }
+    const [, bump] = useState(0);
+    this.bump = () => bump((n) => n + 1);
   }
 
-  private groupByDate(): Map<string, Record<string, unknown>[]> {
+  private bump: (() => void) | null = null;
+
+  private eventsByDay(): Map<string, Record<string, unknown>[]> {
     const map = new Map<string, Record<string, unknown>[]>();
     for (const row of this.props.payload.records ?? []) {
       const raw = String(row[this.dateField] ?? "").slice(0, 10);
-      const key = raw || "Unscheduled";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(row);
+      if (!raw) continue;
+      if (!map.has(raw)) map.set(raw, []);
+      map.get(raw)!.push(row);
     }
     return map;
   }
@@ -39,24 +56,62 @@ export class CalendarView extends SwcComponent<CalendarViewProps> {
     });
   }
 
+  private shiftMonth(delta: number): void {
+    const d = new Date(this.year, this.month + delta, 1);
+    this.year = d.getFullYear();
+    this.month = d.getMonth();
+    this.bump?.();
+  }
+
+  private cells(): Array<{ date: Date; inMonth: boolean }> {
+    const first = new Date(this.year, this.month, 1);
+    const start = new Date(first);
+    start.setDate(1 - first.getDay());
+    const out: Array<{ date: Date; inMonth: boolean }> = [];
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      out.push({ date: d, inMonth: d.getMonth() === this.month });
+    }
+    return out;
+  }
+
+  private iso(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
   template() {
-    const buckets = [...this.groupByDate().entries()].sort(([a], [b]) => a.localeCompare(b));
+    const events = this.eventsByDay();
+    const title = new Date(this.year, this.month, 1).toLocaleString(undefined, {
+      month: "long",
+      year: "numeric",
+    });
     return html`
       <div class="sum-calendar-view">
-        <h2 class="sum-calendar-title">${this.props.payload.arch.title ?? "Calendar"}</h2>
-        <div class="sum-calendar-columns">
-          ${buckets.map(
-            ([day, rows]) => html`<section class="sum-calendar-day">
-              <h3 class="sum-calendar-day-title">${day}</h3>
+        <div class="sum-calendar-toolbar">
+          <button type="button" class="sum-btn sum-btn--ghost" @click=${() => this.shiftMonth(-1)}>Prev</button>
+          <h2 class="sum-calendar-title">${this.props.payload.arch.title ?? title}</h2>
+          <button type="button" class="sum-btn sum-btn--ghost" @click=${() => this.shiftMonth(1)}>Next</button>
+        </div>
+        <div class="sum-calendar-grid">
+          ${WEEKDAYS.map((d) => html`<div class="sum-calendar-weekday">${d}</div>`)}
+          ${this.cells().map((cell) => {
+            const key = this.iso(cell.date);
+            const rows = events.get(key) ?? [];
+            return html`<section class=${cell.inMonth ? "sum-calendar-cell" : "sum-calendar-cell sum-calendar-cell--muted"}>
+              <h3 class="sum-calendar-day-title">${String(cell.date.getDate())}</h3>
               <ul class="sum-calendar-events">
                 ${rows.map(
-                  (row: Record<string, unknown>) => html`<li class="sum-calendar-event" @click=${() => this.openRecord(row)}>
+                  (row) => html`<li class="sum-calendar-event" @click=${() => this.openRecord(row)}>
                     ${String(row.name ?? row.display_name ?? `#${row.id}`)}
                   </li>`,
                 )}
               </ul>
-            </section>`,
-          )}
+            </section>`;
+          })}
         </div>
       </div>
     `;

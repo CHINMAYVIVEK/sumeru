@@ -5,28 +5,18 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"sumeru/core/modelmeta"
 )
 
-// AppLog stores application and module lifecycle audit lines (install, update, etc.).
-// Internal user-to-user chatter uses mail.message only.
 type AppLog struct {
-	ID         int    `orm:"id"`
-	ModuleName string `orm:"module_name"`
-	Action     string `orm:"action"`
-	Detail     string `orm:"detail"`
-	Author     string `orm:"author"`
-	CreateDate string `orm:"create_date"`
-}
+	modelmeta.ModelMeta `sumeru:"model=app.log"`
 
-func (AppLog) ModelName() string { return "app.log" }
-func (AppLog) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "module_name", Type: Char, Required: true, Index: true},
-		{Name: "action", Type: Char, Required: true},
-		{Name: "detail", Type: Text},
-		{Name: "author", Type: Char},
-		{Name: "create_date", Type: DateTime, Required: true},
-	}
+	ModuleName modelmeta.String `sumeru:"required,index,column=module_name"`
+	Action     modelmeta.String `sumeru:"required"`
+	Detail     modelmeta.Text
+	Author     modelmeta.String
+	CreateDate modelmeta.DateTime `sumeru:"required,column=create_date"`
 }
 
 // AppendAppLog inserts one row into app.log (module lifecycle / audit).
@@ -47,10 +37,6 @@ func AppendAppLog(ctx context.Context, moduleName, action, detail string) error 
 		"author":      "System",
 		"create_date": time.Now().UTC(),
 	}
-	_, err := Create(ctx, AppLog{}, vals)
+	_, err := Create(ctx, RegistryModel("app.log"), vals)
 	return err
-}
-
-func init() {
-	RegisterModelWithModule(AppLog{}, "base")
 }

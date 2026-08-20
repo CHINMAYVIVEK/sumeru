@@ -41,4 +41,19 @@ describe("RpcService searchRead cache", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("passes optional vals as call args[2]", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, result: { close: true } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rpc = new RpcService("/web/rpc", "tok");
+    await rpc.callMethod("crm.lead", "action_merge_wizard", 3, { active_ids: "3,7" });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.args).toEqual([3, "action_merge_wizard", { active_ids: "3,7" }]);
+
+    vi.unstubAllGlobals();
+  });
 });

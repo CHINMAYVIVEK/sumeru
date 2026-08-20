@@ -77,5 +77,6 @@ func SearchOne(ctx context.Context, modelName string, criteria map[string]interf
 	}
 	RedactRecordForRead(ctx, uid, modelName, result)
 	_ = ApplyComputes(ctx, modelName, result)
+	_ = ApplyRelatedFields(ctx, modelName, result)
 	return result, nil
 }

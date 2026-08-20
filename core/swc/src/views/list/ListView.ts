@@ -1,12 +1,17 @@
 import { SwcComponent } from "../../runtime/component.js";
 import { html } from "../../template/html.js";
-import type { SwcWorkspacePayload } from "../../types/workspace.js";
+import type { SwcArchButton, SwcWorkspacePayload } from "../../types/workspace.js";
 import { useState } from "../../runtime/hooks.js";
-import { renderCollectionToolbar } from "../shared/view-toolbar.js";
+import { headerButton, renderCollectionToolbar } from "../shared/view-toolbar.js";
+import { SwcError } from "../../runtime/error.js";
 import {
+  parseFilterCSV,
   renderControlPanel,
   renderRowCheckbox,
+  renderSearchFilters,
   renderSelectAllHeader,
+  renderSortHeader,
+  toggleFilterName,
   type ControlPanelState,
 } from "./control-panel.js";
 import { forEach } from "../../template/helpers.js";
@@ -23,62 +28,78 @@ export class ListView extends SwcComponent<ListViewProps> {
     offset: 0,
     limit: 40,
     selectedIds: new Set(),
+    filters: [],
   };
+  private deleting = false;
+  private acting = false;
 
   setup(): void {
-    this.panelState.search = this.props.payload.listSearch ?? "";
+    this.syncFromPayload(this.props.payload);
     const [, bump] = useState(0);
     this.bump = () => bump((n) => n + 1);
   }
 
   onPropsChanged(props: ListViewProps): void {
-    this.panelState.search = props.payload.listSearch ?? "";
-    this.panelState.offset = 0;
+    this.syncFromPayload(props.payload);
     this.panelState.selectedIds = new Set();
   }
 
   private bump: (() => void) | null = null;
 
+  private syncFromPayload(p: SwcWorkspacePayload): void {
+    this.panelState.search = p.listSearch ?? "";
+    this.panelState.offset = p.listOffset ?? 0;
+    this.panelState.order = p.listSort ?? "";
+    this.panelState.filters = parseFilterCSV(p.listFilter);
+  }
+
   private columns() {
     return this.props.payload.arch.fields.filter((f) => !f.invisible);
   }
 
-  private allRows() {
-    let rows = [...(this.props.payload.records ?? [])];
-    const order = this.panelState.order;
-    if (order) {
-      const desc = order.startsWith("-");
-      const field = desc ? order.slice(1) : order;
-      rows.sort((a, b) => {
-        const av = String(a[field] ?? "");
-        const bv = String(b[field] ?? "");
-        return desc ? bv.localeCompare(av) : av.localeCompare(bv);
-      });
-    }
-    return rows;
-  }
-
   private pageRows() {
-    const rows = this.allRows();
-    const start = this.panelState.offset;
-    return rows.slice(start, start + this.panelState.limit);
+    return [...(this.props.payload.records ?? [])];
   }
 
-  private applySearch(): void {
-    this.panelState.offset = 0;
+  private navigateList(patch: {
+    listSearch?: string;
+    listOffset?: number;
+    listSort?: string;
+    listFilter?: string;
+  }): void {
     const p = this.props.payload;
     const url = this.env.services.router.workspaceUrl({
       actionId: p.actionId,
       menuId: p.menuId,
       viewType: VIEW_LIST,
-      listSearch: this.panelState.search,
+      listSearch: patch.listSearch ?? this.panelState.search,
+      listOffset: patch.listOffset ?? 0,
+      listSort: patch.listSort ?? this.panelState.order ?? "",
+      listFilter: patch.listFilter ?? this.panelState.filters.join(","),
+      model: p.actionId ? "" : p.model,
     });
     this.env.services.action.navigate(url);
   }
 
+  private applySearch(): void {
+    this.navigateList({ listSearch: this.panelState.search, listOffset: 0 });
+  }
+
   private applyPage(offset: number): void {
-    this.panelState.offset = offset;
-    this.bump?.();
+    this.navigateList({ listOffset: offset });
+  }
+
+  private applySort(fieldName: string): void {
+    const current = this.panelState.order ?? "";
+    let next = fieldName;
+    if (current === fieldName) next = `-${fieldName}`;
+    else if (current === `-${fieldName}`) next = "";
+    this.navigateList({ listSort: next, listOffset: 0 });
+  }
+
+  private applyFilter(name: string): void {
+    const next = toggleFilterName(this.panelState.filters, name);
+    this.navigateList({ listFilter: next.join(","), listOffset: 0 });
   }
 
   private openRow(row: Record<string, unknown>): void {
@@ -103,22 +124,63 @@ export class ListView extends SwcComponent<ListViewProps> {
     this.bump?.();
   }
 
+  private toolbarBusy(): boolean {
+    return this.deleting || this.acting;
+  }
+
+  private headerObjectButtons(): SwcArchButton[] {
+    return (this.props.payload.arch.header?.buttons ?? []).filter((btn) => btn.type === "object");
+  }
+
   private async bulkDelete(): Promise<void> {
     const ids = [...this.panelState.selectedIds];
-    if (ids.length === 0) return;
+    if (ids.length === 0 || this.toolbarBusy()) return;
     const ok = await this.env.services.dialog.confirm(
       "Delete records",
       `Delete ${ids.length} selected record(s)?`,
     );
     if (!ok) return;
-    await this.env.services.rpc.unlink(this.props.payload.model, ids);
-    this.panelState.selectedIds = new Set();
-    this.env.services.notification.show({
-      kind: "success",
-      title: "Deleted",
-      body: `${ids.length} record(s) removed.`,
-    });
-    this.applySearch();
+    this.deleting = true;
+    this.bump?.();
+    try {
+      await this.env.services.rpc.unlink(this.props.payload.model, ids);
+      this.panelState.selectedIds = new Set();
+      this.env.services.notification.success("Deleted", `${ids.length} record(s) removed.`);
+      this.applySearch();
+    } catch (err) {
+      this.env.services.notification.error(
+        "Delete failed",
+        err instanceof SwcError ? err.message : String(err),
+      );
+    } finally {
+      this.deleting = false;
+      this.bump?.();
+    }
+  }
+
+  private async runHeaderObject(btn: SwcArchButton): Promise<void> {
+    const ids = [...this.panelState.selectedIds];
+    if (ids.length === 0 || this.toolbarBusy()) return;
+    this.acting = true;
+    this.bump?.();
+    try {
+      const result = await this.env.services.rpc.callMethod(this.props.payload.model, btn.name, ids[0], {
+        active_ids: ids.join(","),
+      });
+      if (await this.env.services.action.applyCallResult(result)) {
+        return;
+      }
+      this.env.services.notification.success(btn.string || btn.name, "Action completed.");
+      this.applySearch();
+    } catch (err) {
+      this.env.services.notification.error(
+        btn.string || btn.name,
+        err instanceof SwcError ? err.message : String(err),
+      );
+    } finally {
+      this.acting = false;
+      this.bump?.();
+    }
   }
 
   private renderRow(row: Record<string, unknown>) {
@@ -155,9 +217,9 @@ export class ListView extends SwcComponent<ListViewProps> {
     const p = this.props.payload;
     const cols = this.columns();
     const rows = this.pageRows();
-    const allRows = this.allRows();
-    const ids = allRows.map((r) => Number(r.id ?? 0)).filter((id) => id > 0);
+    const ids = rows.map((r) => Number(r.id ?? 0)).filter((id) => id > 0);
     const allSelected = ids.length > 0 && ids.every((id) => this.panelState.selectedIds.has(id));
+    const filters = p.arch.search?.filters ?? [];
 
     return html`
       <div class="sum-list-view">
@@ -169,15 +231,36 @@ export class ListView extends SwcComponent<ListViewProps> {
           onInput: (next) => {
             this.panelState.search = next;
           },
-          extraPrimary:
+          extraPrimary: [
             this.panelState.selectedIds.size > 0
-              ? html`<button type="button" class="sum-btn sum-btn--danger" @click=${() => void this.bulkDelete()}>
+              ? html`<button
+                  type="button"
+                  class="sum-btn sum-btn--danger"
+                  disabled=${this.toolbarBusy() ? "disabled" : undefined}
+                  @click=${() => void this.bulkDelete()}
+                >
                   Delete (${this.panelState.selectedIds.size})
                 </button>`
               : "",
+            this.panelState.selectedIds.size >= 2
+              ? this.headerObjectButtons().map((btn) =>
+                  headerButton(
+                    btn.string || btn.name,
+                    btn.class,
+                    () => void this.runHeaderObject(btn),
+                    this.toolbarBusy(),
+                  ),
+                )
+              : "",
+          ],
+        })}
+        ${renderSearchFilters({
+          filters,
+          active: this.panelState.filters,
+          onToggle: (name) => this.applyFilter(name),
         })}
         ${renderControlPanel({
-          payload: { ...p, records: allRows },
+          payload: p,
           state: this.panelState,
           onPage: (o) => this.applyPage(o),
         })}
@@ -186,7 +269,9 @@ export class ListView extends SwcComponent<ListViewProps> {
             <thead>
               <tr>
                 ${renderSelectAllHeader(allSelected, (checked) => this.toggleAll(checked, ids))}
-                ${cols.map((c) => html`<th class="sum-list-th">${c.string ?? c.name}</th>`)}
+                ${cols.map((c) =>
+                  renderSortHeader(c, this.panelState.order ?? "", (name) => this.applySort(name)),
+                )}
               </tr>
             </thead>
             <tbody>

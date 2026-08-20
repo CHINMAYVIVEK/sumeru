@@ -24,12 +24,12 @@ describe("DialogService", () => {
 });
 
 describe("ActionService SPA navigation", () => {
-  it("uses router.push for /web? URLs", () => {
+  it("uses router.assign for /web? URLs", () => {
     const router = new RouterService();
-    const push = vi.spyOn(router, "push");
+    const assign = vi.spyOn(router, "assign");
     const action = new ActionService(router);
     action.navigate("/web?action=1&menu_id=m&view_type=list");
-    expect(push).toHaveBeenCalled();
+    expect(assign).toHaveBeenCalled();
   });
 
   it("openRecord pushes viewType, recordId, actionId, and menuId", () => {

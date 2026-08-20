@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	"sumeru/core/sdk/platformmsg"
 	"sumeru/core/engine/parser"
 	"sumeru/core/engine/viewinherit"
 	"sumeru/core/orm"
+	"sumeru/core/sdk/platformmsg"
 )
 
 // viewArchXML persists the full parsed view (header, sheet, notebook, etc.) for sys.view.arch.
@@ -53,7 +53,7 @@ func upsertSysViewFromRecord(ctx context.Context, moduleName string, xmlRecord p
 	}
 	recordValues["type"] = vt
 
-	id, err := orm.Upsert(ctx, orm.SysView{}, recordValues, "name")
+	id, err := orm.Upsert(ctx, orm.RegistryModel("sys.view"), recordValues, "name")
 	if err != nil {
 		syncWarn(ctx, platformmsg.FmtGenericUpsertWarn, "sys.view", xmlRecord.ID, err)
 		return
@@ -74,6 +74,14 @@ func InferSysViewTypeFromArch(arch string) string {
 		return "form"
 	case strings.HasPrefix(la, "<kanban"):
 		return "kanban"
+	case strings.HasPrefix(la, "<search"):
+		return "search"
+	case strings.HasPrefix(la, "<graph"):
+		return "graph"
+	case strings.HasPrefix(la, "<calendar"):
+		return "calendar"
+	case strings.HasPrefix(la, "<pivot"):
+		return "pivot"
 	case strings.HasPrefix(la, "<view"):
 		if v, err := parser.ParseViewFromArch(a); err == nil {
 			return strings.ToLower(strings.TrimSpace(v.Type))
@@ -89,7 +97,7 @@ func upsertInlineViewDef(ctx context.Context, moduleName string, viewDef *parser
 		viewName = viewDef.Model + "." + viewDef.Type
 	}
 	viewType := strings.TrimSpace(strings.ToLower(viewDef.Type))
-	id, err := orm.Upsert(ctx, orm.SysView{}, map[string]interface{}{
+	id, err := orm.Upsert(ctx, orm.RegistryModel("sys.view"), map[string]interface{}{
 		"name":     viewName,
 		"model":    viewDef.Model,
 		"type":     viewType,
@@ -133,7 +141,7 @@ func applySysUIViewInherit(ctx context.Context, moduleName string, xmlRecord par
 		return err
 	}
 	if xmlRecord.ID != "" {
-		if _, err := orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
+		if _, err := orm.Upsert(ctx, orm.RegistryModel("sys.model.data"), map[string]interface{}{
 			"module":  moduleName,
 			"name":    xmlRecord.ID,
 			"model":   "sys.view",

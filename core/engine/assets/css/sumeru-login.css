@@ -79,6 +79,85 @@
   transition: all var(--sum-dur-slow) var(--sum-ease);
 }
 
+.sum-password-field {
+  position: relative;
+  width: 100%;
+}
+
+.sum-password-field input {
+  padding-right: 2.75rem;
+}
+
+.sum-password-toggle {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--sum-radius-sm);
+  background: transparent;
+  color: var(--sum-muted);
+  cursor: pointer;
+  transition: color var(--sum-dur-slow) var(--sum-ease), background var(--sum-dur-slow) var(--sum-ease);
+}
+
+.sum-password-toggle:hover {
+  color: var(--sum-header);
+  background: var(--sum-gray-100);
+}
+
+.sum-password-toggle:focus {
+  outline: none;
+  color: var(--sum-header);
+  box-shadow: var(--sum-focus-ring);
+}
+
+.sum-password-toggle:focus-visible {
+  outline: 2px solid var(--sum-header);
+  outline-offset: 1px;
+}
+
+.sum-password-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.sum-field-hint {
+  margin: 0.35rem 0 0;
+  font-size: var(--sum-font-size-sm);
+  line-height: 1.4;
+  color: var(--sum-muted);
+}
+
+.sum-field-hint--error {
+  color: var(--sum-danger);
+  font-weight: var(--sum-font-weight-medium);
+}
+
+.sum-login-card .field input.sum-input-invalid,
+.sum-setup-card .field input.sum-input-invalid {
+  border-color: var(--sum-danger);
+  background: var(--sum-danger-bg-soft);
+}
+
+.sum-password-icon--hide {
+  display: none;
+}
+
+.sum-password-toggle--revealed .sum-password-icon--show {
+  display: none;
+}
+
+.sum-password-toggle--revealed .sum-password-icon--hide {
+  display: block;
+}
+
 .sum-login-card .field input:focus {
   outline: none;
   background: var(--sum-surface);
