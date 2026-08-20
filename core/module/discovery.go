@@ -117,6 +117,20 @@ func DiscoverAddonRoots(rootPaths []string) (map[string]*Addon, error) {
 	return addonsMap, nil
 }
 
+// ReadManifest parses manifest.json at the given path.
+func ReadManifest(filePath string) (*Manifest, error) {
+	return parseManifest(filePath)
+}
+
+// PackageImportPath returns the Go import path for a package directory.
+func PackageImportPath(dir string) (string, error) {
+	_, moduleImportPath, relativePath, err := addonGoModuleContext(dir)
+	if err != nil {
+		return "", err
+	}
+	return moduleImportPath + "/" + filepath.ToSlash(relativePath), nil
+}
+
 func parseManifest(filePath string) (*Manifest, error) {
 	manifestData, err := os.ReadFile(filePath)
 	if err != nil {
