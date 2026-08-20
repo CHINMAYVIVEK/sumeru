@@ -2,7 +2,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -52,8 +51,6 @@ func main() {
 			os.Exit(1)
 		}
 		runUninstall(configPath, subArgs[0])
-	case "migrate":
-		runMigrate(configPath, subArgs)
 	default:
 		usage()
 		os.Exit(2)
@@ -69,7 +66,6 @@ Commands:
   install mod1,mod2            Install modules
   update mod|all               Update module metadata from disk
   uninstall MODULE             Uninstall module
-  migrate [mod|all]            Run SQL migrations from addons/*/migrations/
 `)
 }
 
@@ -147,31 +143,3 @@ func runUninstall(configPath, mod string) {
 	}
 	fmt.Printf("Uninstalled %s\n", mod)
 }
-
-func runMigrate(configPath string, args []string) {
-	ctx, err := cliboot.Init(configPath)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	target := "all"
-	if len(args) > 0 {
-		target = strings.TrimSpace(args[0])
-	}
-	if strings.EqualFold(target, "all") {
-		if err := module.RunAllMigrations(ctx); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		fmt.Println("All migrations applied.")
-		return
-	}
-	if err := module.RunModuleMigrations(ctx, target); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	fmt.Printf("Migrations applied for %s\n", target)
-}
-
-// satisfy flag import when extended
-var _ = flag.CommandLine

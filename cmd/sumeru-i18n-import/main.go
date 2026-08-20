@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -11,8 +10,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
-
+	"sumeru/core/orm"
 	"sumeru/core/server/cliboot"
 )
 
@@ -21,8 +19,8 @@ func main() {
 	inPath := flag.String("i", "translations.csv", "Input CSV path")
 	flag.Parse()
 
-	if _, err := cliboot.Init(*configPath); err != nil {
-		fmt.Fprintf(os.Stderr, "init: %v\n", err)
+	if err := cliboot.LoadConfig(*configPath); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -55,17 +53,21 @@ func main() {
 		}
 	}
 
-	db, err := sql.Open("postgres", cliboot.DSN())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	db, err := cliboot.OpenDB(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "db: %v\n", err)
 		os.Exit(1)
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	tableName, _ := modelTableName("sys.translation")
+	tableName, err := orm.ModelToTableName("sys.translation")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "table name: %v\n", err)
+		os.Exit(1)
+	}
 	imported := 0
 	for _, row := range records[1:] {
 		if len(row) < len(header) {
@@ -89,12 +91,4 @@ func main() {
 		imported++
 	}
 	fmt.Printf("Imported %d translation rows from %s\n", imported, *inPath)
-}
-
-func modelTableName(model string) (string, error) {
-	name := strings.ReplaceAll(model, ".", "_")
-	if name == "" {
-		return "", fmt.Errorf("empty model")
-	}
-	return name, nil
 }
