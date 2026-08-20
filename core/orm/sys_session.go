@@ -1,22 +1,13 @@
 package orm
 
-// SysSession stores web sessions
+import (
+	"sumeru/core/modelmeta"
+)
+
 type SysSession struct {
-	ID        int    `orm:"id"`
-	Sid       string `orm:"sid"`
-	UserID    int    `orm:"user_id"`
-	ExpiresAt string `orm:"expires_at"`
-}
+	modelmeta.ModelMeta `sumeru:"model=sys.session"`
 
-func (s SysSession) ModelName() string { return "sys.session" }
-func (s SysSession) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "sid", Type: Char, Required: true, Unique: true, Index: true},
-		{Name: "user_id", Type: Many2One, Relation: "core.user", Required: true, Index: true},
-		{Name: "expires_at", Type: DateTime, Required: true},
-	}
-}
-
-func init() {
-	RegisterModelWithModule(SysSession{}, "base")
+	Sid       modelmeta.String                  `sumeru:"required,unique,index"`
+	UserID    modelmeta.Many2One[CoreUser] `sumeru:"required,index,string=User"`
+	ExpiresAt modelmeta.DateTime                `sumeru:"required"`
 }

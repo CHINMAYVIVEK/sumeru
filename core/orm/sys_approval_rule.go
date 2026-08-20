@@ -1,26 +1,15 @@
 package orm
 
-// SysApprovalRule represents stage transition approval
+import (
+	"sumeru/core/modelmeta"
+)
+
 type SysApprovalRule struct {
-	ID              int    `orm:"id"`
-	Model           string `orm:"model"`
-	GroupID         int    `orm:"group_id"`
-	FromState       string `orm:"from_state"`
-	ToState         string `orm:"to_state"`
-	RequireApproval bool   `orm:"require_approval"`
-}
+	modelmeta.ModelMeta `sumeru:"model=sys.approval.rule"`
 
-func (r SysApprovalRule) ModelName() string { return "sys.approval.rule" }
-func (r SysApprovalRule) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "model", Type: Char, Required: true},
-		{Name: "group_id", Type: Many2One, Relation: "core.group", Required: true},
-		{Name: "from_state", Type: Char},
-		{Name: "to_state", Type: Char, Required: true},
-		{Name: "require_approval", Type: Boolean},
-	}
-}
-
-func init() {
-	RegisterModelWithModule(SysApprovalRule{}, "base")
+	ResModel        modelmeta.String                  `sumeru:"required,column=model"`
+	GroupID         modelmeta.Many2One[CoreGroup] `sumeru:"required,string=Group"`
+	FromState       modelmeta.String
+	ToState         modelmeta.String `sumeru:"required"`
+	RequireApproval modelmeta.Boolean
 }

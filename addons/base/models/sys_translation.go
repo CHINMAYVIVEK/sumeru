@@ -1,26 +1,14 @@
 package models
 
-import "sumeru/core/sdk"
+import (
+	"sumeru/core/sdk"
+)
 
 type SysTranslation struct {
-	sdk.BaseModel
-	Lang   string `db:"lang"`
-	Src    string `db:"src"`
-	Value  string `db:"value"`
-	Module string `db:"module"`
-}
+	sdk.Model `sumeru:"model=sys.translation"`
 
-func (SysTranslation) ModelName() string { return "sys.translation" }
-
-func (SysTranslation) Fields() []sdk.FieldDefinition {
-	return []sdk.FieldDefinition{
-		{Name: "lang", Type: sdk.Char, Required: true, Index: true, String: "Language"},
-		{Name: "src", Type: sdk.Text, Required: true, String: "Source"},
-		{Name: "value", Type: sdk.Text, String: "Translation"},
-		{Name: "module", Type: sdk.Char, Index: true, String: "Module"},
-	}
-}
-
-func init() {
-	sdk.RegisterModel(sdk.RegisterModelInput{Model: &SysTranslation{}, Module: "base"})
+	Lang   sdk.String `sumeru:"required,index,string=Language"`
+	Src    sdk.Text   `sumeru:"required,string=Source"`
+	Value  sdk.Text   `sumeru:"string=Translation"`
+	Module sdk.String `sumeru:"index,string=Module"`
 }
