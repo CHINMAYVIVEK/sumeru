@@ -32,9 +32,6 @@ const (
 	TestSetupRoute             = setupRoute
 	TestLoginRoute             = loginRoute
 	TestPinnedAppsRoute        = pinnedAppsRoute
-	TestRelSearchRoute         = relSearchRoute
-	TestRecordSaveRoute        = recordSaveRoute
-	TestRecordDeleteRoute      = recordDeleteRoute
 	TestChatterPostRoute       = chatterPostRoute
 	TestCompanySwitchRoute     = companySwitchRoute
 	TestModuleActionRoute      = moduleActionRoute
@@ -71,7 +68,6 @@ var (
 	TestPagesStylesheetURL       = pagesStylesheetURL
 	TestSettingsHubStylesheetURL = settingsHubStylesheetURL
 	TestMaxRPCBodyBytes          int64 = maxRPCBodyBytes
-	TestDefaultRelSearchLimit    = defaultRelSearchLimit
 	TestMaxChatterBodyRunes      = maxChatterBodyRunes
 	TestSetupRateLimitWindow     = setupRateLimitWindow
 	TestSetupRateLimitMax        = setupRateLimitMax
@@ -221,28 +217,6 @@ func RootRedirectSetup(w http.ResponseWriter, r *http.Request) { rootRedirectSet
 
 func RedirectFoundTo(dest string) http.HandlerFunc { return redirectFoundTo(dest) }
 
-func ParseRelSearchRequest(r *http.Request) relSearchRequest { return parseRelSearchRequest(r) }
-
-func QueryIntOrDefault(raw string, fallback int) int { return queryIntOrDefault(raw, fallback) }
-
-func QueryInt64OrZero(raw string) int64 { return queryInt64OrZero(raw) }
-
-func ParseRecordSaveForm(r *http.Request) recordSaveForm { return parseRecordSaveForm(r) }
-
-func IsNewRecord(recordIDRaw string) bool { return isNewRecord(recordIDRaw) }
-
-func WorkspaceFormURL(next string, recordID int) string { return workspaceFormURL(next, recordID) }
-
-func IsSkippedSaveFormField(field string) bool { return isSkippedSaveFormField(field) }
-
-func CoerceSaveFieldValue(fieldName string, fieldType orm.FieldType, raw string) (interface{}, bool, error) {
-	return coerceSaveFieldValue(fieldName, fieldType, raw)
-}
-
-func ParseRecordDeleteRequest(r *http.Request) (recordDeleteRequest, error) {
-	return parseRecordDeleteRequest(r)
-}
-
 func UserFacingRecordError(operation, model string, err error) (title, body, details string, fieldErrors []string) {
 	return userFacingRecordError(operation, model, err)
 }
@@ -312,7 +286,7 @@ func ParseAppsBrowseStateFromForm(r *http.Request) AppsBrowseState {
 }
 
 func AppsDetailRedirectURL(msg string, browse AppsBrowseState) string {
-	return appsDetailRedirectURL(msg, browse)
+	return appsRedirectURL(msg, browse)
 }
 
 func ParseModuleActionForm(r *http.Request) moduleActionForm { return parseModuleActionForm(r) }

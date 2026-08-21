@@ -42,7 +42,7 @@ func syncSysModuleRows(ctx context.Context, discovered map[string]*Addon) error 
 					state = "installed"
 				}
 			}
-			_, err = orm.Create(ctx, orm.SysModule{}, map[string]interface{}{
+			_, err = orm.Create(ctx, orm.RegistryModel("sys.module"), map[string]interface{}{
 				"name":         addon.Manifest.Name,
 				"display_name": irModuleDisplayName(addon),
 				"author":       addon.Manifest.Author,

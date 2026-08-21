@@ -6,31 +6,17 @@ import (
 	"time"
 
 	"sumeru/core/applog"
+	"sumeru/core/modelmeta"
 )
 
-// SysOutboxEvent stores transactional outbox rows for reliable event publishing.
 type SysOutboxEvent struct {
-	ID          int    `orm:"id"`
-	Name        string `orm:"name"`
-	PayloadJSON string `orm:"payload_json"`
-	Actor       int    `orm:"actor"`
-	CreatedAt   string `orm:"created_at"`
-	PublishedAt string `orm:"published_at"`
-}
+	modelmeta.ModelMeta `sumeru:"model=sys.outbox.event"`
 
-func (SysOutboxEvent) ModelName() string { return "sys.outbox.event" }
-func (SysOutboxEvent) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "name", Type: Char, Required: true, Index: true},
-		{Name: "payload_json", Type: Text},
-		{Name: "actor", Type: Integer},
-		{Name: "created_at", Type: DateTime, Required: true},
-		{Name: "published_at", Type: DateTime, Index: true},
-	}
-}
-
-func init() {
-	RegisterModelWithModule(SysOutboxEvent{}, "base")
+	Name        modelmeta.String `sumeru:"required,index"`
+	PayloadJson modelmeta.Text   `sumeru:"column=payload_json"`
+	Actor       modelmeta.Integer
+	CreatedAt   modelmeta.DateTime `sumeru:"required,column=created_at"`
+	PublishedAt modelmeta.DateTime `sumeru:"index,column=published_at"`
 }
 
 func outboxValues(name string, actor int, payload map[string]interface{}) map[string]interface{} {

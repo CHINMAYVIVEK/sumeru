@@ -1,36 +1,19 @@
 package models
 
-import "sumeru/core/sdk"
+import (
+	"sumeru/core/sdk"
+)
 
 type SysAttachment struct {
-	sdk.BaseModel
-	Name       string `db:"name"`
-	Model      string `db:"model"`
-	ResID      int64  `db:"res_id"`
-	Mimetype   string `db:"mimetype"`
-	FileSize   int64  `db:"file_size"`
-	Datas      string `db:"datas"`
-	StoreFname string `db:"store_fname"`
-	CreateDate string `db:"create_date"`
-	CompanyID  int    `db:"company_id"`
-}
+	sdk.Model `sumeru:"model=sys.attachment"`
 
-func (SysAttachment) ModelName() string { return "sys.attachment" }
-
-func (SysAttachment) Fields() []sdk.FieldDefinition {
-	return []sdk.FieldDefinition{
-		{Name: "name", Type: sdk.Char, Required: true, String: "Name"},
-		{Name: "model", Type: sdk.Char, Index: true, String: "Model"},
-		{Name: "res_id", Type: sdk.Integer, Index: true, String: "Record"},
-		{Name: "mimetype", Type: sdk.Char, String: "MIME Type"},
-		{Name: "file_size", Type: sdk.Integer, String: "Size"},
-		{Name: "datas", Type: sdk.Text, String: "Data"},
-		{Name: "store_fname", Type: sdk.Char, String: "Stored Filename"},
-		{Name: "create_date", Type: sdk.DateTime, String: "Created"},
-		{Name: "company_id", Type: sdk.Many2One, Relation: "core.company", String: "Company"},
-	}
-}
-
-func init() {
-	sdk.RegisterModel(sdk.RegisterModelInput{Model: &SysAttachment{}, Module: "base"})
+	Name       sdk.String            `sumeru:"required,string=Name"`
+	ResModel   sdk.String            `sumeru:"index,column=model,string=Model"`
+	ResID      sdk.Integer           `sumeru:"index,string=Record"`
+	Mimetype   sdk.String            `sumeru:"string=MIME Type"`
+	FileSize   sdk.Integer           `sumeru:"string=Size"`
+	Datas      sdk.Text              `sumeru:"string=Data"`
+	StoreFname sdk.String            `sumeru:"string=Stored Filename"`
+	CreateDate sdk.DateTime          `sumeru:"string=Created"`
+	CompanyID  sdk.Many2One[CoreCompany] `sumeru:"string=Company"`
 }

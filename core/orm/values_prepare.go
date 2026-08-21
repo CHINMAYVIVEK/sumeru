@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -55,6 +56,24 @@ func PrepareValues(model Model, values map[string]interface{}, op WriteOp, opts 
 			// Stored via relation tables; not INSERT/UPDATE columns.
 			continue
 		}
+		if IsVirtualField(fd) {
+			if opts.StrictUnknown {
+				return nil, fmt.Errorf("field %q on %s is read-only", k, model.ModelName())
+			}
+			continue
+		}
+		if fd.Related != "" {
+			if opts.StrictUnknown {
+				return nil, fmt.Errorf("field %q on %s is related", k, model.ModelName())
+			}
+			continue
+		}
+		if fd.Compute != "" && fd.ComputeStore {
+			if opts.StrictUnknown {
+				return nil, fmt.Errorf("field %q on %s is computed", k, model.ModelName())
+			}
+			continue
+		}
 		cv, err := coerceFieldValue(fd, v)
 		if err != nil {
 			if fve, ok := err.(*FieldValidationError); ok {
@@ -63,11 +82,14 @@ func PrepareValues(model Model, values map[string]interface{}, op WriteOp, opts 
 			return nil, fmt.Errorf("field %s: %w", k, err)
 		}
 		out[k] = cv
+		if err := validateFieldRange(fd, cv); err != nil {
+			return nil, err
+		}
 	}
 
 	if op == WriteOpCreate {
 		for name, fd := range defs {
-			if fd.Type == Many2Many || fd.Type == One2Many {
+			if fd.Type == Many2Many || fd.Type == One2Many || IsVirtualField(fd) {
 				continue
 			}
 			if !fd.Required {
@@ -130,7 +152,7 @@ func coerceFieldValue(fd FieldDefinition, v interface{}) (interface{}, error) {
 			return nil, fmt.Errorf("invalid integer %v", v)
 		}
 		return int(n), nil
-	case Float, Numeric:
+	case Float, Float64, Numeric:
 		switch t := v.(type) {
 		case float64:
 			return t, nil
@@ -192,4 +214,67 @@ func coerceFieldValue(fd FieldDefinition, v interface{}) (interface{}, error) {
 	default:
 		return v, nil
 	}
+}
+
+func validateFieldRange(fd FieldDefinition, v interface{}) error {
+	if fd.Min == nil && fd.Max == nil {
+		return nil
+	}
+	if v == nil {
+		return nil
+	}
+	var n float64
+	switch t := v.(type) {
+	case int:
+		n = float64(t)
+	case int64:
+		n = float64(t)
+	case float32:
+		n = float64(t)
+	case float64:
+		n = t
+	default:
+		return nil
+	}
+	if fd.Min != nil && n < *fd.Min {
+		return newFieldValidationError(fd, fmt.Sprintf("value %v below minimum %v", n, *fd.Min))
+	}
+	if fd.Max != nil && n > *fd.Max {
+		return newFieldValidationError(fd, fmt.Sprintf("value %v above maximum %v", n, *fd.Max))
+	}
+	return nil
+}
+
+func applySpecialDefaults(ctx context.Context, model Model, defs map[string]FieldDefinition, out map[string]interface{}) error {
+	for name, fd := range defs {
+		if _, ok := out[name]; ok {
+			continue
+		}
+		if fd.DefaultVal == nil {
+			continue
+		}
+		s, ok := fd.DefaultVal.(string)
+		if !ok {
+			continue
+		}
+		switch strings.TrimSpace(s) {
+		case "current_user":
+			uid := SecurityUID(ctx)
+			if uid > 0 {
+				out[name] = uid
+			}
+		case "current_company":
+			uid := SecurityUID(ctx)
+			if uid > 0 {
+				if cid := ActiveCompanyIDForUser(ctx, uid); cid > 0 {
+					out[name] = int(cid)
+				}
+			}
+		case "uuid":
+			if fd.Type == Char {
+				out[name] = newUUID()
+			}
+		}
+	}
+	return nil
 }

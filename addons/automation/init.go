@@ -23,6 +23,10 @@ func runServerActionsForEvent(ctx context.Context, ev event.Event) error {
 		return nil
 	}
 	bypass := orm.ContextWithBypass(ctx, true)
+	installed, err := orm.InstalledModuleNames(bypass)
+	if err != nil || !orm.ShouldMaterializeModel("sys.server.action", installed) {
+		return nil
+	}
 	rows, err := orm.Search(bypass, "sys.server.action", [][]interface{}{
 		{"event_name", "=", ev.Name},
 		{"active", "=", true},

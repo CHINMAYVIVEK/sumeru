@@ -1,5 +1,7 @@
 github.com/ProjectMeru/gpdf v1.0.11 h1:+LXvvaR3TnIA92KZy+L2IgehJISnhi0t2ufwJVr56ys=
 github.com/ProjectMeru/gpdf v1.0.11/go.mod h1:QTnE2q2L+q9E1neWCZen/V/x9iLOuJ1jWHBtylimfAw=
+github.com/ProjectMeru/websocket v1.5.3 h1:X3/lutkNQab0fuf7FVRQ80mkazPleR372uVPUWd6HWw=
+github.com/ProjectMeru/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/lib/pq v1.12.3 h1:tTWxr2YLKwIvK90ZXEw8GP7UFHtcbTtty8zsI+YjrfQ=
 github.com/lib/pq v1.12.3/go.mod h1:/p+8NSbOcwzAEI7wiMXFlgydTwcgTr3OSKMsD2BitpA=
 golang.org/x/crypto v0.55.0 h1:+KWHjbgOaAQ66dh/YlkZKHlz9ZUlq61AFirAR9ntP8M=

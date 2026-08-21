@@ -44,14 +44,12 @@ func Set(key string, val interface{}, ttl time.Duration) {
 	mu.Unlock()
 }
 
-// Delete removes a key.
 func Delete(key string) {
 	mu.Lock()
 	delete(store, key)
 	mu.Unlock()
 }
 
-// Clear empties the cache.
 func Clear() {
 	mu.Lock()
 	store = map[string]entry{}

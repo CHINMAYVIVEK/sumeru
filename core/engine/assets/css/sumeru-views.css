@@ -38,7 +38,8 @@
 
 .sum-form-page-grid,
 .sum-form-group-grid,
-.sum-form-edit-grid {
+.sum-form-edit-grid,
+.sum-form-group-row {
 	box-sizing: border-box;
 	min-width: 0;
 	max-width: 100%;
@@ -81,7 +82,11 @@
 }
 
 .sum-list-view table tr:hover td {
-  background-color: var(--sum-row-hover-bg);
+  background-color: var(--sum-list-row-hover-bg);
+}
+
+.sum-list-view table tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--sum-header) 40%, transparent);
 }
 
 .sum-notebook {
@@ -185,9 +190,19 @@
 .sum-form-view {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
+}
+
+.sum-form-layout > .sum-form-sheet-bg {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sum-form-sheet-bg {
@@ -196,12 +211,13 @@
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 1rem 0.75rem 1.5rem;
+  padding: 0 0.75rem 1.5rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (min-width: 768px) {
   .sum-form-sheet-bg {
-    padding: 1.25rem 1.25rem 1.75rem;
+    padding: 0 1.25rem 1.75rem;
   }
 }
 
@@ -210,6 +226,19 @@
     padding-left: 1.75rem;
     padding-right: 1.75rem;
   }
+}
+
+.sum-form-sheet-bg > .sum-form-sheet {
+  max-width: 72rem;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.sum-form-sheet-bg > .sum-form-footer {
+  max-width: 72rem;
+  width: 100%;
+  margin-inline: auto;
+  box-sizing: border-box;
 }
 
 .sum-form-view--workspace-chrome .sum-ws-record-toolbar {
@@ -362,6 +391,14 @@
   color: var(--sum-ink);
 }
 
+.sum-form-hero-input--placeholder,
+.sum-form-inline-input--placeholder,
+.sum-field-value--placeholder {
+  color: var(--sum-muted);
+  font-weight: var(--sum-font-weight-normal);
+  font-style: normal;
+}
+
 .sum-form-contact-row {
   display: flex;
   flex-wrap: wrap;
@@ -498,16 +535,56 @@
 .sum-form-edit-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: 1.25rem;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  --sum-form-label-width: 9.5rem;
+}
+
+.sum-form-sheet-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  --sum-form-label-width: 9.5rem;
+}
+
+.sum-form-group-outer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
   min-width: 0;
   max-width: 100%;
   width: 100%;
 }
 
-@media (min-width: 768px) {
-  .sum-form-edit-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2rem;
+.sum-form-group-row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1.25rem 1.5rem;
+  align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+
+.sum-form-group-span {
+  grid-column: span var(--sum-group-span, 12);
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 767px) {
+  .sum-form-group-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .sum-form-group-span {
+    grid-column: 1 / -1;
   }
 }
 
@@ -560,6 +637,22 @@
   box-shadow: 0 1px 0 0 var(--sum-header);
 }
 
+.sum-form-view .sum-field-input::placeholder,
+.sum-form-view .sum-form-hero-input::placeholder,
+.sum-form-view .sum-form-inline-input::placeholder,
+.sum-form-view .sum-field-textarea::placeholder {
+  color: var(--sum-muted);
+  opacity: 1;
+}
+
+.sum-form-view .sum-form-hero-input::placeholder {
+  font-weight: var(--sum-font-weight-normal);
+}
+
+.sum-form-view .sum-field-select option[value=""] {
+  color: var(--sum-muted);
+}
+
 .sum-form-inline-input {
   box-sizing: border-box;
   width: 100%;
@@ -581,20 +674,7 @@
   border-bottom-color: var(--sum-header);
 }
 
-/* —— Classic sheet form: status bar, title, fields, groups —— */
-.sum-form-statusbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.45rem 0.65rem;
-  border-radius: var(--sum-radius-sm) var(--sum-radius-sm) 0 0;
-  border: 1px solid var(--sum-line);
-  border-bottom: none;
-  background: linear-gradient(180deg, var(--sum-surface-alt) 0%, var(--sum-surface) 100%);
-}
-
+/* —— Classic sheet form: title, fields, groups —— */
 .sum-statusbar-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -649,21 +729,51 @@
 
 .sum-priority-stars {
   display: inline-flex;
-  gap: 0.15rem;
+  align-items: center;
+  gap: 0.2rem;
+  min-height: 2.35rem;
+  padding: 0.15rem 0;
 }
 
 .sum-priority-star {
-  border: none;
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
   padding: 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
   line-height: 1;
-  color: var(--sum-line-strong);
+  color: color-mix(in srgb, var(--sum-muted) 55%, var(--sum-line-strong));
   cursor: pointer;
+  transition:
+    color var(--sum-dur) var(--sum-ease),
+    border-color var(--sum-dur) var(--sum-ease),
+    background var(--sum-dur) var(--sum-ease),
+    transform var(--sum-dur) var(--sum-ease);
+}
+
+.sum-priority-star:hover:not(:disabled) {
+  border-color: color-mix(in srgb, #f5a623 45%, var(--sum-line));
+  color: #f5a623;
+  transform: translateY(-1px);
 }
 
 .sum-priority-star--on {
-  color: #f5a623;
+  border-color: color-mix(in srgb, #f5a623 55%, var(--sum-line));
+  background: color-mix(in srgb, #f5a623 12%, var(--sum-surface));
+  color: #e8940f;
+}
+
+.sum-priority-star:disabled {
+  cursor: default;
+}
+
+.sum-priority-select {
+  width: 100%;
 }
 
 .sum-header-btn--disabled {
@@ -672,7 +782,11 @@
 }
 
 .sum-field-region--sheet {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.sum-field-region--sheet + .sum-field-region--sheet {
+  margin-top: 0.25rem;
 }
 
 .sum-form-toolbar-spacer {
@@ -767,6 +881,41 @@
   margin-bottom: 0.35rem;
 }
 
+.sum-form-sheet-meta {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--sum-line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sum-form-label--hint {
+  display: block;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-normal);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--sum-muted-ink);
+  line-height: 1.5;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed color-mix(in srgb, var(--sum-header) 25%, var(--sum-line));
+  border-radius: var(--sum-radius-sm);
+  background: color-mix(in srgb, var(--sum-surface-alt) 65%, var(--sum-surface));
+}
+
+label.sum-form-label--hint {
+  cursor: default;
+}
+
+.sum-notebook-page-body .sum-field-widget--full {
+  margin: 0;
+}
+
+.sum-notebook-page-body .sum-field-textarea {
+  min-height: 10rem;
+}
+
 .sum-label-text {
   font-size: var(--sum-font-size-sm);
   font-weight: var(--sum-font-weight-bold);
@@ -779,21 +928,35 @@
   box-sizing: border-box;
   min-width: 0;
   max-width: 100%;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.sum-form-group--col,
+.sum-form-group--full {
   border: 1px solid var(--sum-line);
   border-radius: var(--sum-radius-sm);
   padding: 1rem 1.15rem 1.1rem;
-  margin-bottom: 1.25rem;
   background: color-mix(in srgb, var(--sum-surface) 97%, var(--sum-bg));
-  overflow: hidden;
+}
+
+.sum-form-group--col {
+  height: 100%;
+}
+
+.sum-form-group--full {
+  margin-bottom: 0.25rem;
 }
 
 .sum-form-edit-grid > .sum-form-group--full,
 .sum-form-page-grid > .sum-form-group--full {
   grid-column: 1 / -1;
   max-width: 100%;
+  width: 100%;
 }
 
-.sum-form-group-grid > .sum-form-group--full {
+.sum-form-group-grid > .sum-form-group--col,
+.sum-form-group-grid > .sum-form-group--plain {
   grid-column: auto;
   max-width: 100%;
 }
@@ -812,15 +975,204 @@
 }
 
 .sum-form-sheet {
-  max-width: 72rem;
+  width: 100%;
+  max-width: 100%;
   margin-inline: auto;
+  box-sizing: border-box;
 }
 
 .sum-field-textarea {
-  min-height: 6rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.65rem;
+  font-size: var(--sum-font-size-root);
+  font-family: var(--sum-font-sans);
+  color: var(--sum-ink);
+  border: 1px solid var(--sum-line-strong);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+  min-height: 8rem;
   resize: vertical;
-  font-family: inherit;
   line-height: 1.45;
+  transition: border-color var(--sum-dur) var(--sum-ease), box-shadow var(--sum-dur) var(--sum-ease);
+}
+
+.sum-field-textarea:hover {
+  border-color: color-mix(in srgb, var(--sum-header) 28%, var(--sum-line-strong));
+}
+
+.sum-field-textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sum-header) 45%, var(--sum-line-strong));
+  box-shadow: var(--sum-focus-ring);
+}
+
+.sum-date-field {
+  position: relative;
+  width: 100%;
+}
+
+.sum-date-field-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.sum-date-field-inline .sum-date-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sum-date-field-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
+}
+
+.sum-date-action-btn {
+  padding: 0.28rem 0.55rem;
+  font-size: var(--sum-font-size-sm);
+  font-family: var(--sum-font-sans);
+  color: var(--sum-muted-ink);
+  background: var(--sum-surface-alt);
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  cursor: pointer;
+  transition: background var(--sum-dur) var(--sum-ease), border-color var(--sum-dur) var(--sum-ease);
+}
+
+.sum-date-action-btn:hover {
+  background: var(--sum-row-hover-bg);
+  border-color: color-mix(in srgb, var(--sum-header) 24%, var(--sum-line));
+}
+
+.sum-field-toggle-name {
+  font-weight: var(--sum-font-weight-medium);
+  color: var(--sum-ink);
+  margin-right: 0.35rem;
+}
+
+.sum-date-field > summary {
+  list-style: none;
+}
+
+.sum-date-field > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sum-date-field-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.55rem;
+  font-size: var(--sum-font-size-root);
+  font-family: var(--sum-font-sans);
+  color: var(--sum-ink);
+  border: 1px solid var(--sum-line-strong);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+  cursor: pointer;
+  transition: border-color var(--sum-dur) var(--sum-ease), box-shadow var(--sum-dur) var(--sum-ease);
+}
+
+.sum-date-field-trigger:hover {
+  border-color: color-mix(in srgb, var(--sum-header) 28%, var(--sum-line-strong));
+}
+
+.sum-date-field[open] .sum-date-field-trigger {
+  border-color: color-mix(in srgb, var(--sum-header) 45%, var(--sum-line-strong));
+  box-shadow: var(--sum-focus-ring);
+}
+
+.sum-date-field-value--placeholder {
+  color: var(--sum-muted);
+  font-weight: var(--sum-font-weight-normal);
+}
+
+.sum-date-field-icon {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.sum-date-popover {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  padding: 0.85rem;
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+  box-shadow: var(--sum-shadow-md);
+}
+
+.sum-date-popover-header {
+  margin-bottom: 0.65rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
+  color: var(--sum-muted);
+}
+
+.sum-date-popover-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.65rem;
+  font-size: var(--sum-font-size-root);
+  font-family: var(--sum-font-sans);
+  color: var(--sum-ink);
+  border: 1px solid var(--sum-line-strong);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+}
+
+.sum-date-popover-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sum-header) 45%, var(--sum-line-strong));
+  box-shadow: var(--sum-focus-ring);
+}
+
+.sum-date-popover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.sum-date-popover-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  border: 1px solid var(--sum-line-strong);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+  color: var(--sum-muted-ink);
+  cursor: pointer;
+}
+
+.sum-date-popover-btn:hover {
+  border-color: color-mix(in srgb, var(--sum-header) 30%, var(--sum-line-strong));
+  color: var(--sum-header);
+}
+
+.sum-date-popover-btn--primary {
+  border-color: var(--sum-header-dark);
+  background: var(--sum-header);
+  color: var(--sum-topbar-fg);
+}
+
+.sum-date-popover-btn--primary:hover {
+  color: var(--sum-topbar-fg);
+  filter: brightness(1.05);
 }
 
 .sum-m2o-select {
@@ -871,6 +1223,7 @@
   overflow-x: auto;
   border: 1px solid var(--sum-line);
   border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
 }
 
 .sum-o2m-table {
@@ -879,11 +1232,92 @@
   font-size: var(--sum-font-size-sm);
 }
 
+.sum-o2m-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sum-surface-alt);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--sum-font-size-xs, 0.75rem);
+}
+
 .sum-o2m-table th,
 .sum-o2m-table td {
-  padding: 0.5rem 0.65rem;
+  padding: 0.45rem 0.55rem;
   border-bottom: 1px solid var(--sum-line);
   text-align: left;
+  vertical-align: middle;
+}
+
+.sum-o2m-table tbody tr:hover {
+  background: color-mix(in srgb, var(--sum-header) 4%, var(--sum-surface));
+}
+
+.sum-o2m-table .sum-field-control {
+  margin: 0;
+}
+
+.sum-o2m-table .sum-field-input,
+.sum-o2m-table .sum-field-select,
+.sum-o2m-table .sum-field-textarea {
+  min-height: 2rem;
+  padding: 0.3rem 0.45rem;
+  font-size: var(--sum-font-size-sm);
+}
+
+.sum-o2m-col-actions {
+  width: 2.5rem;
+  text-align: center;
+}
+
+.sum-o2m-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--sum-radius-sm);
+  background: transparent;
+  color: var(--sum-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.sum-o2m-delete-btn:hover {
+  background: color-mix(in srgb, rgb(239, 68, 68) 12%, var(--sum-surface));
+  color: rgb(185, 28, 28);
+}
+
+.sum-o2m-add-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: none;
+  border-radius: var(--sum-radius-sm);
+  background: transparent;
+  color: var(--sum-header);
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  cursor: pointer;
+}
+
+.sum-o2m-add-row:hover {
+  background: color-mix(in srgb, var(--sum-header) 10%, var(--sum-surface));
+}
+
+.sum-o2m-hint {
+  margin: 0.35rem 0 0;
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-muted);
+  font-style: italic;
 }
 
 .sum-o2m-title {
@@ -917,8 +1351,8 @@
 }
 
 .sum-form-group-title {
-  margin: 0 0 1rem;
-  padding-bottom: 0.45rem;
+  margin: 0 0 0.85rem;
+  padding-bottom: 0.4rem;
   font-size: var(--sum-font-size-sm);
   font-weight: var(--sum-font-weight-bold);
   text-transform: uppercase;
@@ -927,19 +1361,149 @@
   border-bottom: 1px solid var(--sum-line);
 }
 
+.sum-form-group--col .sum-form-group-title,
+.sum-form-group--full .sum-form-group-title {
+  margin-bottom: 0.75rem;
+}
+
 .sum-form-group-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem 1.5rem;
+  gap: 0.65rem;
   min-width: 0;
   max-width: 100%;
   width: 100%;
+  align-items: start;
 }
 
-@media (min-width: 768px) {
-  .sum-form-group-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.sum-form-group--inner-cols .sum-form-group-grid {
+  grid-template-columns: repeat(var(--sum-inner-cols, 1), minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+}
+
+.sum-form-group--row-layout .sum-form-group-grid {
+  gap: 0.55rem;
+}
+
+.sum-form-group-grid > .sum-field-widget,
+.sum-form-page-grid > .sum-field-widget,
+.sum-form-edit-grid > .sum-field-widget {
+  width: 100%;
+  min-width: 0;
+}
+
+.sum-form-group-grid > .sum-form-group--plain {
+  grid-column: 1 / -1;
+}
+
+.sum-field-widget--row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.25rem;
+  align-items: start;
+}
+
+@media (min-width: 576px) {
+  .sum-form-group--row-layout .sum-field-widget--row {
+    grid-template-columns: var(--sum-form-label-width, 9.5rem) minmax(0, 1fr);
+    gap: 0 0.85rem;
+    align-items: center;
   }
+
+  .sum-form-group--row-layout .sum-field-widget--row.sum-field-widget--full {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sum-field-label--row {
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--sum-letter-spacing-ui);
+  color: var(--sum-muted);
+  margin: 0;
+  padding-top: 0.35rem;
+  line-height: 1.35;
+}
+
+@media (min-width: 576px) {
+  .sum-form-group--row-layout .sum-field-label--row {
+    padding-top: 0;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.sum-field-control {
+  min-width: 0;
+  width: 100%;
+}
+
+.sum-field-control--compact {
+  width: 100%;
+}
+
+.sum-field-control > .sum-field-input,
+.sum-field-control > .sum-field-select,
+.sum-field-control > .sum-field-textarea,
+.sum-field-control > .sum-field-value,
+.sum-field-control > .sum-m2o-wrap,
+.sum-field-control > .sum-field-radio-group,
+.sum-field-control > .sum-field-tags,
+.sum-field-control > input[type="checkbox"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sum-field-widget--many2one {
+  position: relative;
+}
+
+.sum-field-value {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.55rem;
+  font-size: var(--sum-font-size-root);
+  color: var(--sum-ink);
+  border: 1px solid var(--sum-line-strong);
+  border-radius: var(--sum-radius-sm);
+  background: var(--sum-surface);
+}
+
+.sum-m2o-suggest {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% - 0.15rem);
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--sum-ink) 12%, transparent);
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.sum-m2o-suggest .sum-m2o-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.45rem 0.75rem;
+  font: inherit;
+  color: var(--sum-ink);
+  cursor: pointer;
+}
+
+.sum-m2o-suggest .sum-m2o-option:hover {
+  background: color-mix(in srgb, var(--sum-header) 12%, var(--sum-surface));
 }
 
 .sum-field-widget {
@@ -947,6 +1511,11 @@
   flex-direction: column;
   gap: 0.35rem;
   min-width: 0;
+}
+
+.sum-field-widget--row {
+  display: grid;
+  flex-direction: unset;
 }
 
 .sum-field-widget--spaced {
@@ -978,6 +1547,23 @@
   border-color: color-mix(in srgb, var(--sum-header) 28%, var(--sum-line-strong));
 }
 
+.sum-field-hint {
+  margin: 0.35rem 0 0;
+  font-size: var(--sum-font-size-sm);
+  line-height: 1.4;
+  color: var(--sum-muted);
+}
+
+.sum-field-hint--error {
+  color: var(--sum-danger);
+  font-weight: var(--sum-font-weight-medium);
+}
+
+.sum-field-input.sum-input-invalid {
+  border-color: var(--sum-danger);
+  background: var(--sum-danger-bg-soft);
+}
+
 .sum-field-input:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--sum-header) 45%, var(--sum-line-strong));
@@ -1000,6 +1586,8 @@
 
 /* Read mode: same field chrome as edit; not interactive. */
 .sum-form-view--readonly .sum-field-input,
+.sum-form-view--readonly .sum-field-textarea,
+.sum-form-view--readonly .sum-date-field-trigger,
 .sum-form-view--readonly .sum-form-hero-input,
 .sum-form-view--readonly .sum-form-inline-input {
   color: var(--sum-ink);
@@ -1054,14 +1642,22 @@
 .sum-field-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: 0.35rem;
   min-height: 2.35rem;
   padding: 0.35rem 0.45rem;
   font-size: var(--sum-font-size-root);
   color: var(--sum-muted-ink);
   border: 1px solid var(--sum-line-strong);
   border-radius: var(--sum-radius-sm);
-  background: var(--sum-surface-alt);
+  background: var(--sum-surface);
+}
+
+.sum-field-widget--row .sum-field-tags {
+  width: 100%;
+}
+
+.sum-m2m-tags-add {
+  margin-top: 0.35rem;
 }
 
 .sum-image-thumb {
@@ -1077,57 +1673,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.sum-image-placeholder {
-  width: 6rem;
-  height: 6rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--sum-line);
-  border-radius: var(--sum-radius-sm);
-  background: var(--sum-surface-alt);
-}
-
-.sum-image-placeholder-icon {
-  width: 2rem;
-  height: 2rem;
-  color: var(--sum-muted);
-}
-
-.sum-pivot-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 16rem;
-  padding: 2rem 1.5rem;
-  text-align: center;
-  border: 1px solid var(--sum-line);
-  border-radius: var(--sum-radius);
-  background: var(--sum-surface);
-  box-shadow: var(--sum-shadow-sm);
-}
-
-.sum-pivot-placeholder-icon {
-  width: 4rem;
-  height: 4rem;
-  margin-bottom: 1rem;
-  color: var(--sum-muted);
-}
-
-.sum-pivot-placeholder-title {
-  margin: 0 0 0.35rem;
-  font-size: var(--sum-font-size-lg);
-  font-weight: var(--sum-font-weight-semibold);
-  color: var(--sum-muted-ink);
-}
-
-.sum-pivot-placeholder-text {
-  margin: 0;
-  font-size: var(--sum-font-size-md);
-  color: var(--sum-muted);
 }
 
 .sum-pivot-view {
@@ -1338,4 +1883,389 @@
   border: 1px solid var(--sum-line);
   background: var(--sum-surface-alt);
   color: var(--sum-ink);
+}
+
+/* Dialog service */
+.sum-dialog-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  padding: 1rem;
+}
+
+.sum-dialog {
+  min-width: min(420px, 100%);
+  max-width: 560px;
+  background: var(--sum-surface);
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-md);
+  box-shadow: var(--sum-shadow-lg, 0 12px 40px rgba(0, 0, 0, 0.18));
+  padding: 1.25rem 1.5rem;
+}
+
+.sum-dialog-title {
+  margin: 0 0 0.75rem;
+  font-size: var(--sum-font-size-lg);
+  font-weight: var(--sum-font-weight-semibold);
+  color: var(--sum-ink);
+}
+
+.sum-dialog-body {
+  margin: 0 0 1.25rem;
+  color: var(--sum-ink-muted);
+  line-height: 1.5;
+}
+
+.sum-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.sum-dialog-btn {
+  border-radius: var(--sum-radius-sm);
+  padding: 0.45rem 0.9rem;
+  font-size: var(--sum-font-size-sm);
+  cursor: pointer;
+  border: 1px solid var(--sum-line);
+  background: var(--sum-surface-alt);
+  color: var(--sum-ink);
+}
+
+.sum-dialog-btn--primary {
+  border-color: var(--sum-header-dark);
+  background: var(--sum-header);
+  color: var(--sum-topbar-fg);
+  font-weight: var(--sum-font-weight-semibold);
+}
+
+.sum-dialog-btn--danger {
+  border-color: #b91c1c;
+  background: #dc2626;
+  color: #fff;
+}
+
+.sum-dialog--form {
+  min-width: min(720px, 96vw);
+  max-width: 920px;
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.sum-dialog-body--host {
+  margin: 0;
+  color: var(--sum-ink);
+}
+
+.sum-search-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0 0 0.75rem;
+}
+
+.sum-search-filters-label {
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-muted-ink);
+  margin-left: 0.35rem;
+}
+
+.sum-search-chip {
+  border: 1px solid var(--sum-line);
+  background: var(--sum-surface);
+  color: var(--sum-ink);
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: var(--sum-font-size-sm);
+  cursor: pointer;
+}
+
+.sum-search-chip--active {
+  border-color: var(--sum-header);
+  background: color-mix(in srgb, var(--sum-header) 16%, var(--sum-surface));
+  font-weight: var(--sum-font-weight-semibold);
+}
+
+.sum-list-th--sort {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sum-handle-grip {
+  letter-spacing: -0.15em;
+  color: var(--sum-muted-ink);
+  cursor: grab;
+}
+
+.sum-kanban-quick-create {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem 0.6rem;
+}
+
+.sum-kanban-quick-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  padding: 0.3rem 0.45rem;
+}
+
+.sum-graph-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0 1.25rem;
+}
+
+.sum-graph-bar-row {
+  display: grid;
+  grid-template-columns: 8rem 1fr 4rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.sum-graph-label {
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sum-graph-bar {
+  height: 0.7rem;
+  background: var(--sum-header, #2563eb);
+  border-radius: 999px;
+}
+
+.sum-graph-bar--line {
+  height: 0.28rem;
+}
+
+.sum-graph-value {
+  font-size: var(--sum-font-size-sm);
+  text-align: right;
+}
+
+.sum-graph-pie {
+  width: 12rem;
+  height: 12rem;
+  border-radius: 50%;
+  margin: 0.5rem auto;
+}
+
+.sum-graph-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto;
+  max-width: 28rem;
+}
+
+.sum-graph-swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  margin-right: 0.4rem;
+}
+
+.sum-calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sum-calendar-title {
+  margin: 0;
+  font-size: var(--sum-font-size-lg);
+}
+
+.sum-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--sum-line);
+  border: 1px solid var(--sum-line);
+}
+
+.sum-calendar-weekday,
+.sum-calendar-cell {
+  background: var(--sum-surface);
+  min-height: 6.5rem;
+  padding: 0.35rem;
+}
+
+.sum-calendar-weekday {
+  min-height: 0;
+  font-size: var(--sum-font-size-sm);
+  font-weight: var(--sum-font-weight-semibold);
+  text-align: center;
+}
+
+.sum-calendar-cell--muted {
+  background: var(--sum-surface-alt, var(--sum-surface));
+  color: var(--sum-muted-ink);
+}
+
+.sum-calendar-day-title {
+  margin: 0 0 0.25rem;
+  font-size: var(--sum-font-size-sm);
+}
+
+.sum-calendar-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sum-calendar-event {
+  font-size: var(--sum-font-size-sm);
+  cursor: pointer;
+  padding: 0.1rem 0.2rem;
+  border-radius: var(--sum-radius-sm);
+}
+
+.sum-calendar-event:hover {
+  background: color-mix(in srgb, var(--sum-header) 12%, transparent);
+}
+}
+
+/* Workspace chrome (SWC no longer duplicates server breadcrumb / view tabs) */
+.sum-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sum-breadcrumb-link,
+.sum-breadcrumb-current {
+  font-size: var(--sum-font-size-sm);
+  color: var(--sum-ink-muted);
+}
+
+.sum-view-tabs {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.sum-view-tab {
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--sum-radius-sm);
+  font-size: var(--sum-font-size-sm);
+  text-decoration: none;
+  color: var(--sum-ink-muted);
+  border: 1px solid transparent;
+}
+
+/* Legacy control panel (replaced by sum-list-control in list view) */
+.sum-control-panel {
+  display: none;
+}
+
+/* Chatter */
+.sum-form-layout--with-chatter {
+  display: grid;
+  grid-template-columns: 1fr min(360px, 38%);
+  gap: 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sum-form-layout--with-chatter > .sum-form-sheet-bg {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sum-form-layout--with-chatter > .sum-chatter {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sum-form-view > .sum-ws-record-toolbar,
+.sum-form-view > .sum-form-toolbar,
+.sum-form-view > .sum-view-toolbar {
+  flex-shrink: 0;
+}
+
+.sum-form-view > .sum-form-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.sum-chatter {
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-md);
+  padding: 1rem;
+  background: var(--sum-surface-alt);
+}
+
+.sum-chatter-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.sum-chatter-input {
+  width: 100%;
+  border: 1px solid var(--sum-line);
+  border-radius: var(--sum-radius-sm);
+  padding: 0.5rem;
+}
+
+.sum-chatter-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sum-stat-button {
+  border: 1px solid var(--sum-line);
+  background: var(--sum-surface);
+  border-radius: var(--sum-radius-sm);
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+.sum-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sum-progress-bar {
+  height: 8px;
+  background: var(--sum-header);
+  border-radius: 999px;
+  flex: 1;
+}
+
+.sum-debug-panel {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 9999;
+  max-width: 320px;
+  background: #111827;
+  color: #f9fafb;
+  padding: 0.75rem;
+  font-size: 12px;
 }

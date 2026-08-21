@@ -72,6 +72,7 @@ func execSearchQuery(ctx context.Context, modelName string, domain [][]interface
 		}
 		RedactRecordForRead(ctx, uid, modelName, m)
 		_ = ApplyComputes(ctx, modelName, m)
+		_ = ApplyRelatedFields(ctx, modelName, m)
 		results = append(results, m)
 	}
 	return results, rows.Err()
@@ -137,4 +138,37 @@ func SearchPage(ctx context.Context, modelName string, domain [][]interface{}, l
 		limit:      limit,
 		offset:     offset,
 	})
+}
+
+// SearchCount returns the number of rows matching domain (record rules applied).
+func SearchCount(ctx context.Context, modelName string, domain [][]interface{}) (n int, err error) {
+	start := time.Now()
+	defer func() {
+		logORMOperationKV(ctx, start, "search_count", modelName, err, "count", n)
+	}()
+	ctx = ContextWithReadReplica(ctx, true)
+	if _, ok := Registry[modelName]; !ok {
+		return 0, fmt.Errorf("model %s not found", modelName)
+	}
+	uid := SecurityUID(ctx)
+	if err := CheckModelAccess(ctx, uid, modelName, "read"); err != nil {
+		return 0, err
+	}
+	for _, interceptor := range SearchInterceptors {
+		domain, err = interceptor(ctx, modelName, domain)
+		if err != nil {
+			return 0, err
+		}
+	}
+	whereClause, args, err := BuildWhereWithRecordRules(ctx, uid, modelName, "read", domain)
+	if err != nil {
+		return 0, err
+	}
+	table, err := QuotedTableForModel(modelName)
+	if err != nil {
+		return 0, err
+	}
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s", table, whereClause)
+	err = QueryDB(ctx).QueryRowContext(ctx, query, args...).Scan(&n)
+	return n, err
 }

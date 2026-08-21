@@ -39,7 +39,11 @@
   --sum-danger-border-soft: rgba(220, 53, 69, 0.22);
 
   /* Tinted surfaces (tuned for #875A7B) */
-  --sum-row-hover-bg: rgba(135, 90, 123, 0.06);
+  --sum-row-hover-bg: color-mix(in srgb, var(--sum-header) 7%, var(--sum-surface));
+  --sum-list-row-hover-bg: color-mix(in srgb, var(--sum-header) 9%, var(--sum-surface));
+  --sum-launcher-hover-bg: color-mix(in srgb, var(--sum-header) 8%, var(--sum-surface));
+  --sum-launcher-active-bg: color-mix(in srgb, var(--sum-header) 14%, var(--sum-surface));
+  --sum-launcher-active-accent: var(--sum-gold);
   --sum-header-tint-12: rgba(135, 90, 123, 0.12);
 
   /* —— Lines & borders —— */

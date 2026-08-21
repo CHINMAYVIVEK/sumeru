@@ -65,11 +65,7 @@ func main() {
 	// Workspace detection and outDir defaulting
 	resolvedOut := *outDir
 	if resolvedOut == "" {
-		if modPath == "sumeru_custom_addons" {
-			resolvedOut = "addons"
-		} else {
-			resolvedOut = "addons"
-		}
+		resolvedOut = "addons"
 	}
 
 	cfg := &ScaffoldConfig{

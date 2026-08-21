@@ -3,22 +3,48 @@ package cliboot
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
+	_ "github.com/lib/pq"
+
 	"sumeru/core/orm"
-	"sumeru/core/server/config"
 	"sumeru/core/server"
+	"sumeru/core/server/config"
 )
+
+// LoadConfig loads INI config and resolves relative paths.
+func LoadConfig(configPath string) error {
+	if err := server.LoadConfig(configPath); err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+	if err := server.AbsPaths(); err != nil {
+		return fmt.Errorf("paths: %w", err)
+	}
+	return nil
+}
+
+// OpenDB opens a PostgreSQL connection using DSN from loaded config.
+func OpenDB(ctx context.Context) (*sql.DB, error) {
+	db, err := sql.Open("postgres", DSN())
+	if err != nil {
+		return nil, err
+	}
+	if ctx != nil {
+		if err := db.PingContext(ctx); err != nil {
+			_ = db.Close()
+			return nil, err
+		}
+	}
+	return db, nil
+}
 
 // Init loads INI config, connects to PostgreSQL, syncs models, and discovers addons.
 // Requires an initialized database (not setup mode).
 func Init(configPath string) (context.Context, error) {
-	if err := server.LoadConfig(configPath); err != nil {
-		return nil, fmt.Errorf("config: %w", err)
-	}
-	if err := server.AbsPaths(); err != nil {
-		return nil, fmt.Errorf("paths: %w", err)
+	if err := LoadConfig(configPath); err != nil {
+		return nil, err
 	}
 	c := config.AppConfig
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
@@ -45,11 +71,8 @@ func Init(configPath string) (context.Context, error) {
 
 // InitOptionalDB loads config and addons without requiring DB (for list/depends-tree on disk only).
 func InitOptionalDB(configPath string, requireDB bool) (context.Context, error) {
-	if err := server.LoadConfig(configPath); err != nil {
-		return nil, fmt.Errorf("config: %w", err)
-	}
-	if err := server.AbsPaths(); err != nil {
-		return nil, fmt.Errorf("paths: %w", err)
+	if err := LoadConfig(configPath); err != nil {
+		return nil, err
 	}
 	if err := server.LoadAddonPaths(config.AppConfig.AddonPaths); err != nil {
 		return nil, fmt.Errorf("addons: %w", err)

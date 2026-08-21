@@ -36,7 +36,7 @@ func linkXMLRecord(ctx context.Context, moduleName, xmlID, model string, coreID 
 	if coreID <= 0 || xmlID == "" {
 		return nil
 	}
-	_, err := orm.Upsert(ctx, orm.SysModelData{}, map[string]interface{}{
+	_, err := orm.Upsert(ctx, orm.RegistryModel("sys.model.data"), map[string]interface{}{
 		"module":  moduleName,
 		"name":    xmlID,
 		"model":   model,

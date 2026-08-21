@@ -1028,9 +1028,17 @@
   color: var(--sum-ink);
 }
 
-.sum-app-launcher-result:hover,
+.sum-app-launcher-result:hover {
+  background: var(--sum-launcher-hover-bg);
+}
+
 .sum-app-launcher-result.is-active {
-  background: var(--sum-row-hover-bg);
+  background: var(--sum-launcher-active-bg);
+  box-shadow: inset 3px 0 0 var(--sum-launcher-active-accent);
+}
+
+.sum-app-launcher-result.is-active .sum-app-launcher-result-name {
+  color: var(--sum-header);
 }
 
 .sum-app-launcher-result-letter {
@@ -1053,6 +1061,32 @@
 
 .sum-app-launcher-result-name {
   font-weight: var(--sum-font-weight-medium);
+}
+
+.sum-app-launcher-result-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.sum-app-launcher-result-kind {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: var(--sum-font-weight-medium);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  border: 1px solid var(--sum-line);
+  color: var(--sum-muted);
+  background: var(--sum-surface-alt);
+}
+
+.sum-app-launcher-result-kind--app {
+  color: var(--sum-header);
+  border-color: color-mix(in srgb, var(--sum-header) 24%, var(--sum-line));
+  background: color-mix(in srgb, var(--sum-header) 8%, var(--sum-surface));
 }
 
 .sum-app-launcher-result-meta {

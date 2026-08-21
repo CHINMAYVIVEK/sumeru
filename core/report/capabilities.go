@@ -18,7 +18,7 @@ func CapabilitiesFromView(v *parser.View) Capabilities {
 	if v.ReportDownload != "" {
 		mergeCaps(&caps, v.ReportDownload, "", v.ReportPDFSizes, v.ReportBulkModes)
 	}
-	if isTruthyAttr(v.BulkUpload) {
+	if parser.IsTruthyAttr(v.BulkUpload) {
 		caps.BulkUpload = true
 	}
 	if v.Header != nil {
@@ -44,7 +44,7 @@ func mergeCaps(caps *Capabilities, download, upload, pdfSizes, modes string) {
 			caps.DownloadFormats = appendUnique(caps.DownloadFormats, f)
 		}
 	}
-	if strings.EqualFold(strings.TrimSpace(upload), "bulk") || isTruthyAttr(upload) {
+	if strings.EqualFold(strings.TrimSpace(upload), "bulk") || parser.IsTruthyAttr(upload) {
 		caps.BulkUpload = true
 	}
 	if pdfSizes != "" {
@@ -95,11 +95,3 @@ func appendUnique(list []string, items ...string) []string {
 	return list
 }
 
-func isTruthyAttr(v string) bool {
-	switch strings.ToLower(strings.TrimSpace(v)) {
-	case "1", "true", "yes", "on":
-		return true
-	default:
-		return false
-	}
-}

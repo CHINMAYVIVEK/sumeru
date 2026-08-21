@@ -89,7 +89,7 @@ func upsertMenuRow(ctx context.Context, moduleName, xmlID string, menuValues map
 			return 0, err
 		}
 	} else {
-		id, err := orm.Create(ctx, orm.SysMenu{}, menuValues)
+		id, err := orm.Create(ctx, orm.RegistryModel("sys.menu"), menuValues)
 		if err != nil {
 			return 0, err
 		}

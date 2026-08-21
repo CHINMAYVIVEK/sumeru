@@ -1,32 +1,18 @@
 package orm
 
-// SysRule represents sys.rule (record rules)
+import (
+	"sumeru/core/modelmeta"
+)
+
 type SysRule struct {
-	ID          int    `orm:"id"`
-	Name        string `orm:"name"`
-	Model       string `orm:"model"`
-	DomainForce string `orm:"domain_force"`
-	Active      bool   `orm:"active"`
-	PermRead    bool   `orm:"perm_read"`
-	PermWrite   bool   `orm:"perm_write"`
-	PermCreate  bool   `orm:"perm_create"`
-	PermUnlink  bool   `orm:"perm_unlink"`
-}
+	modelmeta.ModelMeta `sumeru:"model=sys.rule"`
 
-func (r SysRule) ModelName() string { return "sys.rule" }
-func (r SysRule) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "name", Type: Char, Required: true, Unique: true},
-		{Name: "model", Type: Char, Required: true},
-		{Name: "domain_force", Type: Text},
-		{Name: "active", Type: Boolean},
-		{Name: "perm_read", Type: Boolean},
-		{Name: "perm_write", Type: Boolean},
-		{Name: "perm_create", Type: Boolean},
-		{Name: "perm_unlink", Type: Boolean},
-	}
-}
-
-func init() {
-	RegisterModelWithModule(SysRule{}, "base")
+	Name        modelmeta.String `sumeru:"required,unique"`
+	ResModel    modelmeta.String `sumeru:"required,column=model"`
+	DomainForce modelmeta.Text
+	Active      modelmeta.Boolean
+	PermRead    modelmeta.Boolean
+	PermWrite   modelmeta.Boolean
+	PermCreate  modelmeta.Boolean
+	PermUnlink  modelmeta.Boolean
 }

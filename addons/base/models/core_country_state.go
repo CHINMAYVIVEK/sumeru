@@ -1,22 +1,14 @@
 package models
 
-import "sumeru/core/sdk"
+import (
+	"sumeru/core/sdk"
+)
 
 type CoreCountryState struct {
-	sdk.BaseModel
-}
+	sdk.Model `sumeru:"model=core.country.state"`
 
-func (CoreCountryState) ModelName() string { return "core.country.state" }
-
-func (CoreCountryState) Fields() []sdk.FieldDefinition {
-	return []sdk.FieldDefinition{
-		{Name: "name", Type: sdk.Char, Required: true, String: "State"},
-		{Name: "code", Type: sdk.Char, String: "Code"},
-		{Name: "country_id", Type: sdk.Many2One, Relation: "core.country", Required: true, Index: true, String: "Country"},
-		{Name: "active", Type: sdk.Boolean, DefaultVal: true, String: "Active"},
-	}
-}
-
-func init() {
-	sdk.RegisterModel(sdk.RegisterModelInput{Model: &CoreCountryState{}, Module: "base"})
+	Name      sdk.String            `sumeru:"required,string=State"`
+	Code      sdk.String            `sumeru:"string=Code"`
+	CountryID sdk.Many2One[CoreCountry] `sumeru:"required,index,string=Country"`
+	Active    sdk.Boolean           `sumeru:"string=Active,default=true"`
 }

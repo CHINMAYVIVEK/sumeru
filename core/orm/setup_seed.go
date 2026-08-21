@@ -34,7 +34,7 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 	if err != nil {
 		return 0, 0, fmt.Errorf("bootstrap sys.module.category Administration: %w", err)
 	}
-	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, RegistryModel("sys.model.data"), map[string]interface{}{
 		"module":  "base",
 		"name":    "module_category_administration",
 		"model":   "sys.module.category",
@@ -47,7 +47,7 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 	if err != nil {
 		return 0, 0, fmt.Errorf("bootstrap sys.module.category User types: %w", err)
 	}
-	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, RegistryModel("sys.model.data"), map[string]interface{}{
 		"module":  "base",
 		"name":    "module_category_user_types",
 		"model":   "sys.module.category",
@@ -62,7 +62,7 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 	if err != nil {
 		return 0, 0, fmt.Errorf("bootstrap core.group admin: %w", err)
 	}
-	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, RegistryModel("sys.model.data"), map[string]interface{}{
 		"module":  "base",
 		"name":    "group_system",
 		"model":   "core.group",
@@ -77,7 +77,7 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 	if err != nil {
 		return 0, 0, fmt.Errorf("bootstrap core.group user: %w", err)
 	}
-	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, RegistryModel("sys.model.data"), map[string]interface{}{
 		"module":  "base",
 		"name":    "group_user",
 		"model":   "core.group",
@@ -92,7 +92,7 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 	if err != nil {
 		return 0, 0, fmt.Errorf("bootstrap core.group portal: %w", err)
 	}
-	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, RegistryModel("sys.model.data"), map[string]interface{}{
 		"module":  "base",
 		"name":    "group_portal",
 		"model":   "core.group",
@@ -107,7 +107,7 @@ func ensureDefaultKernelGroups(ctx context.Context) (adminGID int, userGID int, 
 	if err != nil {
 		return 0, 0, fmt.Errorf("bootstrap core.group public: %w", err)
 	}
-	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, RegistryModel("sys.model.data"), map[string]interface{}{
 		"module":  "base",
 		"name":    "group_public",
 		"model":   "core.group",
@@ -159,7 +159,7 @@ func ensureBootstrapSecurity(ctx context.Context, first *SetupAdminParams) error
 	if err != nil {
 		return fmt.Errorf("bootstrap company: %w", err)
 	}
-	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, RegistryModel("sys.model.data"), map[string]interface{}{
 		"module":  "base",
 		"name":    "main_company",
 		"model":   "core.company",
@@ -190,7 +190,7 @@ func ensureBootstrapSecurity(ctx context.Context, first *SetupAdminParams) error
 		return fmt.Errorf("set administrator password: %w", err)
 	}
 
-	_, _ = Upsert(ctx, SysModelData{}, map[string]interface{}{
+	_, _ = Upsert(ctx, RegistryModel("sys.model.data"), map[string]interface{}{
 		"module":  "base",
 		"name":    "user_admin",
 		"model":   "core.user",
@@ -240,7 +240,7 @@ func ensureBootstrapACLs(ctx context.Context, adminGID, userGID int) {
 			continue
 		}
 		accName := fmt.Sprintf("access_%s_admin", strings.ReplaceAll(modelName, ".", "_"))
-		if _, err := Upsert(ctx, SysAccess{}, map[string]interface{}{
+		if _, err := Upsert(ctx, RegistryModel("sys.access"), map[string]interface{}{
 			"name":        accName,
 			"model":       modelName,
 			"group_id":    NullableGroupIDForAccess(adminGID),
@@ -257,7 +257,7 @@ func ensureBootstrapACLs(ctx context.Context, adminGID, userGID int) {
 	globalReads := []string{"sys.model.data", "sys.menu", "sys.action.window", "sys.view", "sys.module", "sys.module.category", "core.country", "core.country.state", "core.city"}
 	for _, m := range globalReads {
 		accName := fmt.Sprintf("access_%s_global_read", strings.ReplaceAll(m, ".", "_"))
-		_, _ = Upsert(ctx, SysAccess{}, map[string]interface{}{
+		_, _ = Upsert(ctx, RegistryModel("sys.access"), map[string]interface{}{
 			"name":        accName,
 			"model":       m,
 			"group_id":    nil,
@@ -275,7 +275,7 @@ func ensureBootstrapACLs(ctx context.Context, adminGID, userGID int) {
 		{"sys.access", "access_sys_access_user_read"},
 		{"sys.rule", "access_sys_rule_user_read"},
 	} {
-		_, _ = Upsert(ctx, SysAccess{}, map[string]interface{}{
+		_, _ = Upsert(ctx, RegistryModel("sys.access"), map[string]interface{}{
 			"name":        pair.name,
 			"model":       pair.model,
 			"group_id":    NullableGroupIDForAccess(userGID),

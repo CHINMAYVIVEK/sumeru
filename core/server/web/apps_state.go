@@ -45,13 +45,8 @@ func parseAppsBrowseStateFromForm(r *http.Request) appsBrowseState {
 	}
 }
 
-// appsRedirectURL redirects to the Apps list (browse.ModuleName should be empty).
+// appsRedirectURL builds an Apps page URL (list or module detail from browse.ModuleName).
 func appsRedirectURL(message string, browse appsBrowseState) string {
-	return appsPageURL(message, browse)
-}
-
-// appsDetailRedirectURL redirects to a module detail view; browse.ModuleName must be set.
-func appsDetailRedirectURL(message string, browse appsBrowseState) string {
 	return appsPageURL(message, browse)
 }
 

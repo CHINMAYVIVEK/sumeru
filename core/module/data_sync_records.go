@@ -148,15 +148,8 @@ func ConvertRecordScalar(ctx context.Context, moduleName, model, column, rawValu
 		if trimmedValue == "" || strings.EqualFold(trimmedValue, "false") || trimmedValue == "0" {
 			return nil
 		}
-		if strings.Contains(trimmedValue, ".") {
-			if id, _, err := orm.ResolveXmlId(ctx, trimmedValue); err == nil && id > 0 {
-				return id
-			}
-		}
-		if moduleName != "" {
-			if id, _, err := orm.ResolveXmlId(ctx, moduleName+"."+trimmedValue); err == nil && id > 0 {
-				return id
-			}
+		if id, err := resolveXMLIDInModule(ctx, moduleName, trimmedValue); err == nil && id > 0 {
+			return id
 		}
 		if n, err := strconv.ParseInt(trimmedValue, 10, 64); err == nil {
 			return n

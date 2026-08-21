@@ -1,25 +1,26 @@
 package web
 
+import "sumeru/core/engine/render"
+
 // Shared routes used across web handlers.
 const (
-	rootRoute           = "/"
-	loginRoute          = "/web/login"
-	logoutRoute         = "/web/logout"
-	homeRoute           = "/web/home"
-	companySwitchRoute  = "/web/company/switch"
-	kanbanMoveRoute     = "/web/kanban/move"
-	moduleActionRoute   = "/web/module/action"
-	resetPasswordRoute  = "/web/action/reset_password"
-	createAPIKeyRoute   = "/web/action/create_api_key"
-	objectActionRoute   = "/web/action/object"
-	pinnedAppsRoute     = "/web/user/pinned-apps"
-	settingsRoute       = "/web/settings"
-	appLogsRoute        = "/web/settings/app-logs"
-	apiHealthRoute      = "/api/health"
-	apiRPCRoute         = "/api/rpc"
-	metricsRoute        = "/metrics"
-	setupRoute          = "/setup"
-	setupInitRoute      = "/setup/init"
+	rootRoute          = "/"
+	loginRoute         = "/web/login"
+	logoutRoute        = "/web/logout"
+	homeRoute          = "/web/home"
+	companySwitchRoute = "/web/company/switch"
+	kanbanMoveRoute    = "/web/kanban/move"
+	moduleActionRoute  = "/web/module/action"
+	resetPasswordRoute = "/web/action/reset_password"
+	createAPIKeyRoute  = "/web/action/create_api_key"
+	pinnedAppsRoute    = "/web/user/pinned-apps"
+	settingsRoute      = "/web/settings"
+	appLogsRoute       = "/web/settings/app-logs"
+	apiHealthRoute     = "/api/health"
+	apiRPCRoute        = "/api/rpc"
+	metricsRoute       = "/metrics"
+	setupRoute         = "/setup"
+	setupInitRoute     = "/setup/init"
 )
 
 // Setup wizard limits and templates.
@@ -111,8 +112,8 @@ const (
 
 // Home dashboard page identifiers.
 const (
-	homeMenuRootXMLID   = "base.menu_home_root"
-	homeInnerTemplate   = "home_dashboard_inner.html"
+	homeMenuRootXMLID = "base.menu_home_root"
+	homeInnerTemplate = "home_dashboard_inner.html"
 	homePageTitle     = "Home"
 	homeStylesheetURL = "/static/css/sumeru-home.css"
 	homeEmptyMessage  = "No installed applications. Install apps from Apps."
@@ -144,10 +145,10 @@ const (
 
 // Apps module action form fields (POST apps_*).
 const (
-	appsLayoutField  = "apps_layout"
-	appsFilterField  = "apps_filter"
-	appsScopeField   = "apps_scope"
-	appsSearchField  = "apps_q"
+	appsLayoutField = "apps_layout"
+	appsFilterField = "apps_filter"
+	appsScopeField  = "apps_scope"
+	appsSearchField = "apps_q"
 )
 
 // Apps module action form fields (POST do=, module=, etc.).
@@ -162,11 +163,11 @@ const (
 
 // Apps module lifecycle action names (POST do=).
 const (
-	moduleActionInstall     = "install"
-	moduleActionUninstall   = "uninstall"
-	moduleActionDeactivate  = "deactivate"
-	moduleActionActivate    = "activate"
-	moduleActionSaveModule  = "save_module"
+	moduleActionInstall    = "install"
+	moduleActionUninstall  = "uninstall"
+	moduleActionDeactivate = "deactivate"
+	moduleActionActivate   = "activate"
+	moduleActionSaveModule = "save_module"
 )
 
 // Module action flash message keys returned via Apps ?msg=.
@@ -181,8 +182,8 @@ const (
 
 // Kanban move field names.
 const (
-	stageIDField              = "stage_id"
-	dateLastStageUpdateField  = "date_last_stage_update"
+	stageIDField             = "stage_id"
+	dateLastStageUpdateField = "date_last_stage_update"
 )
 
 // Company switch form field.
@@ -190,23 +191,31 @@ const companyIDFormField = "company_id"
 
 // Workspace URL query parameters (/web?action=&menu_id=&view_type=&id=).
 const (
-	workspaceRoute           = "/web"
-	workspaceActionParam     = "action"
-	workspaceMenuIDParam     = "menu_id"
-	workspaceViewTypeParam   = "view_type"
-	workspaceRecordIDParam   = "id"
-	workspaceEditParam       = "edit"
+	workspaceRoute            = render.WorkspaceRoute
+	workspaceActionParam      = render.WorkspaceActionParam
+	workspaceMenuIDParam      = render.WorkspaceMenuIDParam
+	workspaceViewTypeParam    = render.WorkspaceViewTypeParam
+	workspaceRecordIDParam    = render.WorkspaceRecordIDParam
+	workspaceEditParam        = render.WorkspaceEditParam
 	workspaceEditEnabledValue = "1"
+	workspaceModelParam       = render.WorkspaceModelParam
+	workspaceFilterParam      = render.WorkspaceFilterParam
+	workspaceSortParam        = render.WorkspaceSortParam
+	workspaceOffsetParam      = render.WorkspaceOffsetParam
+	workspaceGroupByParam     = render.WorkspaceGroupByParam
 )
 
 // Workspace view modes and row limits.
 const (
-	workspaceViewModeList   = "list"
-	workspaceViewModeForm   = "form"
-	workspaceViewModeKanban = "kanban"
-	workspaceViewModePivot  = "pivot"
-	maxWorkspaceListRows    = 500
-	maxWorkspaceKanbanRows  = 200
+	workspaceViewModeList     = render.ViewModeList
+	workspaceViewModeForm     = render.ViewModeForm
+	workspaceViewModeKanban   = render.ViewModeKanban
+	workspaceViewModePivot    = render.ViewModePivot
+	workspaceViewModeGraph    = render.ViewModeGraph
+	workspaceViewModeCalendar = render.ViewModeCalendar
+	maxWorkspaceListRows      = 500
+	maxWorkspaceKanbanRows    = 200
+	workspaceListPageSize     = 40
 )
 
 // ORM models used by workspace handlers.
@@ -217,18 +226,9 @@ const (
 
 // Workspace error message fragments mapped to HTTP status codes.
 const (
-	workspaceErrNoView   = "No view for model"
-	workspaceErrNotFound = "not found"
+	workspaceErrNoView    = "No view for model"
+	workspaceErrNotFound  = "not found"
 	workspaceErrInvalidID = "invalid id"
-)
-
-// Record delete route.
-const recordDeleteRoute = "/web/record/delete"
-
-// Record save route and notification author.
-const (
-	recordSaveRoute        = "/web/record/save"
-	recordSaveSystemAuthor = "System"
 )
 
 // Record save form fields excluded from ORM values.
@@ -242,20 +242,20 @@ const (
 
 // CSV import route, limits, and multipart form fields.
 const (
-	importCSVRoute     = "/web/import/csv"
-	exportCSVRoute     = "/web/export/csv"
-	exportPDFRoute     = "/web/export/pdf"
-	bulkTemplateRoute  = "/web/bulk/template"
-	bulkUploadRoute    = "/web/bulk/upload"
-	bulkConfirmRoute   = "/web/bulk/confirm"
-	bulkCancelRoute    = "/web/bulk/cancel"
-	maxImportBodyBytes = 8 << 20
-	importModelField   = "model"
-	importFileField    = "file"
-	reportFieldsParam  = "fields"
+	importCSVRoute      = "/web/import/csv"
+	exportCSVRoute      = "/web/export/csv"
+	exportPDFRoute      = "/web/export/pdf"
+	bulkTemplateRoute   = "/web/bulk/template"
+	bulkUploadRoute     = "/web/bulk/upload"
+	bulkConfirmRoute    = "/web/bulk/confirm"
+	bulkCancelRoute     = "/web/bulk/cancel"
+	maxImportBodyBytes  = 8 << 20
+	importModelField    = "model"
+	importFileField     = "file"
+	reportFieldsParam   = "fields"
 	reportPageSizeParam = "page_size"
-	importModeField    = "import_mode"
-	actionIDField      = "action"
+	importModeField     = "import_mode"
+	actionIDField       = "action"
 )
 
 // Chatter POST route, form fields, and limits.
@@ -269,23 +269,12 @@ const (
 	chatterDefaultAuthor = "User"
 )
 
-// Relational search API query parameters (/web/rel/search).
-const (
-	relSearchRoute            = "/web/rel/search"
-	relSearchQueryParam       = "q"
-	relSearchLimitParam       = "limit"
-	relSearchFilterFieldParam = "filter_field"
-	relSearchFilterIDParam    = "filter_id"
-	defaultRelSearchLimit     = 20
-)
-
 // Apps page routes, templates, and ORM model.
 const (
 	appsRoute         = "/web/apps"
 	appsPageTitle     = "Apps"
 	appsInnerTemplate = "apps_inner.html"
 	appsModuleModel   = "sys.module"
-	appsStylesheetURL = "/static/css/sumeru-apps.css"
 )
 
 // Apps browse query values (filter, scope, layout).

@@ -33,6 +33,11 @@ func RegisterModelWithModule(model Model, declaringModule string) {
 	modelDeclaringModule[name] = strings.TrimSpace(declaringModule)
 }
 
+// RegistryModel returns a registered model by technical name, or nil.
+func RegistryModel(name string) Model {
+	return Registry[name]
+}
+
 func SyncModels() error {
 	if DB == nil {
 		return nil
@@ -64,15 +69,28 @@ func SyncModels() error {
 func ColumnTypeSQL(f FieldDefinition) (string, bool) {
 	switch f.Type {
 	case Char:
-		return "VARCHAR(255)", true
+		size := f.Size
+		if size <= 0 {
+			size = 255
+		}
+		return fmt.Sprintf("VARCHAR(%d)", size), true
 	case Text:
 		return "TEXT", true
 	case Integer:
 		return "BIGINT", true
 	case Float:
+		return "REAL", true
+	case Float64:
 		return "DOUBLE PRECISION", true
 	case Numeric:
-		return "NUMERIC(16, 4)", true
+		prec, scale := f.Precision, f.Scale
+		if prec <= 0 {
+			prec = 16
+		}
+		if scale < 0 {
+			scale = 4
+		}
+		return fmt.Sprintf("NUMERIC(%d, %d)", prec, scale), true
 	case Boolean:
 		return "BOOLEAN", true
 	case Date:
@@ -110,6 +128,9 @@ func createTable(model Model) error {
 	columns = append(columns, quoteIdent("id")+" BIGSERIAL PRIMARY KEY")
 
 	for _, field := range model.Fields() {
+		if field.Name == "id" || IsVirtualField(field) {
+			continue
+		}
 		baseType, ok := ColumnTypeSQL(field)
 		if !ok {
 			continue

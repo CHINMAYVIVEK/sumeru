@@ -1,28 +1,16 @@
 package orm
 
-// SysActionWindow defines window actions
+import (
+	"sumeru/core/modelmeta"
+)
+
 type SysActionWindow struct {
-	ID        int    `orm:"id"`
-	Name      string `orm:"name"`
-	CoreModel string `orm:"core_model"`
-	ViewMode  string `orm:"view_mode"`
-	Domain    string `orm:"domain"`
-	Context   string `orm:"context"`
-	Help      string `orm:"help"`
-}
+	modelmeta.ModelMeta `sumeru:"model=sys.action.window"`
 
-func (a SysActionWindow) ModelName() string { return "sys.action.window" }
-func (a SysActionWindow) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "name", Type: Char, Required: true, Unique: true},
-		{Name: "core_model", Type: Char, Required: true},
-		{Name: "view_mode", Type: Char},
-		{Name: "domain", Type: Char},
-		{Name: "context", Type: Char},
-		{Name: "help", Type: Char},
-	}
-}
-
-func init() {
-	RegisterModelWithModule(SysActionWindow{}, "base")
+	Name      modelmeta.String `sumeru:"required,unique"`
+	CoreModel modelmeta.String `sumeru:"required"`
+	ViewMode  modelmeta.String
+	Domain    modelmeta.String
+	Context   modelmeta.String
+	Help      modelmeta.String
 }

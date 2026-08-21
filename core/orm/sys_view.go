@@ -1,28 +1,16 @@
 package orm
 
-// SysView stores XML view definitions
+import (
+	"sumeru/core/modelmeta"
+)
+
 type SysView struct {
-	ID       int    `orm:"id"`
-	Name     string `orm:"name"`
-	Model    string `orm:"model"` // Linked model technical name
-	Type     string `orm:"type"`  // form, list, kanban
-	Arch     string `orm:"arch"`  // XML content
-	Priority int    `orm:"priority"`
-	Active   bool   `orm:"active"`
-}
+	modelmeta.ModelMeta `sumeru:"model=sys.view"`
 
-func (v SysView) ModelName() string { return "sys.view" }
-func (v SysView) Fields() []FieldDefinition {
-	return []FieldDefinition{
-		{Name: "name", Type: Char, Required: true, Unique: true},
-		{Name: "model", Type: Char, Required: true},
-		{Name: "type", Type: Char, Required: true},
-		{Name: "arch", Type: Text},
-		{Name: "priority", Type: Integer},
-		{Name: "active", Type: Boolean},
-	}
-}
-
-func init() {
-	RegisterModelWithModule(SysView{}, "base")
+	Name     modelmeta.String `sumeru:"required,unique"`
+	ResModel modelmeta.String `sumeru:"required,column=model"`
+	Type     modelmeta.String `sumeru:"required"`
+	Arch     modelmeta.Text
+	Priority modelmeta.Integer
+	Active   modelmeta.Boolean
 }

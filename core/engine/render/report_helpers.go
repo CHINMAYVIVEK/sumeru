@@ -16,7 +16,7 @@ func menuIDFromFormBaseQuery(qs string) string {
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(qv.Get("menu_id"))
+	return strings.TrimSpace(qv.Get(WorkspaceMenuIDParam))
 }
 
 func viewFieldsForReport(view *parser.View) []parser.Field {

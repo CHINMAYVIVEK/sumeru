@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"sumeru/core/engine/assets"
 	"sumeru/core/engine/render"
 	"sumeru/core/orm"
 )
@@ -62,7 +63,7 @@ func buildAppLogsPageData(ctx context.Context, menuID int) render.PageData {
 }
 
 func appLogsViewStylesheets() []string {
-	return []string{workspaceStylesheetURL, pagesStylesheetURL}
+	return assets.AppLogsStylesheetURLs()
 }
 
 func resolveMenuID(ctx context.Context, menuXMLID string) (menuID int, menuIDStr string) {

@@ -22,6 +22,7 @@ var PublicMethods = map[string]bool{
 	"write_many":   true,
 	"unlink_many":  true,
 	"read_group":   true,
+	"onchange":     true,
 	"call":         true,
 }
 
@@ -91,6 +92,8 @@ func dispatchRPC(ctx context.Context, body []byte) (interface{}, error) {
 		return rpcUnlinkMany(ctx, model, in.Args)
 	case "read_group":
 		return rpcReadGroup(ctx, model, in.Args, in.Kwargs)
+	case "onchange":
+		return rpcOnchange(ctx, model, in.Args)
 	case "call":
 		return rpcCall(ctx, model, in.Args)
 	default:

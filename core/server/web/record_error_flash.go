@@ -172,14 +172,12 @@ func redirectRecordSuccess(w http.ResponseWriter, r *http.Request, nextURL, msg 
 
 func operationRoute(operation string) string {
 	switch operation {
-	case "record_save":
-		return recordSaveRoute
-	case "record_delete":
-		return recordDeleteRoute
+	case "record_save", "record_delete":
+		return workspaceRoute
 	case "record_chatter":
 		return chatterPostRoute
 	case "object_action":
-		return objectActionRoute
+		return apiRPCRoute
 	default:
 		return webLogUnknownRoute
 	}

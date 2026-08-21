@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SWC Vision</title>
+    <style>
+      body {
+        font: 13px/1.4 system-ui, sans-serif;
+        margin: 0;
+        padding: 0.75rem;
+      }
+      #status {
+        color: #64748b;
+        margin: 0 0 0.5rem;
+      }
+      #tree {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .sum-devtools-node {
+        padding: 0.25rem 0;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .sum-devtools-node span {
+        color: #94a3b8;
+      }
+      .sum-devtools-empty {
+        color: #94a3b8;
+      }
+    </style>
+  </head>
+  <body>
+    <p id="status">Connecting…</p>
+    <ul id="tree"></ul>
+    <script src="dist/panel.js"></script>
+  </body>
+</html>

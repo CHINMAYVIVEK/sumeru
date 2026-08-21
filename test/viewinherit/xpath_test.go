@@ -31,6 +31,26 @@ func TestApplyInheritArchAfterMarshaledField(t *testing.T) {
 	}
 }
 
+func TestApplyInheritArchButtonAndAttributes(t *testing.T) {
+	parent := `<view type="form"><header><button name="action_lost" string="Lost" type="object"></button></header><field name="phone" string="Phone"></field></view>`
+	frag := `<xpath expr="//button[@name='action_lost']" position="attributes"><attribute name="string">Mark Lost</attribute></xpath>`
+	out, err := viewinherit.ApplyInheritArch(parent, frag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `string="Mark Lost"`) {
+		t.Fatalf("button attr: %s", out)
+	}
+	frag2 := `<xpath expr="//field[@name='phone']" position="attributes"><attribute name="invisible">1</attribute></xpath>`
+	out2, err := viewinherit.ApplyInheritArch(out, frag2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out2, `invisible="1"`) {
+		t.Fatalf("field attr: %s", out2)
+	}
+}
+
 func containsInOrder(s string, parts ...string) bool {
 	pos := 0
 	for _, p := range parts {

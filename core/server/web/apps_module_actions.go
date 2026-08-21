@@ -55,7 +55,7 @@ func redirectToAppsList(w http.ResponseWriter, r *http.Request, message string, 
 }
 
 func redirectToAppsDetail(w http.ResponseWriter, r *http.Request, message string, browse appsBrowseState) {
-	http.Redirect(w, r, appsDetailRedirectURL(message, browse), http.StatusSeeOther)
+	http.Redirect(w, r, appsRedirectURL(message, browse), http.StatusSeeOther)
 }
 
 func handleModuleSaveAction(w http.ResponseWriter, r *http.Request, form moduleActionForm) {

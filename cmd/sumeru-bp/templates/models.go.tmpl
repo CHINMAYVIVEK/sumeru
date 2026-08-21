@@ -5,31 +5,12 @@ import (
 	"sumeru/core/sdk"
 )
 
-// {{.TypeName}} represents the primary record for {{.HumanTitle}}.
+// {{.TypeName}} is the primary record for {{.HumanTitle}}.
 type {{.TypeName}} struct {
-	sdk.BaseModel
-	Name        string `db:"name"`
-	Description string `db:"description"`
-	Active      bool   `db:"active"`
-	Sequence    int    `db:"sequence"`
-}
+	sdk.Model `sumeru:"model={{.ModelDotted}}"`
 
-// ModelName returns the technical name of the model.
-func (m *{{.TypeName}}) ModelName() string {
-	return "{{.ModelDotted}}"
-}
-
-// Fields returns the field definitions for the ORM and UI.
-func (m *{{.TypeName}}) Fields() []sdk.FieldDefinition {
-	return []sdk.FieldDefinition{
-		{Name: "name", Type: sdk.Char, String: "Name", Required: true, Index: true},
-		{Name: "description", Type: sdk.Text, String: "Description"},
-		{Name: "active", Type: sdk.Boolean, String: "Active", DefaultVal: "true"},
-		{Name: "sequence", Type: sdk.Integer, String: "Sequence", DefaultVal: "10"},
-	}
-}
-
-func init() {
-	// Register the model in the global Sumeru registry (Module must match manifest.json "name").
-	sdk.RegisterModel(sdk.RegisterModelInput{Model: &{{.TypeName}}{}, Module: "{{.Name}}"})
+	Name        sdk.String  `sumeru:"required,index,string=Name"`
+	Description sdk.Text    `sumeru:"string=Description"`
+	Active      sdk.Boolean `sumeru:"default=true,string=Active"`
+	Sequence    sdk.Integer `sumeru:"default=10,string=Sequence"`
 }

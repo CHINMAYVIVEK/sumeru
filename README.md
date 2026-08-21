@@ -274,12 +274,12 @@ Without steps 1–2, installing via Apps alone loads XML/data but does not regis
 | `make generate`          | `go generate ./cmd/sumeru`: refresh `cmd/sumeru/zimports.go` from `sumeru.conf.example` |
 | `make run`               | Generate, then `go run ./cmd/sumeru -- -c sumeru.conf` (optional `EXTRA_RUN_FLAGS`)     |
 | `make build`             | Generate, then `go build -o sumeru ./cmd/sumeru`                                        |
-| `make bp NAME=my_module` | Scaffold a core-tree addon (`WITH_MODELS=1` optional)                                   |
+| `make bp NAME=my_module` | Scaffold a core-tree addon (`sdk.Model` + views + security; then `make generate`)       |
 | `make css`               | Reminder: plain CSS under `core/engine/assets/css/` (no Sass build)                     |
 | `make check-logs`        | Forbid stdlib `log` and operational `fmt.Printf` in server paths                        |
 | `make help`              | List targets                                                                            |
 
-In **`sumeru_custom_addons`**, use that repo’s Makefile (`make generate`, `make run`, `make replace-sumeru`, …) so imports are written under `addonimports/`, not into this tree.
+In **`sumeru_custom_addons`**, use that repo’s Makefile (`make setup`, `make new MODULE=…`, `make generate`, `make run`) so imports are written under `addonimports/`, not into this tree.
 
 **`sumeru-import-gen`** (used by `go generate` / workspace `make generate`):
 
@@ -336,7 +336,7 @@ Styles are **plain CSS** under `core/engine/assets/css/` (layout uses `sum-*` cl
 | `sumeru-settings-hub.css` | `/web/settings` (per-page)                                   |
 | `sumeru-workspace.css`    | `/web` workspace extras                                      |
 
-Per-addon optional `static/css/theme-overrides.css` is served as `/static/addon-css/<module>.css`. Optional `brand_css` loads after those. Workspace HTML lives under `core/engine/render/`; templates under `core/engine/templates/`; client entry `core/engine/assets/js/core.js`.
+Per-addon optional `static/css/theme-overrides.css` is served as `/static/addon-css/<module>.css`. Optional `brand_css` loads after those. **Workspace UI** is **SWC** (`core/swc/` → `core/engine/assets/swc/swc.js`); shell templates live under `core/engine/templates/`; shell/page assembly under `core/engine/render/`.
 
 ---
 

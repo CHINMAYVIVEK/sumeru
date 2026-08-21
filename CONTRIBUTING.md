@@ -48,10 +48,10 @@ Scaffold a new **core-tree** addon:
 
 ```bash
 make bp NAME=my_module
-# optional: make bp NAME=my_module WITH_MODELS=1
+make generate
 ```
 
-For custom modules, scaffold under `sumeru_custom_addons` (see that repo’s docs / `sumeru-bp` usage).
+For custom modules, from **`sumeru_custom_addons`**: `make new MODULE=my_module` (runs `sumeru-bp` then `make generate`).
 
 ## Runtime and globals
 

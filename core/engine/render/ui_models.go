@@ -28,14 +28,14 @@ func HumanViewBreadcrumb(technicalModel, viewType string) string {
 	switch strings.TrimSpace(technicalModel) {
 	case "core.company":
 		switch strings.TrimSpace(viewType) {
-		case "list":
+		case ViewModeList:
 			return "Companies"
 		default:
 			return "Company"
 		}
 	case "core.user":
 		switch strings.TrimSpace(viewType) {
-		case "list":
+		case ViewModeList:
 			return "Users"
 		default:
 			return "User"
@@ -47,17 +47,21 @@ func HumanViewBreadcrumb(technicalModel, viewType string) string {
 
 func viewTypeLabel(base, viewType string) string {
 	switch strings.TrimSpace(viewType) {
-	case "list":
+	case ViewModeList:
 		return base
-	case "form":
+	case ViewModeForm:
 		if base != "" {
 			return base
 		}
 		return "Form"
-	case "kanban":
+	case ViewModeKanban:
 		return base + " · Kanban"
-	case "pivot":
+	case ViewModePivot:
 		return base + " · Pivot"
+	case ViewModeGraph:
+		return base + " · Graph"
+	case ViewModeCalendar:
+		return base + " · Calendar"
 	default:
 		return base
 	}

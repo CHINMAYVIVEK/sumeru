@@ -1,57 +1,29 @@
 package models
 
-import "sumeru/core/sdk"
+import (
+	"sumeru/core/sdk"
+)
 
 type CoreUser struct {
-	sdk.BaseModel
-	Login     string `db:"login"`
-	Password  string `db:"password"` // bcrypt hash; never list in UI
-	Name      string `db:"name"`
-	Image     string `db:"image"`      // URL or data-URL avatar (full photo)
-	ImageCrop string `db:"image_crop"` // JSON pan/zoom for circular form/shell framing
-	Active    bool   `db:"active"`
-	Email     string `db:"email"`
-	Phone     string `db:"phone"`
-	Mobile    string `db:"mobile"`
-	CompanyID int    `db:"company_id"`
-	Lang      string `db:"lang"`
-	TZ        string `db:"tz"`
-	Signature string `db:"signature"`
-	UserType     string `db:"user_type"` // internal | portal | public
-	TOTPSecret   string `db:"totp_secret"`
-	TOTPEnabled  bool   `db:"totp_enabled"`
-	PasswordMinLen int  `db:"password_min_len"`
-	PinnedApps     string `db:"pinned_apps"` // JSON array of pinned module technical names
-	// company_ids: M2M via core.user.company.rel (join table; not a SQL column)
-}
+	sdk.Model `sumeru:"model=core.user"`
 
-func (CoreUser) ModelName() string { return "core.user" }
-
-func (CoreUser) Fields() []sdk.FieldDefinition {
-	return []sdk.FieldDefinition{
-		{Name: "login", Type: sdk.Char, Required: true, Unique: true, String: "Login", Index: true},
-		{Name: "password", Type: sdk.Char, String: "Password"},
-		{Name: "name", Type: sdk.Char, String: "Name"},
-		{Name: "image", Type: sdk.Text, String: "Image"},
-		{Name: "image_crop", Type: sdk.Text, String: "Image Crop"},
-		{Name: "active", Type: sdk.Boolean, String: "Active", DefaultVal: true},
-		{Name: "email", Type: sdk.Char, String: "Email"},
-		{Name: "phone", Type: sdk.Char, String: "Work Phone"},
-		{Name: "mobile", Type: sdk.Char, String: "Mobile"},
-		{Name: "company_id", Type: sdk.Many2One, Relation: "core.company", String: "Company", Index: true},
-		{Name: "company_ids", Type: sdk.Many2Many, Relation: "core.company", RelationTable: "core_user_company_rel", Column1: "user_id", Column2: "company_id", String: "Companies"},
-		{Name: "lang", Type: sdk.Char, String: "Language", DefaultVal: "en_US"},
-		{Name: "tz", Type: sdk.Char, String: "Timezone"},
-		{Name: "signature", Type: sdk.Text, String: "Email Signature"},
-		{Name: "user_type", Type: sdk.Selection, String: "User Type", DefaultVal: "internal",
-			Selection: [][]string{{"internal", "Internal"}, {"portal", "Portal"}, {"public", "Public"}}},
-		{Name: "totp_secret", Type: sdk.Char, String: "TOTP Secret"},
-		{Name: "totp_enabled", Type: sdk.Boolean, DefaultVal: false, String: "2FA Enabled"},
-		{Name: "password_min_len", Type: sdk.Integer, DefaultVal: 8, String: "Min Password Length"},
-		{Name: "pinned_apps", Type: sdk.Text, String: "Pinned Apps"},
-	}
-}
-
-func init() {
-	sdk.RegisterModel(sdk.RegisterModelInput{Model: &CoreUser{}, Module: "base"})
+	Login          sdk.String             `sumeru:"required,unique,index,string=Login"`
+	Password       sdk.String             `sumeru:"string=Password"`
+	Name           sdk.String             `sumeru:"string=Name"`
+	Image          sdk.Text               `sumeru:"string=Image"`
+	ImageCrop      sdk.Text               `sumeru:"string=Image Crop"`
+	Active         sdk.Boolean            `sumeru:"string=Active,default=true"`
+	Email          sdk.String             `sumeru:"string=Email"`
+	Phone          sdk.String             `sumeru:"string=Work Phone"`
+	Mobile         sdk.String             `sumeru:"string=Mobile"`
+	CompanyID      sdk.Many2One[CoreCompany]      `sumeru:"index,string=Company"`
+	CompanyIds     sdk.Many2Many[CoreCompany]     `sumeru:"string=Companies,table=core_user_company_rel,left=user_id,right=company_id"`
+	Lang           sdk.String             `sumeru:"string=Language,default=en_US"`
+	Tz             sdk.String             `sumeru:"string=Timezone"`
+	Signature      sdk.Text               `sumeru:"string=Email Signature"`
+	UserType       sdk.String             `sumeru:"string=User Type,default=internal,selection=internal:Internal,portal:Portal,public:Public"`
+	TotpSecret     sdk.String             `sumeru:"string=TOTP Secret"`
+	TotpEnabled    sdk.Boolean            `sumeru:"string=2FA Enabled,default=false"`
+	PasswordMinLen sdk.Integer            `sumeru:"string=Min Password Length,default=8"`
+	PinnedApps     sdk.Text               `sumeru:"string=Pinned Apps"`
 }
