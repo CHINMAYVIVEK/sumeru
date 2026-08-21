@@ -8,7 +8,7 @@ Directory (technical name = folder name, should match manifest "name"):
   addons/<technical_name>/
     manifest.json     — required
     init.go           — optional blank import of models: _ "sumeru/addons/<name>/models"
-    models/           — Go structs + sdk.RegisterModel(RegisterModelInput{Model, Module}) in init; Module must match manifest.json "name" (sys.module technical name). Import sumeru/core/sdk.
+    models/           — Go structs embedding sdk.Model with sumeru:"model=…" tags. Run make generate so models/zmodels.go calls sdk.MustRegister (do not RegisterModel in init). Import sumeru/core/sdk.
     views/            — XML under <sumeru> root (see below)
 
 Core ships:
@@ -126,8 +126,9 @@ External workspace: sumeru + sumeru_custom_addons
 Scaffold (bp)
 -------------
   From repo root: `make bp NAME=my_module`  or  `go run ./cmd/sumeru-bp -name my_module`
-  Add WITH_MODELS=1 to `make bp` or `-with-models` for a starter models/ package.
-  Then: `go generate ./cmd/sumeru` and install with -i as usual.
+  Scaffold always writes models/, views/ (including list_view.xml), and security/.
+  Then: `make generate` (or `go generate ./cmd/sumeru`) and install with -i as usual.
+  Custom workspace: `cd sumeru_custom_addons && make new MODULE=my_module`.
 
 After adding a new addon, restart the server and install the module from /web/apps.
 
